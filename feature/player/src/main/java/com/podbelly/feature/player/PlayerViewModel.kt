@@ -1,0 +1,197 @@
+package com.podbelly.feature.player
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.QueueDao
+import com.podbelly.core.playback.PlaybackController
+import com.podbelly.core.playback.PlaybackState
+import com.podbelly.core.playback.SleepTimer
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class PlayerUiState(
+    val playbackState: PlaybackState = PlaybackState(),
+    val sleepTimerRemaining: Long = 0L,
+    val isSleepTimerActive: Boolean = false,
+    val playbackSpeed: Float = 1.0f,
+    val skipSilence: Boolean = false,
+    val volumeBoost: Boolean = false,
+    val showSleepTimerPicker: Boolean = false,
+    val showSpeedPicker: Boolean = false,
+)
+
+@HiltViewModel
+class PlayerViewModel @Inject constructor(
+    private val playbackController: PlaybackController,
+    private val episodeDao: EpisodeDao,
+    private val queueDao: QueueDao,
+    private val preferencesManager: PreferencesManager,
+    private val sleepTimer: SleepTimer,
+) : ViewModel() {
+
+    private val _showSleepTimerPicker = MutableStateFlow(false)
+    private val _showSpeedPicker = MutableStateFlow(false)
+
+    val uiState: StateFlow<PlayerUiState> = combine(
+        playbackController.playbackState,
+        sleepTimer.remainingMillis,
+        _showSleepTimerPicker,
+        _showSpeedPicker,
+    ) { playback, timerRemaining, showSleep, showSpeed ->
+        PlayerUiState(
+            playbackState = playback,
+            sleepTimerRemaining = timerRemaining,
+            isSleepTimerActive = timerRemaining > 0L,
+            playbackSpeed = playback.playbackSpeed,
+            skipSilence = playback.skipSilence,
+            volumeBoost = playback.volumeBoost,
+            showSleepTimerPicker = showSleep,
+            showSpeedPicker = showSpeed,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = PlayerUiState(),
+    )
+
+    init {
+        viewModelScope.launch {
+            preferencesManager.playbackSpeed.collect { speed ->
+                playbackController.setPlaybackSpeed(speed)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.skipSilence.collect { enabled ->
+                playbackController.setSkipSilence(enabled)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.volumeBoost.collect { enabled ->
+                playbackController.setVolumeBoost(enabled)
+            }
+        }
+    }
+
+    fun togglePlayPause() {
+        val state = playbackController.playbackState.value
+        if (state.isPlaying) {
+            playbackController.pause()
+        } else {
+            playbackController.resume()
+        }
+    }
+
+    fun seekTo(position: Long) {
+        playbackController.seekTo(position)
+    }
+
+    fun skipForward() {
+        playbackController.skipForward(seconds = 30)
+    }
+
+    fun skipBack() {
+        playbackController.skipBack(seconds = 10)
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        playbackController.setPlaybackSpeed(speed)
+        viewModelScope.launch {
+            preferencesManager.setPlaybackSpeed(speed)
+        }
+        _showSpeedPicker.value = false
+    }
+
+    fun toggleSkipSilence() {
+        // Read from PlaybackState which is now updated by PlaybackController
+        val current = playbackController.playbackState.value.skipSilence
+        val newValue = !current
+        playbackController.setSkipSilence(newValue)
+        viewModelScope.launch {
+            preferencesManager.setSkipSilence(newValue)
+        }
+    }
+
+    fun toggleVolumeBoost() {
+        // Read from PlaybackState which is now updated by PlaybackController
+        val current = playbackController.playbackState.value.volumeBoost
+        val newValue = !current
+        playbackController.setVolumeBoost(newValue)
+        viewModelScope.launch {
+            preferencesManager.setVolumeBoost(newValue)
+        }
+    }
+
+    /**
+     * Starts a fixed-duration sleep timer for the given number of [minutes].
+     */
+    fun startSleepTimer(minutes: Int) {
+        sleepTimer.start(minutes)
+        viewModelScope.launch {
+            preferencesManager.setSleepTimerMinutes(minutes)
+        }
+        _showSleepTimerPicker.value = false
+    }
+
+    /**
+     * Starts the "end of episode" sleep timer mode.
+     * Playback will pause when the current episode finishes.
+     */
+    fun startSleepTimerEndOfEpisode() {
+        sleepTimer.startEndOfEpisode()
+        _showSleepTimerPicker.value = false
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimer.cancel()
+        viewModelScope.launch {
+            preferencesManager.setSleepTimerMinutes(0)
+        }
+    }
+
+    fun markAsPlayed() {
+        viewModelScope.launch {
+            val episodeId = playbackController.playbackState.value.episodeId
+            if (episodeId != 0L) {
+                episodeDao.markAsPlayed(episodeId)
+                queueDao.removeFromQueue(episodeId)
+            }
+        }
+    }
+
+    fun savePosition() {
+        viewModelScope.launch {
+            val state = playbackController.playbackState.value
+            if (state.episodeId != 0L) {
+                episodeDao.updatePlaybackPosition(state.episodeId, state.currentPosition)
+            }
+        }
+    }
+
+    fun playNextInQueue() {
+        playbackController.playNext()
+    }
+
+    fun showSpeedPicker() {
+        _showSpeedPicker.value = true
+    }
+
+    fun hideSpeedPicker() {
+        _showSpeedPicker.value = false
+    }
+
+    fun showSleepTimerPicker() {
+        _showSleepTimerPicker.value = true
+    }
+
+    fun hideSleepTimerPicker() {
+        _showSleepTimerPicker.value = false
+    }
+}
