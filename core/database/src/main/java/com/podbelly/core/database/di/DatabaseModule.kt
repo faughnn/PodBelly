@@ -3,7 +3,9 @@ package com.podbelly.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.podbelly.core.database.PodbellDatabase
+import com.podbelly.core.database.dao.DownloadErrorDao
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import dagger.Module
@@ -26,7 +28,9 @@ object DatabaseModule {
             context,
             PodbellDatabase::class.java,
             "podbelly.db"
-        ).build()
+        )
+            .addMigrations(PodbellDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides
@@ -45,5 +49,17 @@ object DatabaseModule {
     @Singleton
     fun provideQueueDao(database: PodbellDatabase): QueueDao {
         return database.queueDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideListeningSessionDao(database: PodbellDatabase): ListeningSessionDao {
+        return database.listeningSessionDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideDownloadErrorDao(database: PodbellDatabase): DownloadErrorDao {
+        return database.downloadErrorDao()
     }
 }

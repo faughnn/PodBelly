@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,6 +65,7 @@ fun EpisodeDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val episodeProgress = downloadProgress[uiState.episodeId]
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -259,24 +263,57 @@ fun EpisodeDetailScreen(
                 }
             }
 
-            // Mark played button
-            FilledTonalButton(
-                onClick = { viewModel.togglePlayed() },
+            // Mark played + Share row
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    imageVector = if (uiState.played) {
-                        Icons.Outlined.CheckCircle
-                    } else {
-                        Icons.Outlined.Circle
+                FilledTonalButton(
+                    onClick = { viewModel.togglePlayed() },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = if (uiState.played) {
+                            Icons.Outlined.CheckCircle
+                        } else {
+                            Icons.Outlined.Circle
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(if (uiState.played) "Played" else "Mark Played")
+                }
+
+                FilledTonalButton(
+                    onClick = {
+                        val shareText = buildString {
+                            append(uiState.title)
+                            if (uiState.podcastTitle.isNotBlank()) {
+                                append(" - ${uiState.podcastTitle}")
+                            }
+                            if (uiState.audioUrl.isNotBlank()) {
+                                append("\n${uiState.audioUrl}")
+                            }
+                        }
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Episode"))
                     },
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(if (uiState.played) "Played" else "Mark Played")
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Share")
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

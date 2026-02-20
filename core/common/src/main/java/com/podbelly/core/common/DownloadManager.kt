@@ -2,7 +2,9 @@ package com.podbelly.core.common
 
 import android.content.Context
 import android.util.Log
+import com.podbelly.core.database.dao.DownloadErrorDao
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.entity.DownloadErrorEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +31,7 @@ import javax.inject.Singleton
 class DownloadManager @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val episodeDao: EpisodeDao,
+    private val downloadErrorDao: DownloadErrorDao,
     @ApplicationContext private val context: Context,
 ) {
 
@@ -71,6 +74,14 @@ class DownloadManager @Inject constructor(
 
             if (!response.isSuccessful) {
                 Log.e(TAG, "Download failed with code ${response.code} for episode $episodeId")
+                downloadErrorDao.insert(
+                    DownloadErrorEntity(
+                        episodeId = episodeId,
+                        errorMessage = "HTTP ${response.code}",
+                        errorCode = response.code,
+                        timestamp = System.currentTimeMillis(),
+                    )
+                )
                 response.close()
                 _downloadProgress.update { it - episodeId }
                 return@withContext
@@ -125,6 +136,9 @@ class DownloadManager @Inject constructor(
                 downloadedAt = System.currentTimeMillis(),
             )
 
+            // Clear any previous download errors for this episode
+            downloadErrorDao.deleteByEpisodeId(episodeId)
+
             // Mark download as complete and remove from progress tracking
             _downloadProgress.update { it - episodeId }
 
@@ -141,6 +155,14 @@ class DownloadManager @Inject constructor(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error downloading episode $episodeId", e)
+            downloadErrorDao.insert(
+                DownloadErrorEntity(
+                    episodeId = episodeId,
+                    errorMessage = e.message ?: "Unknown error",
+                    errorCode = 0,
+                    timestamp = System.currentTimeMillis(),
+                )
+            )
             _downloadProgress.update { it - episodeId }
         }
     }
@@ -161,6 +183,16 @@ class DownloadManager @Inject constructor(
         if (partialFile.exists()) {
             partialFile.delete()
         }
+    }
+
+    /**
+     * Retries a failed download, incrementing the retry count before attempting the download again.
+     *
+     * @param episodeId The database primary key of the episode to retry.
+     */
+    suspend fun retryDownload(episodeId: Long) {
+        downloadErrorDao.incrementRetryCount(episodeId)
+        downloadEpisode(episodeId)
     }
 
     /**

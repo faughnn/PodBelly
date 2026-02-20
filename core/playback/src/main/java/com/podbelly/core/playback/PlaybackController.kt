@@ -17,9 +17,12 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
+import com.podbelly.core.database.entity.ListeningSessionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -48,6 +52,8 @@ class PlaybackController @Inject constructor(
     private val queueDao: QueueDao,
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
+    private val preferencesManager: PreferencesManager,
+    private val listeningSessionDao: ListeningSessionDao,
 ) {
 
     companion object {
@@ -63,12 +69,20 @@ class PlaybackController @Inject constructor(
 
     private var positionUpdateJob: Job? = null
 
+    /** Flag indicating that resume() was called and we should apply auto-rewind on next isPlaying=true. */
+    private var isResuming = false
+
     /** The episode ID currently being played, tracked locally for metadata purposes. */
     private var currentEpisodeId: Long = 0L
+    private var currentPodcastId: Long = 0L
     private var currentAudioUrl: String = ""
     private var currentArtworkUrl: String = ""
     private var currentPodcastTitle: String = ""
     private var currentEpisodeTitle: String = ""
+
+    /** Listening session tracking */
+    private var currentSessionId: Long = 0L
+    private var sessionStartTime: Long = 0L
 
     // -------------------------------------------------------------------------
     // Player.Listener -- keeps PlaybackState in sync with the actual player
@@ -79,10 +93,15 @@ class PlaybackController @Inject constructor(
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _playbackState.update { it.copy(isPlaying = isPlaying) }
             if (isPlaying) {
+                if (isResuming) {
+                    isResuming = false
+                    applyAutoRewind()
+                }
+                startListeningSession()
                 startPositionUpdates()
             } else {
+                endListeningSession()
                 stopPositionUpdates()
-                // Auto-save position when playback pauses
                 autoSavePosition()
             }
         }
@@ -203,10 +222,15 @@ class PlaybackController @Inject constructor(
         podcastTitle: String,
         artworkUrl: String,
         startPosition: Long = 0L,
+        podcastId: Long = 0L,
     ) {
         val controller = mediaController ?: return
 
+        // End any existing listening session before starting new playback
+        endListeningSession()
+
         currentEpisodeId = episodeId
+        currentPodcastId = podcastId
         currentAudioUrl = audioUrl
         currentArtworkUrl = artworkUrl
         currentPodcastTitle = podcastTitle
@@ -215,6 +239,7 @@ class PlaybackController @Inject constructor(
         _playbackState.update {
             it.copy(
                 episodeId = episodeId,
+                podcastId = podcastId,
                 episodeTitle = title,
                 podcastTitle = podcastTitle,
                 artworkUrl = artworkUrl,
@@ -222,6 +247,8 @@ class PlaybackController @Inject constructor(
                 currentPosition = startPosition,
                 duration = 0L,
                 isLoading = true,
+                chapters = emptyList(),
+                currentChapterIndex = -1,
             )
         }
 
@@ -249,16 +276,20 @@ class PlaybackController @Inject constructor(
     }
 
     /**
-     * Pauses the current playback.
+     * Pauses the current playback and records the pause timestamp for auto-rewind.
      */
     fun pause() {
         mediaController?.pause()
+        scope.launch {
+            preferencesManager.setPausedAt(System.currentTimeMillis())
+        }
     }
 
     /**
-     * Resumes playback if paused.
+     * Resumes playback if paused. Sets the resuming flag so auto-rewind is applied.
      */
     fun resume() {
+        isResuming = true
         mediaController?.play()
     }
 
@@ -478,6 +509,113 @@ class PlaybackController @Inject constructor(
     }
 
     // -------------------------------------------------------------------------
+    // Listening session tracking
+    // -------------------------------------------------------------------------
+
+    private fun startListeningSession() {
+        if (currentEpisodeId == 0L) return
+        sessionStartTime = System.currentTimeMillis()
+        scope.launch {
+            try {
+                // Look up podcastId if we don't have it
+                val podcastId = if (currentPodcastId != 0L) currentPodcastId else {
+                    episodeDao.getByIdOnce(currentEpisodeId)?.podcastId ?: 0L
+                }
+                currentPodcastId = podcastId
+                val session = ListeningSessionEntity(
+                    episodeId = currentEpisodeId,
+                    podcastId = podcastId,
+                    startedAt = sessionStartTime,
+                    playbackSpeed = _playbackState.value.playbackSpeed,
+                )
+                currentSessionId = listeningSessionDao.insert(session)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to start listening session", e)
+            }
+        }
+    }
+
+    private fun endListeningSession() {
+        if (currentSessionId == 0L || sessionStartTime == 0L) return
+        val endTime = System.currentTimeMillis()
+        val listenedMs = endTime - sessionStartTime
+        val sessionId = currentSessionId
+        currentSessionId = 0L
+        sessionStartTime = 0L
+        scope.launch {
+            try {
+                listeningSessionDao.updateSession(sessionId, endTime, listenedMs)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to end listening session", e)
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Chapter navigation
+    // -------------------------------------------------------------------------
+
+    fun seekToNextChapter() {
+        val state = _playbackState.value
+        if (state.chapters.isEmpty()) return
+        val nextIndex = state.currentChapterIndex + 1
+        if (nextIndex < state.chapters.size) {
+            seekTo(state.chapters[nextIndex].startTimeMs)
+        }
+    }
+
+    fun seekToPreviousChapter() {
+        val state = _playbackState.value
+        if (state.chapters.isEmpty()) return
+        val prevIndex = (state.currentChapterIndex - 1).coerceAtLeast(0)
+        seekTo(state.chapters[prevIndex].startTimeMs)
+    }
+
+    fun seekToChapter(index: Int) {
+        val state = _playbackState.value
+        if (index in state.chapters.indices) {
+            seekTo(state.chapters[index].startTimeMs)
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-rewind (AntennaPod pattern)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Calculates and applies an auto-rewind based on how long playback was paused.
+     * Pattern from AntennaPod:
+     * - <1 min pause = 0s rewind
+     * - 1-60 min = 3s rewind
+     * - 1-24 hr = 10s rewind
+     * - >24 hr = 20s rewind
+     */
+    private fun applyAutoRewind() {
+        scope.launch {
+            try {
+                val pausedAt = preferencesManager.pausedAt.first()
+                if (pausedAt <= 0L) return@launch
+
+                val pauseDurationMs = System.currentTimeMillis() - pausedAt
+                val rewindSeconds = when {
+                    pauseDurationMs < 60_000L -> 0        // <1 min
+                    pauseDurationMs < 3_600_000L -> 3      // 1-60 min
+                    pauseDurationMs < 86_400_000L -> 10    // 1-24 hr
+                    else -> 20                              // >24 hr
+                }
+                if (rewindSeconds > 0) {
+                    val controller = mediaController ?: return@launch
+                    val newPos = (controller.currentPosition - rewindSeconds * 1000L).coerceAtLeast(0L)
+                    controller.seekTo(newPos)
+                    _playbackState.update { it.copy(currentPosition = newPos) }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to apply auto-rewind", e)
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Position update loop
     // -------------------------------------------------------------------------
 
@@ -492,10 +630,13 @@ class PlaybackController @Inject constructor(
             while (isActive) {
                 val controller = mediaController
                 if (controller != null && controller.isPlaying) {
-                    _playbackState.update {
-                        it.copy(
-                            currentPosition = controller.currentPosition.coerceAtLeast(0L),
+                    val pos = controller.currentPosition.coerceAtLeast(0L)
+                    _playbackState.update { state ->
+                        val chapterIndex = state.chapters.indexOfLast { pos >= it.startTimeMs }
+                        state.copy(
+                            currentPosition = pos,
                             duration = controller.duration.coerceAtLeast(0L),
+                            currentChapterIndex = chapterIndex,
                         )
                     }
                 }

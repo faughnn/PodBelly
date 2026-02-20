@@ -2,7 +2,7 @@ package com.podbelly.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.podbelly.core.common.DarkThemeMode
+import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
+    val appTheme: AppTheme = AppTheme.SYSTEM,
     val feedRefreshIntervalMinutes: Int = 60,
     val autoDownloadEnabled: Boolean = false,
     val autoDownloadEpisodeCount: Int = 3,
@@ -47,14 +47,14 @@ class SettingsViewModel @Inject constructor(
     private val _importExportMessage = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        preferencesManager.darkThemeMode,
+        preferencesManager.appTheme,
         preferencesManager.feedRefreshIntervalMinutes,
         preferencesManager.autoDownloadEnabled,
         preferencesManager.autoDownloadEpisodeCount,
         preferencesManager.autoDeletePlayed,
-    ) { darkTheme, refreshInterval, autoDownload, autoDownloadCount, autoDelete ->
+    ) { appTheme, refreshInterval, autoDownload, autoDownloadCount, autoDelete ->
         PartialState(
-            darkThemeMode = darkTheme,
+            appTheme = appTheme,
             feedRefreshIntervalMinutes = refreshInterval,
             autoDownloadEnabled = autoDownload,
             autoDownloadEpisodeCount = autoDownloadCount,
@@ -78,7 +78,7 @@ class SettingsViewModel @Inject constructor(
         }
     ) { partial, secondary ->
         SettingsUiState(
-            darkThemeMode = partial.darkThemeMode,
+            appTheme = partial.appTheme,
             feedRefreshIntervalMinutes = partial.feedRefreshIntervalMinutes,
             autoDownloadEnabled = partial.autoDownloadEnabled,
             autoDownloadEpisodeCount = partial.autoDownloadEpisodeCount,
@@ -95,8 +95,8 @@ class SettingsViewModel @Inject constructor(
         initialValue = SettingsUiState(),
     )
 
-    fun setDarkThemeMode(mode: DarkThemeMode) {
-        viewModelScope.launch { preferencesManager.setDarkThemeMode(mode) }
+    fun setAppTheme(mode: AppTheme) {
+        viewModelScope.launch { preferencesManager.setAppTheme(mode) }
     }
 
     fun setDefaultPlaybackSpeed(speed: Float) {
@@ -222,7 +222,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private data class PartialState(
-        val darkThemeMode: DarkThemeMode,
+        val appTheme: AppTheme,
         val feedRefreshIntervalMinutes: Int,
         val autoDownloadEnabled: Boolean,
         val autoDownloadEpisodeCount: Int,

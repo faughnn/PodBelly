@@ -327,14 +327,6 @@ class PlayerViewModelTest {
     }
 
     @Test
-    fun `playNextInQueue delegates to playbackController`() = runTest {
-        val viewModel = createViewModel()
-        viewModel.playNextInQueue()
-
-        verify { playbackController.playNext() }
-    }
-
-    @Test
     fun `showSpeedPicker and hideSpeedPicker toggle the picker state`() = runTest {
         val viewModel = createViewModel()
 

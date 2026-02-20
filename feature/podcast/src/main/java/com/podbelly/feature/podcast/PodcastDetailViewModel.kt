@@ -5,9 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.playback.PlaybackController
@@ -31,7 +29,8 @@ data class PodcastUiModel(
     val author: String,
     val description: String,
     val artworkUrl: String,
-    val episodeCount: Int
+    val episodeCount: Int,
+    val notifyNewEpisodes: Boolean = true,
 )
 
 data class EpisodeUiModel(
@@ -43,7 +42,6 @@ data class EpisodeUiModel(
     val played: Boolean,
     val playbackPosition: Long,
     val isDownloaded: Boolean,
-    val isInQueue: Boolean
 )
 
 data class PodcastDetailUiState(
@@ -58,7 +56,6 @@ class PodcastDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
-    private val queueDao: QueueDao,
     private val playbackController: PlaybackController,
     private val searchRepository: PodcastSearchRepository,
     private val downloadManager: DownloadManager,
@@ -75,18 +72,9 @@ class PodcastDetailViewModel @Inject constructor(
     val uiState: StateFlow<PodcastDetailUiState> = combine(
         podcastDao.getById(podcastId),
         episodeDao.getByPodcastId(podcastId),
-        queueDao.getAll(),
         _filter,
         _isRefreshing
-    ) { values ->
-        val podcastEntity = values[0] as? com.podbelly.core.database.entity.PodcastEntity
-        @Suppress("UNCHECKED_CAST")
-        val episodes = values[1] as List<EpisodeEntity>
-        @Suppress("UNCHECKED_CAST")
-        val queueItems = values[2] as List<QueueItemEntity>
-        val filter = values[3] as EpisodeFilter
-        val isRefreshing = values[4] as Boolean
-
+    ) { podcastEntity, episodes, filter, isRefreshing ->
         val podcastUi = podcastEntity?.let {
             PodcastUiModel(
                 id = it.id,
@@ -94,11 +82,10 @@ class PodcastDetailViewModel @Inject constructor(
                 author = it.author,
                 description = it.description,
                 artworkUrl = it.artworkUrl,
-                episodeCount = it.episodeCount
+                episodeCount = it.episodeCount,
+                notifyNewEpisodes = it.notifyNewEpisodes,
             )
         }
-
-        val queueEpisodeIds = queueItems.map { it.episodeId }.toSet()
 
         val allEpisodeUiModels = episodes.map { entity ->
             EpisodeUiModel(
@@ -110,7 +97,6 @@ class PodcastDetailViewModel @Inject constructor(
                 played = entity.played,
                 playbackPosition = entity.playbackPosition,
                 isDownloaded = entity.downloadPath.isNotEmpty(),
-                isInQueue = queueEpisodeIds.contains(entity.id)
             )
         }
 
@@ -187,6 +173,7 @@ class PodcastDetailViewModel @Inject constructor(
                 podcastTitle = podcast.title,
                 artworkUrl = episode.artworkUrl.ifEmpty { podcast.artworkUrl },
                 startPosition = episode.playbackPosition,
+                podcastId = podcast.id,
             )
         }
     }
@@ -199,25 +186,6 @@ class PodcastDetailViewModel @Inject constructor(
             } else {
                 episodeDao.markAsPlayed(episodeId)
             }
-        }
-    }
-
-    fun addToQueue(episodeId: Long) {
-        viewModelScope.launch {
-            val maxPosition = queueDao.getMaxPosition() ?: -1
-            queueDao.addToQueue(
-                QueueItemEntity(
-                    episodeId = episodeId,
-                    position = maxPosition + 1,
-                    addedAt = System.currentTimeMillis()
-                )
-            )
-        }
-    }
-
-    fun removeFromQueue(episodeId: Long) {
-        viewModelScope.launch {
-            queueDao.removeFromQueue(episodeId)
         }
     }
 
@@ -236,6 +204,13 @@ class PodcastDetailViewModel @Inject constructor(
 
     fun setFilter(filter: EpisodeFilter) {
         _filter.value = filter
+    }
+
+    fun toggleNotifications() {
+        viewModelScope.launch {
+            val current = uiState.value.podcast?.notifyNewEpisodes ?: true
+            podcastDao.setNotifyNewEpisodes(podcastId, !current)
+        }
     }
 
     fun unsubscribe() {

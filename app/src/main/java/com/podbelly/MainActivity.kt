@@ -11,7 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.podbelly.core.common.DarkThemeMode
+import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.navigation.PodbellNavHost
@@ -38,10 +38,10 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         playbackController.connectToService(this)
         setContent {
-            val darkThemeMode by preferencesManager.darkThemeMode
-                .collectAsStateWithLifecycle(DarkThemeMode.SYSTEM)
+            val appTheme by preferencesManager.appTheme
+                .collectAsStateWithLifecycle(AppTheme.SYSTEM)
 
-            PodbellTheme(darkThemeMode = darkThemeMode) {
+            PodbellTheme(appTheme = appTheme) {
                 PodbellNavHost(playbackController = playbackController)
             }
         }

@@ -1,7 +1,14 @@
 package com.podbelly.core.playback
 
+data class Chapter(
+    val title: String,
+    val startTimeMs: Long,
+    val endTimeMs: Long,
+)
+
 data class PlaybackState(
     val episodeId: Long = 0L,
+    val podcastId: Long = 0L,
     val podcastTitle: String = "",
     val episodeTitle: String = "",
     val artworkUrl: String = "",
@@ -15,4 +22,6 @@ data class PlaybackState(
     val hasPrevious: Boolean = false,
     val skipSilence: Boolean = false,
     val volumeBoost: Boolean = false,
+    val chapters: List<Chapter> = emptyList(),
+    val currentChapterIndex: Int = -1,
 )

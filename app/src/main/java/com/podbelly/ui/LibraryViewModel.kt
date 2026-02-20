@@ -3,7 +3,10 @@ package com.podbelly.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.LibrarySortOrder
+import com.podbelly.core.common.LibraryViewMode
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.PodcastEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,24 +20,35 @@ import javax.inject.Inject
 data class LibraryUiState(
     val podcasts: List<PodcastEntity> = emptyList(),
     val sortOrder: LibrarySortOrder = LibrarySortOrder.NAME_A_TO_Z,
+    val viewMode: LibraryViewMode = LibraryViewMode.GRID,
 )
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val podcastDao: PodcastDao,
+    private val episodeDao: EpisodeDao,
+    private val listeningSessionDao: ListeningSessionDao,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     val uiState: StateFlow<LibraryUiState> = combine(
         podcastDao.getAll(),
         preferencesManager.librarySortOrder,
-    ) { podcasts, sortOrder ->
+        preferencesManager.libraryViewMode,
+        episodeDao.getLatestEpisodeDateByPodcast(),
+        listeningSessionDao.getMostListenedPodcasts(limit = Int.MAX_VALUE),
+    ) { podcasts, sortOrder, viewMode, latestEpisodes, listenedStats ->
+        val latestEpisodeMap = latestEpisodes.associate { it.podcastId to it.latestPublicationDate }
+        val listenedMap = listenedStats.associate { it.podcastId to it.totalListenedMs }
+
         val sorted = when (sortOrder) {
             LibrarySortOrder.NAME_A_TO_Z -> podcasts.sortedBy { it.title.lowercase() }
             LibrarySortOrder.RECENTLY_ADDED -> podcasts.sortedByDescending { it.subscribedAt }
             LibrarySortOrder.EPISODE_COUNT -> podcasts.sortedByDescending { it.episodeCount }
+            LibrarySortOrder.MOST_RECENT_EPISODE -> podcasts.sortedByDescending { latestEpisodeMap[it.id] ?: 0L }
+            LibrarySortOrder.MOST_LISTENED -> podcasts.sortedByDescending { listenedMap[it.id] ?: 0L }
         }
-        LibraryUiState(podcasts = sorted, sortOrder = sortOrder)
+        LibraryUiState(podcasts = sorted, sortOrder = sortOrder, viewMode = viewMode)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -44,6 +58,14 @@ class LibraryViewModel @Inject constructor(
     fun setSortOrder(sortOrder: LibrarySortOrder) {
         viewModelScope.launch {
             preferencesManager.setLibrarySortOrder(sortOrder)
+        }
+    }
+
+    fun toggleViewMode() {
+        viewModelScope.launch {
+            val current = uiState.value.viewMode
+            val next = if (current == LibraryViewMode.GRID) LibraryViewMode.LIST else LibraryViewMode.GRID
+            preferencesManager.setLibraryViewMode(next)
         }
     }
 }

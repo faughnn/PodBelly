@@ -5,19 +5,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.SortByAlpha
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.podbelly.core.common.LibrarySortOrder
+import com.podbelly.core.common.LibraryViewMode
 import com.podbelly.core.database.entity.PodcastEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,7 +68,9 @@ fun LibraryScreen(
         topBar = {
             LibraryTopBar(
                 sortOrder = uiState.sortOrder,
+                viewMode = uiState.viewMode,
                 onSortOrderChange = { viewModel.setSortOrder(it) },
+                onToggleViewMode = { viewModel.toggleViewMode() },
             )
         }
     ) { paddingValues ->
@@ -90,23 +100,46 @@ fun LibraryScreen(
                 }
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 100.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(
-                    items = uiState.podcasts,
-                    key = { it.id }
-                ) { podcast ->
-                    PodcastGridItem(
-                        podcast = podcast,
-                        onClick = { onNavigateToPodcast(podcast.id) }
-                    )
+            when (uiState.viewMode) {
+                LibraryViewMode.GRID -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 100.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(
+                            items = uiState.podcasts,
+                            key = { it.id }
+                        ) { podcast ->
+                            PodcastGridItem(
+                                podcast = podcast,
+                                onClick = { onNavigateToPodcast(podcast.id) }
+                            )
+                        }
+                    }
+                }
+                LibraryViewMode.LIST -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(
+                            items = uiState.podcasts,
+                            key = { it.id }
+                        ) { podcast ->
+                            PodcastListRow(
+                                podcast = podcast,
+                                onClick = { onNavigateToPodcast(podcast.id) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -117,7 +150,9 @@ fun LibraryScreen(
 @Composable
 private fun LibraryTopBar(
     sortOrder: LibrarySortOrder,
+    viewMode: LibraryViewMode,
     onSortOrderChange: (LibrarySortOrder) -> Unit,
+    onToggleViewMode: () -> Unit,
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -129,6 +164,20 @@ private fun LibraryTopBar(
             )
         },
         actions = {
+            IconButton(onClick = onToggleViewMode) {
+                Icon(
+                    imageVector = if (viewMode == LibraryViewMode.GRID) {
+                        Icons.AutoMirrored.Filled.ViewList
+                    } else {
+                        Icons.Default.GridView
+                    },
+                    contentDescription = if (viewMode == LibraryViewMode.GRID) {
+                        "Switch to list view"
+                    } else {
+                        "Switch to grid view"
+                    },
+                )
+            }
             Box {
                 IconButton(onClick = { showSortMenu = true }) {
                     Icon(
@@ -162,6 +211,22 @@ private fun LibraryTopBar(
                         onClick = {
                             showSortMenu = false
                             onSortOrderChange(LibrarySortOrder.EPISODE_COUNT)
+                        }
+                    )
+                    SortMenuItem(
+                        label = "Most Recent Episode",
+                        selected = sortOrder == LibrarySortOrder.MOST_RECENT_EPISODE,
+                        onClick = {
+                            showSortMenu = false
+                            onSortOrderChange(LibrarySortOrder.MOST_RECENT_EPISODE)
+                        }
+                    )
+                    SortMenuItem(
+                        label = "Most Listened",
+                        selected = sortOrder == LibrarySortOrder.MOST_LISTENED,
+                        onClick = {
+                            showSortMenu = false
+                            onSortOrderChange(LibrarySortOrder.MOST_LISTENED)
                         }
                     )
                 }
@@ -235,5 +300,57 @@ private fun PodcastGridItem(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun PodcastListRow(
+    podcast: PodcastEntity,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AsyncImage(
+            model = podcast.artworkUrl.ifBlank { null },
+            contentDescription = podcast.title,
+            placeholder = rememberVectorPainter(Icons.Default.Podcasts),
+            error = rememberVectorPainter(Icons.Default.Podcasts),
+            fallback = rememberVectorPainter(Icons.Default.Podcasts),
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop,
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = podcast.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (podcast.author.isNotBlank()) {
+                Text(
+                    text = podcast.author,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                text = "${podcast.episodeCount} episodes",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }

@@ -69,4 +69,12 @@ interface EpisodeDao {
 
     @Query("SELECT * FROM episodes WHERE played = 1 AND downloadPath != ''")
     suspend fun getPlayedDownloadedEpisodes(): List<EpisodeEntity>
+
+    @Query("SELECT podcastId, MAX(publicationDate) AS latestPublicationDate FROM episodes GROUP BY podcastId")
+    fun getLatestEpisodeDateByPodcast(): Flow<List<PodcastLatestEpisode>>
 }
+
+data class PodcastLatestEpisode(
+    val podcastId: Long,
+    val latestPublicationDate: Long,
+)

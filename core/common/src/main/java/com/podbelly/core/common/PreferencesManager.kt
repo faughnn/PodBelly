@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,7 +16,9 @@ import javax.inject.Singleton
 enum class LibrarySortOrder {
     NAME_A_TO_Z,
     RECENTLY_ADDED,
-    EPISODE_COUNT;
+    EPISODE_COUNT,
+    MOST_RECENT_EPISODE,
+    MOST_LISTENED;
 
     companion object {
         fun fromString(value: String): LibrarySortOrder {
@@ -38,14 +41,31 @@ enum class DownloadsSortOrder {
     }
 }
 
-enum class DarkThemeMode {
+enum class AppTheme {
     SYSTEM,
     LIGHT,
-    DARK;
+    DARK,
+    OLED_DARK,
+    HIGH_CONTRAST;
 
     companion object {
-        fun fromString(value: String): DarkThemeMode {
+        fun fromString(value: String): AppTheme {
             return entries.firstOrNull { it.name == value } ?: SYSTEM
+        }
+    }
+}
+
+/** Kept as a typealias for backward-compatibility with existing references. */
+@Deprecated("Use AppTheme instead", ReplaceWith("AppTheme"))
+typealias DarkThemeMode = AppTheme
+
+enum class LibraryViewMode {
+    GRID,
+    LIST;
+
+    companion object {
+        fun fromString(value: String): LibraryViewMode {
+            return entries.firstOrNull { it.name == value } ?: GRID
         }
     }
 }
@@ -68,6 +88,8 @@ class PreferencesManager @Inject constructor(
         val SLEEP_TIMER_MINUTES = intPreferencesKey("sleep_timer_minutes")
         val LIBRARY_SORT_ORDER = stringPreferencesKey("library_sort_order")
         val DOWNLOADS_SORT_ORDER = stringPreferencesKey("downloads_sort_order")
+        val LIBRARY_VIEW_MODE = stringPreferencesKey("library_view_mode")
+        val PAUSED_AT = longPreferencesKey("paused_at")
     }
 
     // ── Flows ────────────────────────────────────────────────────────────
@@ -92,9 +114,12 @@ class PreferencesManager @Inject constructor(
         prefs[Keys.DOWNLOAD_ON_WIFI_ONLY] ?: true
     }
 
-    val darkThemeMode: Flow<DarkThemeMode> = dataStore.data.map { prefs ->
-        DarkThemeMode.fromString(prefs[Keys.DARK_THEME_MODE] ?: DarkThemeMode.SYSTEM.name)
+    val appTheme: Flow<AppTheme> = dataStore.data.map { prefs ->
+        AppTheme.fromString(prefs[Keys.DARK_THEME_MODE] ?: AppTheme.SYSTEM.name)
     }
+
+    /** Backward-compatible alias. */
+    val darkThemeMode: Flow<AppTheme> get() = appTheme
 
     val playbackSpeed: Flow<Float> = dataStore.data.map { prefs ->
         prefs[Keys.PLAYBACK_SPEED] ?: 1.0f
@@ -118,6 +143,14 @@ class PreferencesManager @Inject constructor(
 
     val downloadsSortOrder: Flow<DownloadsSortOrder> = dataStore.data.map { prefs ->
         DownloadsSortOrder.fromString(prefs[Keys.DOWNLOADS_SORT_ORDER] ?: DownloadsSortOrder.DATE_NEWEST.name)
+    }
+
+    val libraryViewMode: Flow<LibraryViewMode> = dataStore.data.map { prefs ->
+        LibraryViewMode.fromString(prefs[Keys.LIBRARY_VIEW_MODE] ?: LibraryViewMode.GRID.name)
+    }
+
+    val pausedAt: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.PAUSED_AT] ?: 0L
     }
 
     // ── Setters ──────────────────────────────────────────────────────────
@@ -152,11 +185,14 @@ class PreferencesManager @Inject constructor(
         }
     }
 
-    suspend fun setDarkThemeMode(mode: DarkThemeMode) {
+    suspend fun setAppTheme(theme: AppTheme) {
         dataStore.edit { prefs ->
-            prefs[Keys.DARK_THEME_MODE] = mode.name
+            prefs[Keys.DARK_THEME_MODE] = theme.name
         }
     }
+
+    /** Backward-compatible alias. */
+    suspend fun setDarkThemeMode(mode: AppTheme) = setAppTheme(mode)
 
     suspend fun setPlaybackSpeed(speed: Float) {
         dataStore.edit { prefs ->
@@ -191,6 +227,18 @@ class PreferencesManager @Inject constructor(
     suspend fun setDownloadsSortOrder(sortOrder: DownloadsSortOrder) {
         dataStore.edit { prefs ->
             prefs[Keys.DOWNLOADS_SORT_ORDER] = sortOrder.name
+        }
+    }
+
+    suspend fun setLibraryViewMode(viewMode: LibraryViewMode) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LIBRARY_VIEW_MODE] = viewMode.name
+        }
+    }
+
+    suspend fun setPausedAt(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.PAUSED_AT] = timestamp
         }
     }
 }

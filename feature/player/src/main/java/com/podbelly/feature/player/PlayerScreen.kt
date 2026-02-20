@@ -38,8 +38,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TimerOff
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -80,8 +83,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import com.podbelly.core.playback.Chapter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -201,6 +208,21 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
+                // ── Current chapter title (if chapters exist) ─────────
+                if (playback.chapters.isNotEmpty() && playback.currentChapterIndex >= 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = playback.chapters[playback.currentChapterIndex].title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.showChaptersList() },
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(28.dp))
 
                 // ── Seek bar ─────────────────────────────────────────────
@@ -215,9 +237,14 @@ fun PlayerScreen(
                 // ── Main transport controls ──────────────────────────────
                 MainControls(
                     isPlaying = playback.isPlaying,
+                    hasChapters = playback.chapters.isNotEmpty(),
+                    hasPreviousChapter = playback.currentChapterIndex > 0,
+                    hasNextChapter = playback.currentChapterIndex < playback.chapters.size - 1,
                     onSkipBack = { viewModel.skipBack() },
                     onTogglePlayPause = { viewModel.togglePlayPause() },
                     onSkipForward = { viewModel.skipForward() },
+                    onPreviousChapter = { viewModel.seekToPreviousChapter() },
+                    onNextChapter = { viewModel.seekToNextChapter() },
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -229,10 +256,12 @@ fun PlayerScreen(
                     isSleepTimerActive = uiState.isSleepTimerActive,
                     skipSilence = uiState.skipSilence,
                     volumeBoost = uiState.volumeBoost,
+                    hasChapters = playback.chapters.isNotEmpty(),
                     onSpeedClick = { viewModel.showSpeedPicker() },
                     onSleepTimerClick = { viewModel.showSleepTimerPicker() },
                     onToggleSkipSilence = { viewModel.toggleSkipSilence() },
                     onToggleVolumeBoost = { viewModel.toggleVolumeBoost() },
+                    onChaptersClick = { viewModel.showChaptersList() },
                 )
 
                 Spacer(modifier = Modifier.height(48.dp))
@@ -272,6 +301,25 @@ fun PlayerScreen(
                     viewModel.hideSleepTimerPicker()
                 },
                 onDismiss = { viewModel.hideSleepTimerPicker() },
+            )
+        }
+    }
+
+    // ── Chapters list bottom sheet ────────────────────────────────────
+    if (uiState.showChaptersList && playback.chapters.isNotEmpty()) {
+        val chaptersSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.hideChaptersList() },
+            sheetState = chaptersSheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            ChaptersListContent(
+                chapters = playback.chapters,
+                currentChapterIndex = playback.currentChapterIndex,
+                onChapterClick = { index ->
+                    viewModel.seekToChapter(index)
+                    viewModel.hideChaptersList()
+                },
             )
         }
     }
@@ -344,24 +392,36 @@ private fun SeekBar(
 @Composable
 private fun MainControls(
     isPlaying: Boolean,
+    hasChapters: Boolean,
+    hasPreviousChapter: Boolean,
+    hasNextChapter: Boolean,
     onSkipBack: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSkipForward: () -> Unit,
+    onPreviousChapter: () -> Unit,
+    onNextChapter: () -> Unit,
 ) {
-    val playPauseScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "playPauseScale",
-    )
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Previous chapter button (only when chapters exist)
+        if (hasChapters) {
+            IconButton(
+                onClick = onPreviousChapter,
+                enabled = hasPreviousChapter,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SkipPrevious,
+                    contentDescription = "Previous chapter",
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
         // Skip back 10s
         FilledTonalIconButton(
             onClick = onSkipBack,
@@ -408,6 +468,22 @@ private fun MainControls(
                 modifier = Modifier.size(28.dp),
             )
         }
+
+        // Next chapter button (only when chapters exist)
+        if (hasChapters) {
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(
+                onClick = onNextChapter,
+                enabled = hasNextChapter,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SkipNext,
+                    contentDescription = "Next chapter",
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
     }
 }
 
@@ -422,10 +498,12 @@ private fun SecondaryControls(
     isSleepTimerActive: Boolean,
     skipSilence: Boolean,
     volumeBoost: Boolean,
+    hasChapters: Boolean,
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onToggleSkipSilence: () -> Unit,
     onToggleVolumeBoost: () -> Unit,
+    onChaptersClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -498,6 +576,26 @@ private fun SecondaryControls(
                 tint = skipSilenceColor,
                 modifier = Modifier.size(20.dp),
             )
+        }
+
+        // Chapters list button (only when chapters exist)
+        if (hasChapters) {
+            FilledTonalButton(
+                onClick = onChaptersClick,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ViewList,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Ch.",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
 
         // Volume boost toggle
@@ -706,6 +804,80 @@ private fun SleepTimerPickerContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Chapters list bottom sheet content
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun ChaptersListContent(
+    chapters: List<Chapter>,
+    currentChapterIndex: Int,
+    onChapterClick: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 40.dp),
+    ) {
+        Text(
+            text = "Chapters",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            itemsIndexed(chapters) { index, chapter ->
+                val isCurrent = index == currentChapterIndex
+                val bgColor = if (isCurrent) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                } else {
+                    Color.Transparent
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(bgColor)
+                        .clickable { onChapterClick(index) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(28.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = chapter.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isCurrent) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = formatMillis(chapter.startTimeMs),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

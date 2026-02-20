@@ -47,5 +47,8 @@ data class PodcastEntity(
     val lastRefreshedAt: Long = 0L,
 
     @ColumnInfo(name = "episodeCount")
-    val episodeCount: Int = 0
+    val episodeCount: Int = 0,
+
+    @ColumnInfo(name = "notifyNewEpisodes", defaultValue = "1")
+    val notifyNewEpisodes: Boolean = true,
 )

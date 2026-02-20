@@ -6,7 +6,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.podbelly.core.common.DarkThemeMode
+import com.podbelly.core.common.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -62,7 +62,7 @@ class SettingsScreenInteractionTest {
         composeTestRule.setContent {
             MaterialTheme {
                 ThemePickerRow(
-                    selectedMode = DarkThemeMode.SYSTEM,
+                    selectedMode = AppTheme.SYSTEM,
                     onModeSelected = {}
                 )
             }
@@ -78,7 +78,7 @@ class SettingsScreenInteractionTest {
         composeTestRule.setContent {
             MaterialTheme {
                 ThemePickerRow(
-                    selectedMode = DarkThemeMode.DARK,
+                    selectedMode = AppTheme.DARK,
                     onModeSelected = {}
                 )
             }

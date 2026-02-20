@@ -57,7 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.podbelly.core.common.DarkThemeMode
+import com.podbelly.core.common.AppTheme
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlin.math.roundToInt
@@ -66,6 +66,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
+    onNavigateToStats: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -131,8 +132,8 @@ fun SettingsScreen(
             item {
                 SettingsCard {
                     ThemePickerRow(
-                        selectedMode = uiState.darkThemeMode,
-                        onModeSelected = { viewModel.setDarkThemeMode(it) },
+                        selectedMode = uiState.appTheme,
+                        onModeSelected = { viewModel.setAppTheme(it) },
                     )
                 }
             }
@@ -295,6 +296,35 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Statistics ─────────────────────────────────────────────
+
+            item { SectionHeader(title = "Statistics") }
+
+            item {
+                SettingsCard {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToStats() }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column {
+                            Text(
+                                text = "Listening Statistics",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = "View your listening history and stats",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
             // ── About ─────────────────────────────────────────────────
 
             item { SectionHeader(title = "About") }
@@ -448,8 +478,8 @@ internal fun DropdownRow(
 
 @Composable
 internal fun ThemePickerRow(
-    selectedMode: DarkThemeMode,
-    onModeSelected: (DarkThemeMode) -> Unit,
+    selectedMode: AppTheme,
+    onModeSelected: (AppTheme) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -457,12 +487,12 @@ internal fun ThemePickerRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Text(
-            text = "Dark theme",
+            text = "Theme",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Column(modifier = Modifier.selectableGroup()) {
-            DarkThemeMode.entries.forEach { mode ->
+            AppTheme.entries.forEach { mode ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -481,9 +511,11 @@ internal fun ThemePickerRow(
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = when (mode) {
-                            DarkThemeMode.SYSTEM -> "System default"
-                            DarkThemeMode.LIGHT -> "Light"
-                            DarkThemeMode.DARK -> "Dark"
+                            AppTheme.SYSTEM -> "System default"
+                            AppTheme.LIGHT -> "Light"
+                            AppTheme.DARK -> "Dark"
+                            AppTheme.OLED_DARK -> "OLED Dark"
+                            AppTheme.HIGH_CONTRAST -> "High Contrast"
                         },
                         style = MaterialTheme.typography.bodyMedium,
                     )

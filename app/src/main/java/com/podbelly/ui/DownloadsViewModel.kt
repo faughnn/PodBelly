@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.DownloadsSortOrder
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.database.dao.DownloadErrorDao
+import com.podbelly.core.database.dao.DownloadErrorWithEpisode
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
@@ -34,6 +36,7 @@ data class DownloadedEpisodeItem(
 data class DownloadsUiState(
     val episodes: List<DownloadedEpisodeItem> = emptyList(),
     val sortOrder: DownloadsSortOrder = DownloadsSortOrder.DATE_NEWEST,
+    val downloadErrors: List<DownloadErrorWithEpisode> = emptyList(),
 )
 
 @HiltViewModel
@@ -43,6 +46,7 @@ class DownloadsViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val downloadManager: DownloadManager,
     private val preferencesManager: PreferencesManager,
+    private val downloadErrorDao: DownloadErrorDao,
 ) : ViewModel() {
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
@@ -51,7 +55,8 @@ class DownloadsViewModel @Inject constructor(
         episodeDao.getDownloadedEpisodes(),
         podcastDao.getAll(),
         preferencesManager.downloadsSortOrder,
-    ) { episodes, podcasts, sortOrder ->
+        downloadErrorDao.getAll(),
+    ) { episodes, podcasts, sortOrder, errors ->
         val podcastMap: Map<Long, PodcastEntity> = podcasts.associateBy { it.id }
 
         val items = episodes.mapNotNull { episode ->
@@ -79,7 +84,7 @@ class DownloadsViewModel @Inject constructor(
             DownloadsSortOrder.FILE_SIZE -> items.sortedByDescending { it.fileSize }
         }
 
-        DownloadsUiState(episodes = sorted, sortOrder = sortOrder)
+        DownloadsUiState(episodes = sorted, sortOrder = sortOrder, downloadErrors = errors)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -105,6 +110,7 @@ class DownloadsViewModel @Inject constructor(
                 podcastTitle = podcast?.title ?: "",
                 artworkUrl = artworkUrl,
                 startPosition = episode.playbackPosition,
+                podcastId = episode.podcastId,
             )
         }
     }
@@ -112,6 +118,18 @@ class DownloadsViewModel @Inject constructor(
     fun deleteDownload(episodeId: Long) {
         viewModelScope.launch {
             downloadManager.deleteDownload(episodeId)
+        }
+    }
+
+    fun retryDownload(episodeId: Long) {
+        viewModelScope.launch {
+            downloadManager.retryDownload(episodeId)
+        }
+    }
+
+    fun clearAllErrors() {
+        viewModelScope.launch {
+            downloadErrorDao.deleteAll()
         }
     }
 }

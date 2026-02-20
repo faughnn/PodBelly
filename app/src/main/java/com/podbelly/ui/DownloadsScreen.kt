@@ -19,10 +19,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -56,6 +59,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.podbelly.core.common.DownloadsSortOrder
+import com.podbelly.core.database.dao.DownloadErrorWithEpisode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,6 +123,28 @@ fun DownloadsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Failed downloads section
+                if (uiState.downloadErrors.isNotEmpty()) {
+                    item(key = "failed_header") {
+                        FailedDownloadsHeader(
+                            count = uiState.downloadErrors.size,
+                            onClearAll = { viewModel.clearAllErrors() },
+                        )
+                    }
+                    items(
+                        items = uiState.downloadErrors,
+                        key = { "error_${it.id}" }
+                    ) { error ->
+                        FailedDownloadCard(
+                            error = error,
+                            onRetry = { viewModel.retryDownload(error.episodeId) },
+                        )
+                    }
+                    item(key = "failed_divider") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
                 items(
                     items = uiState.episodes,
                     key = { it.episodeId }
@@ -383,6 +409,88 @@ private fun DownloadedEpisodeCard(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Play episode"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FailedDownloadsHeader(
+    count: Int,
+    onClearAll: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Failed Downloads ($count)",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        IconButton(onClick = onClearAll) {
+            Icon(
+                imageVector = Icons.Default.ClearAll,
+                contentDescription = "Clear all errors",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FailedDownloadCard(
+    error: DownloadErrorWithEpisode,
+    onRetry: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+        ),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = error.episodeTitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = error.errorMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(onClick = onRetry) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Retry download",
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }

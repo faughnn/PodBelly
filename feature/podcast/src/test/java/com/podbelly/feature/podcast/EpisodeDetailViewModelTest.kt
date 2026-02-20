@@ -5,10 +5,8 @@ import app.cash.turbine.test
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -37,12 +35,10 @@ class EpisodeDetailViewModelTest {
 
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
-    private val queueDao = mockk<QueueDao>(relaxed = true)
     private val playbackController = mockk<PlaybackController>(relaxed = true)
     private val downloadManager = mockk<DownloadManager>(relaxed = true)
 
     private val episodeFlow = MutableStateFlow<EpisodeEntity?>(null)
-    private val queueFlow = MutableStateFlow<List<QueueItemEntity>>(emptyList())
 
     private val testEpisode = EpisodeEntity(
         id = 5L,
@@ -76,7 +72,6 @@ class EpisodeDetailViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { episodeDao.getById(5L) } returns episodeFlow
-        every { queueDao.getAll() } returns queueFlow
         coEvery { podcastDao.getByIdOnce(1L) } returns testPodcast
         every { downloadManager.downloadProgress } returns MutableStateFlow(emptyMap())
     }
@@ -92,7 +87,6 @@ class EpisodeDetailViewModelTest {
             savedStateHandle = savedStateHandle,
             episodeDao = episodeDao,
             podcastDao = podcastDao,
-            queueDao = queueDao,
             playbackController = playbackController,
             downloadManager = downloadManager,
         )
@@ -129,7 +123,6 @@ class EpisodeDetailViewModelTest {
             assertEquals(30000L, state.playbackPosition)
             assertFalse(state.played)
             assertFalse(state.isDownloaded)
-            assertFalse(state.isInQueue)
         }
     }
 
@@ -144,27 +137,6 @@ class EpisodeDetailViewModelTest {
 
             val state = awaitItem()
             assertEquals("https://example.com/podcast_art.jpg", state.artworkUrl)
-        }
-    }
-
-    @Test
-    fun `isInQueue is true when episode is in queue`() = runTest {
-        val viewModel = createViewModel()
-
-        viewModel.uiState.test {
-            awaitItem() // initial empty
-
-            episodeFlow.value = testEpisode
-            queueFlow.value = listOf(
-                QueueItemEntity(id = 1L, episodeId = 5L, position = 0, addedAt = 0L)
-            )
-
-            // Consume intermediate emissions until we get one with isInQueue true
-            var state = awaitItem()
-            if (!state.isInQueue && state.episodeId != 0L) {
-                state = awaitItem()
-            }
-            assertTrue(state.isInQueue)
         }
     }
 
@@ -198,6 +170,7 @@ class EpisodeDetailViewModelTest {
                 podcastTitle = "Test Podcast",
                 artworkUrl = "https://example.com/episode_art.jpg",
                 startPosition = 30000L,
+                podcastId = 1L,
             )
         }
     }
@@ -220,6 +193,7 @@ class EpisodeDetailViewModelTest {
                 podcastTitle = "Test Podcast",
                 artworkUrl = "https://example.com/episode_art.jpg",
                 startPosition = 30000L,
+                podcastId = 1L,
             )
         }
     }
@@ -244,30 +218,6 @@ class EpisodeDetailViewModelTest {
         advanceUntilIdle()
 
         coVerify { episodeDao.markAsUnplayed(5L) }
-    }
-
-    @Test
-    fun `addToQueue adds episode at end of queue`() = runTest {
-        coEvery { queueDao.getMaxPosition() } returns 2
-
-        val viewModel = createViewModel()
-        viewModel.addToQueue()
-        advanceUntilIdle()
-
-        coVerify {
-            queueDao.addToQueue(match {
-                it.episodeId == 5L && it.position == 3
-            })
-        }
-    }
-
-    @Test
-    fun `removeFromQueue calls queueDao`() = runTest {
-        val viewModel = createViewModel()
-        viewModel.removeFromQueue()
-        advanceUntilIdle()
-
-        coVerify { queueDao.removeFromQueue(5L) }
     }
 
     @Test

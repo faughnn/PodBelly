@@ -234,6 +234,7 @@ class HomeViewModelTest {
                 podcastTitle = "Show Title",
                 artworkUrl = "https://art.com/episode.jpg",
                 startPosition = 0L,
+                podcastId = 1L,
             )
         }
     }
@@ -264,6 +265,7 @@ class HomeViewModelTest {
                 podcastTitle = "Show",
                 artworkUrl = "https://art.com/p.jpg", // falls back to podcast artwork
                 startPosition = 0L,
+                podcastId = 1L,
             )
         }
     }

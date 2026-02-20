@@ -1,7 +1,9 @@
 package com.podbelly.core.playback
 
 import app.cash.turbine.test
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.dao.QueueEpisode
@@ -50,6 +52,8 @@ class PlaybackControllerTest {
     private lateinit var queueDao: QueueDao
     private lateinit var podcastDao: PodcastDao
     private lateinit var episodeDao: EpisodeDao
+    private lateinit var preferencesManager: PreferencesManager
+    private lateinit var listeningSessionDao: ListeningSessionDao
     private lateinit var controller: PlaybackController
 
     @Before
@@ -58,7 +62,9 @@ class PlaybackControllerTest {
         queueDao = mockk(relaxed = true)
         podcastDao = mockk(relaxed = true)
         episodeDao = mockk(relaxed = true)
-        controller = PlaybackController(queueDao, podcastDao, episodeDao)
+        preferencesManager = mockk(relaxed = true)
+        listeningSessionDao = mockk(relaxed = true)
+        controller = PlaybackController(queueDao, podcastDao, episodeDao, preferencesManager, listeningSessionDao)
     }
 
     @After

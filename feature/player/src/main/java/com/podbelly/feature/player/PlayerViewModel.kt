@@ -26,6 +26,7 @@ data class PlayerUiState(
     val volumeBoost: Boolean = false,
     val showSleepTimerPicker: Boolean = false,
     val showSpeedPicker: Boolean = false,
+    val showChaptersList: Boolean = false,
 )
 
 @HiltViewModel
@@ -39,13 +40,15 @@ class PlayerViewModel @Inject constructor(
 
     private val _showSleepTimerPicker = MutableStateFlow(false)
     private val _showSpeedPicker = MutableStateFlow(false)
+    private val _showChaptersList = MutableStateFlow(false)
 
     val uiState: StateFlow<PlayerUiState> = combine(
         playbackController.playbackState,
         sleepTimer.remainingMillis,
         _showSleepTimerPicker,
         _showSpeedPicker,
-    ) { playback, timerRemaining, showSleep, showSpeed ->
+        _showChaptersList,
+    ) { playback, timerRemaining, showSleep, showSpeed, showChapters ->
         PlayerUiState(
             playbackState = playback,
             sleepTimerRemaining = timerRemaining,
@@ -55,6 +58,7 @@ class PlayerViewModel @Inject constructor(
             volumeBoost = playback.volumeBoost,
             showSleepTimerPicker = showSleep,
             showSpeedPicker = showSpeed,
+            showChaptersList = showChapters,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -175,8 +179,16 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun playNextInQueue() {
-        playbackController.playNext()
+    fun seekToNextChapter() {
+        playbackController.seekToNextChapter()
+    }
+
+    fun seekToPreviousChapter() {
+        playbackController.seekToPreviousChapter()
+    }
+
+    fun seekToChapter(index: Int) {
+        playbackController.seekToChapter(index)
     }
 
     fun showSpeedPicker() {
@@ -193,5 +205,13 @@ class PlayerViewModel @Inject constructor(
 
     fun hideSleepTimerPicker() {
         _showSleepTimerPicker.value = false
+    }
+
+    fun showChaptersList() {
+        _showChaptersList.value = true
+    }
+
+    fun hideChaptersList() {
+        _showChaptersList.value = false
     }
 }

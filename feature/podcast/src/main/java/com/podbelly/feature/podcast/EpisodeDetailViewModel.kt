@@ -6,13 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,7 +27,6 @@ data class EpisodeDetailUiState(
     val playbackPosition: Long = 0L,
     val played: Boolean = false,
     val isDownloaded: Boolean = false,
-    val isInQueue: Boolean = false,
     val audioUrl: String = "",
     val downloadPath: String = "",
 )
@@ -39,7 +36,6 @@ class EpisodeDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val episodeDao: EpisodeDao,
     private val podcastDao: PodcastDao,
-    private val queueDao: QueueDao,
     private val playbackController: PlaybackController,
     private val downloadManager: DownloadManager,
 ) : ViewModel() {
@@ -48,14 +44,11 @@ class EpisodeDetailViewModel @Inject constructor(
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
 
-    val uiState: StateFlow<EpisodeDetailUiState> = combine(
-        episodeDao.getById(episodeId),
-        queueDao.getAll(),
-    ) { episode, queueItems ->
-        if (episode == null) return@combine EpisodeDetailUiState()
+    val uiState: StateFlow<EpisodeDetailUiState> = episodeDao.getById(episodeId)
+        .map { episode ->
+        if (episode == null) return@map EpisodeDetailUiState()
 
         val podcast = podcastDao.getByIdOnce(episode.podcastId)
-        val queueEpisodeIds = queueItems.map { it.episodeId }.toSet()
 
         EpisodeDetailUiState(
             episodeId = episode.id,
@@ -69,7 +62,6 @@ class EpisodeDetailViewModel @Inject constructor(
             playbackPosition = episode.playbackPosition,
             played = episode.played,
             isDownloaded = episode.downloadPath.isNotEmpty(),
-            isInQueue = queueEpisodeIds.contains(episode.id),
             audioUrl = episode.audioUrl,
             downloadPath = episode.downloadPath,
         )
@@ -91,6 +83,7 @@ class EpisodeDetailViewModel @Inject constructor(
                 podcastTitle = podcast?.title ?: "",
                 artworkUrl = episode.artworkUrl.ifEmpty { podcast?.artworkUrl ?: "" },
                 startPosition = episode.playbackPosition,
+                podcastId = episode.podcastId,
             )
         }
     }
@@ -103,25 +96,6 @@ class EpisodeDetailViewModel @Inject constructor(
             } else {
                 episodeDao.markAsPlayed(episodeId)
             }
-        }
-    }
-
-    fun addToQueue() {
-        viewModelScope.launch {
-            val maxPosition = queueDao.getMaxPosition() ?: -1
-            queueDao.addToQueue(
-                QueueItemEntity(
-                    episodeId = episodeId,
-                    position = maxPosition + 1,
-                    addedAt = System.currentTimeMillis(),
-                )
-            )
-        }
-    }
-
-    fun removeFromQueue() {
-        viewModelScope.launch {
-            queueDao.removeFromQueue(episodeId)
         }
     }
 

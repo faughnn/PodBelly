@@ -1,7 +1,7 @@
 package com.podbelly.feature.settings
 
 import app.cash.turbine.test
-import com.podbelly.core.common.DarkThemeMode
+import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
@@ -44,7 +44,7 @@ class SettingsViewModelTest {
     private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
     private val downloadManager = mockk<com.podbelly.core.common.DownloadManager>(relaxed = true)
 
-    private val darkThemeModeFlow = MutableStateFlow(DarkThemeMode.SYSTEM)
+    private val appThemeFlow = MutableStateFlow(AppTheme.SYSTEM)
     private val feedRefreshIntervalFlow = MutableStateFlow(60)
     private val autoDownloadEnabledFlow = MutableStateFlow(false)
     private val autoDownloadCountFlow = MutableStateFlow(3)
@@ -60,7 +60,7 @@ class SettingsViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
 
-        every { preferencesManager.darkThemeMode } returns darkThemeModeFlow
+        every { preferencesManager.appTheme } returns appThemeFlow
         every { preferencesManager.feedRefreshIntervalMinutes } returns feedRefreshIntervalFlow
         every { preferencesManager.autoDownloadEnabled } returns autoDownloadEnabledFlow
         every { preferencesManager.autoDownloadEpisodeCount } returns autoDownloadCountFlow
@@ -115,7 +115,7 @@ class SettingsViewModelTest {
 
         viewModel.uiState.test {
             val initial = awaitItem()
-            assertEquals(DarkThemeMode.SYSTEM, initial.darkThemeMode)
+            assertEquals(AppTheme.SYSTEM, initial.appTheme)
             assertEquals(60, initial.feedRefreshIntervalMinutes)
             assertFalse(initial.autoDownloadEnabled)
             assertEquals(3, initial.autoDownloadEpisodeCount)
@@ -134,7 +134,7 @@ class SettingsViewModelTest {
         viewModel.uiState.test {
             awaitItem() // initial
 
-            darkThemeModeFlow.value = DarkThemeMode.DARK
+            appThemeFlow.value = AppTheme.DARK
             playbackSpeedFlow.value = 1.5f
 
             // There may be intermediate states; collect until we see the final state
@@ -142,19 +142,19 @@ class SettingsViewModelTest {
             val lastItem = states.filterIsInstance<app.cash.turbine.Event.Item<SettingsUiState>>().lastOrNull()?.value
 
             if (lastItem != null) {
-                assertEquals(DarkThemeMode.DARK, lastItem.darkThemeMode)
+                assertEquals(AppTheme.DARK, lastItem.appTheme)
                 assertEquals(1.5f, lastItem.defaultPlaybackSpeed)
             }
         }
     }
 
     @Test
-    fun `setDarkThemeMode updates preferences`() = runTest {
+    fun `setAppTheme updates preferences`() = runTest {
         val viewModel = createViewModel()
-        viewModel.setDarkThemeMode(DarkThemeMode.DARK)
+        viewModel.setAppTheme(AppTheme.DARK)
         advanceUntilIdle()
 
-        coVerify { preferencesManager.setDarkThemeMode(DarkThemeMode.DARK) }
+        coVerify { preferencesManager.setAppTheme(AppTheme.DARK) }
     }
 
     @Test

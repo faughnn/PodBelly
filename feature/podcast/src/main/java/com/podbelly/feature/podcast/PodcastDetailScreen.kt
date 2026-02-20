@@ -22,6 +22,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.FileDownload
@@ -74,7 +76,9 @@ fun PodcastDetailScreen(
         topBar = {
             PodcastDetailTopBar(
                 title = uiState.podcast?.title ?: "",
+                notifyNewEpisodes = uiState.podcast?.notifyNewEpisodes ?: true,
                 onNavigateBack = onNavigateBack,
+                onToggleNotifications = { viewModel.toggleNotifications() },
                 onUnsubscribe = {
                     viewModel.unsubscribe()
                     onNavigateBack()
@@ -121,8 +125,6 @@ fun PodcastDetailScreen(
                         onDownload = { viewModel.downloadEpisode(episode.id) },
                         onDeleteDownload = { viewModel.deleteDownload(episode.id) },
                         onTogglePlayed = { viewModel.togglePlayed(episode.id) },
-                        onAddToQueue = { viewModel.addToQueue(episode.id) },
-                        onRemoveFromQueue = { viewModel.removeFromQueue(episode.id) }
                     )
                 }
             }
@@ -134,8 +136,10 @@ fun PodcastDetailScreen(
 @Composable
 private fun PodcastDetailTopBar(
     title: String,
+    notifyNewEpisodes: Boolean,
     onNavigateBack: () -> Unit,
-    onUnsubscribe: () -> Unit
+    onToggleNotifications: () -> Unit,
+    onUnsubscribe: () -> Unit,
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
 
@@ -167,6 +171,28 @@ private fun PodcastDetailTopBar(
                     expanded = showOverflowMenu,
                     onDismissRequest = { showOverflowMenu = false }
                 ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (notifyNewEpisodes) "Disable notifications"
+                                else "Enable notifications"
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (notifyNewEpisodes) {
+                                    Icons.Default.NotificationsOff
+                                } else {
+                                    Icons.Default.Notifications
+                                },
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            onToggleNotifications()
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("Unsubscribe") },
                         onClick = {
@@ -299,8 +325,6 @@ private fun EpisodeCard(
     onDownload: () -> Unit,
     onDeleteDownload: () -> Unit,
     onTogglePlayed: () -> Unit,
-    onAddToQueue: () -> Unit,
-    onRemoveFromQueue: () -> Unit
 ) {
     val isDownloading = downloadProgress != null
     var showMenu by remember { mutableStateOf(false) }
@@ -403,16 +427,18 @@ private fun EpisodeCard(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Play button
-                IconButton(
-                    onClick = onPlay,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Play episode",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                // Play button (only for downloaded episodes)
+                if (episode.isDownloaded) {
+                    IconButton(
+                        onClick = onPlay,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play episode",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 // Download button
@@ -469,40 +495,13 @@ private fun EpisodeCard(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        // Add to queue / Remove from queue
-                        if (episode.isInQueue) {
-                            DropdownMenuItem(
-                                text = { Text("Remove from queue") },
-                                onClick = {
-                                    showMenu = false
-                                    onRemoveFromQueue()
-                                }
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Add to queue") },
-                                onClick = {
-                                    showMenu = false
-                                    onAddToQueue()
-                                }
-                            )
-                        }
-
-                        // Download / Delete download
+                        // Delete download (only shown if downloaded)
                         if (episode.isDownloaded) {
                             DropdownMenuItem(
                                 text = { Text("Delete download") },
                                 onClick = {
                                     showMenu = false
                                     onDeleteDownload()
-                                }
-                            )
-                        } else if (!isDownloading) {
-                            DropdownMenuItem(
-                                text = { Text("Download") },
-                                onClick = {
-                                    showMenu = false
-                                    onDownload()
                                 }
                             )
                         }

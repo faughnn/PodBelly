@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.cash.paparazzi.Paparazzi
-import com.podbelly.core.common.DarkThemeMode
+import com.podbelly.core.common.AppTheme
 import org.junit.Rule
 import org.junit.Test
 
@@ -68,7 +68,7 @@ class SettingsScreenScreenshotTest {
                         item {
                             SettingsCard {
                                 ThemePickerRow(
-                                    selectedMode = DarkThemeMode.SYSTEM,
+                                    selectedMode = AppTheme.SYSTEM,
                                     onModeSelected = {},
                                 )
                             }
@@ -177,7 +177,7 @@ class SettingsScreenScreenshotTest {
                         item {
                             SettingsCard {
                                 ThemePickerRow(
-                                    selectedMode = DarkThemeMode.DARK,
+                                    selectedMode = AppTheme.DARK,
                                     onModeSelected = {},
                                 )
                             }
