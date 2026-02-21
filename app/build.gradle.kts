@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.appdistribution)
 }
 
 android {
@@ -26,6 +28,10 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            firebaseAppDistribution {
+                artifactType = "APK"
+                groups = "testers"
+            }
         }
     }
 
@@ -90,6 +96,8 @@ dependencies {
 
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
+    debugImplementation(platform(libs.firebase.bom))
+    debugImplementation(libs.firebase.appdistribution)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

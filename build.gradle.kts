@@ -7,4 +7,6 @@ plugins {
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.room) apply false
     alias(libs.plugins.paparazzi) apply false
+    alias(libs.plugins.google.services) apply false
+    alias(libs.plugins.firebase.appdistribution) apply false
 }
