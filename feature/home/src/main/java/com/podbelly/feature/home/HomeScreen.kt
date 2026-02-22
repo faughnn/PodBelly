@@ -1,6 +1,11 @@
 package com.podbelly.feature.home
 
 import android.text.format.DateUtils
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -64,6 +69,7 @@ import coil.compose.AsyncImage
 fun HomeScreen(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    bannerMessage: String? = null,
     viewModel: HomeViewModel = hiltViewModel(),
     onEpisodeClick: (Long) -> Unit,
     onPodcastClick: (Long) -> Unit
@@ -75,7 +81,9 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             text = "pod",
                             style = MaterialTheme.typography.headlineMedium,
@@ -85,6 +93,25 @@ fun HomeScreen(
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
+                        AnimatedVisibility(
+                            visible = bannerMessage != null,
+                            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+                            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+                        ) {
+                            Surface(
+                                modifier = Modifier.padding(start = 12.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Text(
+                                    text = bannerMessage ?: "",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
