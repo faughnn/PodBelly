@@ -35,15 +35,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -79,6 +80,7 @@ import com.podbelly.ui.LibraryScreen
 import com.podbelly.feature.player.MiniPlayer
 import com.podbelly.feature.player.PlayerScreen
 import androidx.compose.material3.NavigationBarItemDefaults
+import kotlinx.coroutines.delay
 
 private sealed class BottomNavItem(
     val route: String,
@@ -114,22 +116,22 @@ fun PodbellNavHost(
     // Determine whether to show bottom nav and mini player
     val isFullScreenRoute = currentRoute == Screen.Player.route
 
-    val snackbarHostState = remember { SnackbarHostState() }
+    var bannerMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         appViewModel.refreshResult.collect { newCount ->
-            val message = if (newCount > 0) {
+            bannerMessage = if (newCount > 0) {
                 "$newCount new episode${if (newCount == 1) "" else "s"} found"
             } else {
                 "Everything up to date"
             }
-            snackbarHostState.showSnackbar(message)
+            delay(3000L)
+            bannerMessage = null
         }
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             if (!isFullScreenRoute) {
                 Column(
@@ -194,13 +196,40 @@ fun PodbellNavHost(
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // Animated refresh result banner
+            AnimatedVisibility(
+                visible = bannerMessage != null,
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = bannerMessage ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Home.route,
+                modifier = Modifier.fillMaxSize(),
+            ) {
             composable(Screen.Home.route) {
                 HomeScreen(
                     isRefreshing = isRefreshing,
@@ -289,6 +318,7 @@ fun PodbellNavHost(
                     }
                 )
             }
+        }
         }
     }
 }
