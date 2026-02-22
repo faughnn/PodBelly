@@ -90,6 +90,7 @@ class HomeScreenScreenshotTest {
                     ) {
                         EpisodeList(
                             episodes = episodes,
+                            inProgressEpisodes = emptyList(),
                             downloadProgress = emptyMap(),
                             onEpisodeClick = {},
                             onPlayClick = {},
@@ -97,6 +98,47 @@ class HomeScreenScreenshotTest {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    @Test
+    fun continueListeningCarousel() {
+        val inProgressEpisodes = listOf(
+            HomeEpisodeItem(
+                episodeId = 10L,
+                title = "Deep Dive into Coroutines Part 2",
+                podcastTitle = "Android Developers Backstage",
+                artworkUrl = "",
+                publicationDate = System.currentTimeMillis() - 3_600_000,
+                durationSeconds = 2940, // 49 min
+                played = false,
+                downloadPath = "/downloads/episode10.mp3",
+                playbackPosition = 900_000L, // 15 min in → 34 min left
+            ),
+            HomeEpisodeItem(
+                episodeId = 11L,
+                title = "State Management Patterns",
+                podcastTitle = "Talking Kotlin",
+                artworkUrl = "",
+                publicationDate = System.currentTimeMillis() - 86_400_000,
+                durationSeconds = 3600, // 1h
+                played = false,
+                downloadPath = "/downloads/episode11.mp3",
+                playbackPosition = 1_800_000L, // 30 min in → 30 min left
+            ),
+        )
+
+        paparazzi.snapshot {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = inProgressEpisodes,
+                    inProgressEpisodes = inProgressEpisodes,
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                )
             }
         }
     }

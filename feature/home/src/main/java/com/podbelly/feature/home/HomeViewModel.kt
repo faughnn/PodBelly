@@ -29,6 +29,7 @@ data class HomeEpisodeItem(
 
 data class HomeUiState(
     val recentEpisodes: List<HomeEpisodeItem> = emptyList(),
+    val inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
     val isEmpty: Boolean = false
 )
 
@@ -64,8 +65,11 @@ class HomeViewModel @Inject constructor(
             )
         }
 
+        val inProgress = items.filter { it.playbackPosition > 0L && !it.played }
+
         HomeUiState(
             recentEpisodes = items,
+            inProgressEpisodes = inProgress,
             isEmpty = podcasts.isEmpty()
         )
     }.stateIn(

@@ -133,6 +133,7 @@ fun HomeScreen(
             } else {
                 EpisodeList(
                     episodes = uiState.recentEpisodes,
+                    inProgressEpisodes = uiState.inProgressEpisodes,
                     downloadProgress = downloadProgress,
                     onEpisodeClick = onEpisodeClick,
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
@@ -188,13 +189,12 @@ internal fun EmptyState() {
 @Composable
 internal fun EpisodeList(
     episodes: List<HomeEpisodeItem>,
+    inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
     downloadProgress: Map<Long, Float>,
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
     onDownloadClick: (Long) -> Unit,
 ) {
-    val carouselEpisodes = episodes.take(8)
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -203,8 +203,8 @@ internal fun EpisodeList(
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Recently Added horizontal carousel
-        if (carouselEpisodes.isNotEmpty()) {
+        // Continue Listening horizontal carousel
+        if (inProgressEpisodes.isNotEmpty()) {
             item(key = "carousel_header") {
                 Row(
                     modifier = Modifier
@@ -214,7 +214,7 @@ internal fun EpisodeList(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Recently Added",
+                        text = "Continue Listening",
                         style = MaterialTheme.typography.titleLarge,
                     )
                 }
@@ -226,7 +226,7 @@ internal fun EpisodeList(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(
-                        items = carouselEpisodes,
+                        items = inProgressEpisodes,
                         key = { "carousel_${it.episodeId}" }
                     ) { episode ->
                         CarouselCard(
@@ -235,19 +235,6 @@ internal fun EpisodeList(
                         )
                     }
                 }
-            }
-
-            item(key = "all_episodes_header") {
-                Text(
-                    text = "All Episodes",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 16.dp,
-                        bottom = 4.dp,
-                    ),
-                )
             }
         }
 
@@ -278,6 +265,7 @@ private fun CarouselCard(
     onClick: () -> Unit,
 ) {
     val cardShape = RoundedCornerShape(10.dp)
+    val hasProgress = episode.playbackPosition > 0L && episode.durationSeconds > 0
 
     Column(
         modifier = Modifier
@@ -285,18 +273,49 @@ private fun CarouselCard(
             .clip(cardShape)
             .clickable(onClick = onClick),
     ) {
-        AsyncImage(
-            model = episode.artworkUrl.ifBlank { null },
-            contentDescription = episode.title,
-            placeholder = rememberVectorPainter(Icons.Default.Podcasts),
-            error = rememberVectorPainter(Icons.Default.Podcasts),
-            fallback = rememberVectorPainter(Icons.Default.Podcasts),
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(cardShape),
-            contentScale = ContentScale.Crop,
-        )
+        Box {
+            AsyncImage(
+                model = episode.artworkUrl.ifBlank { null },
+                contentDescription = episode.title,
+                placeholder = rememberVectorPainter(Icons.Default.Podcasts),
+                error = rememberVectorPainter(Icons.Default.Podcasts),
+                fallback = rememberVectorPainter(Icons.Default.Podcasts),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(cardShape),
+                contentScale = ContentScale.Crop,
+            )
+            if (hasProgress) {
+                val progress = (episode.playbackPosition.toFloat() / (episode.durationSeconds * 1000f))
+                    .coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progress)
+                            .fillMaxHeight()
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.tertiary,
+                                    )
+                                )
+                            )
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = episode.title,
@@ -311,6 +330,15 @@ private fun CarouselCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (hasProgress) {
+            val remainingSeconds = episode.durationSeconds - (episode.playbackPosition / 1000).toInt()
+            Text(
+                text = "${formatDuration(remainingSeconds.coerceAtLeast(0))} left",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+            )
+        }
     }
 }
 

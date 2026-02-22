@@ -31,7 +31,8 @@ class HomeScreenInteractionTest {
         publicationDate: Long = 0L,
         durationSeconds: Int = 0,
         played: Boolean = false,
-        downloadPath: String = ""
+        downloadPath: String = "",
+        playbackPosition: Long = 0L,
     ) = HomeEpisodeItem(
         episodeId = episodeId,
         title = title,
@@ -40,7 +41,8 @@ class HomeScreenInteractionTest {
         publicationDate = publicationDate,
         durationSeconds = durationSeconds,
         played = played,
-        downloadPath = downloadPath
+        downloadPath = downloadPath,
+        playbackPosition = playbackPosition,
     )
 
     @Test
@@ -134,6 +136,7 @@ class HomeScreenInteractionTest {
             MaterialTheme {
                 EpisodeList(
                     episodes = episodes,
+                    inProgressEpisodes = emptyList(),
                     downloadProgress = emptyMap(),
                     onEpisodeClick = {},
                     onPlayClick = {},
@@ -142,10 +145,58 @@ class HomeScreenInteractionTest {
             }
         }
 
-        // Episodes appear in the carousel; main list cards may be off-viewport
-        composeTestRule.onAllNodesWithText("Episode Alpha")[0].assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Episode Beta")[0].assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Episode Gamma")[0].assertIsDisplayed()
+        composeTestRule.onNodeWithText("Episode Alpha").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Episode Beta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Episode Gamma").assertIsDisplayed()
+    }
+
+    @Test
+    fun `continue listening carousel appears when in-progress episodes exist`() {
+        val inProgress = listOf(
+            createEpisode(
+                episodeId = 10L,
+                title = "In Progress Episode",
+                playbackPosition = 60_000L,
+                durationSeconds = 1800,
+            )
+        )
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = inProgress,
+                    inProgressEpisodes = inProgress,
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Continue Listening").assertIsDisplayed()
+    }
+
+    @Test
+    fun `continue listening carousel hidden when no in-progress episodes`() {
+        val episodes = listOf(
+            createEpisode(episodeId = 1L, title = "Some Episode")
+        )
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = episodes,
+                    inProgressEpisodes = emptyList(),
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Continue Listening").assertDoesNotExist()
     }
 
     @Test

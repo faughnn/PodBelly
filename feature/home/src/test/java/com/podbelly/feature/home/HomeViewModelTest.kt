@@ -87,6 +87,8 @@ class HomeViewModelTest {
         title: String = "Episode 1",
         artworkUrl: String = "",
         downloadPath: String = "",
+        playbackPosition: Long = 0L,
+        played: Boolean = false,
     ) = EpisodeEntity(
         id = id,
         podcastId = podcastId,
@@ -98,6 +100,8 @@ class HomeViewModelTest {
         durationSeconds = 3600,
         artworkUrl = artworkUrl,
         downloadPath = downloadPath,
+        playbackPosition = playbackPosition,
+        played = played,
     )
 
     // -- Tests --
@@ -109,6 +113,7 @@ class HomeViewModelTest {
         viewModel.uiState.test {
             val initial = awaitItem()
             assertEquals(emptyList<HomeEpisodeItem>(), initial.recentEpisodes)
+            assertEquals(emptyList<HomeEpisodeItem>(), initial.inProgressEpisodes)
             assertFalse(initial.isEmpty)
         }
     }
@@ -162,6 +167,48 @@ class HomeViewModelTest {
             val state = awaitItem()
             assertTrue(state.isEmpty)
             assertTrue(state.recentEpisodes.isEmpty())
+        }
+    }
+
+    @Test
+    fun `inProgressEpisodes contains only episodes with playbackPosition greater than 0 and not played`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val episodeWithProgress = makeEpisode(id = 1L, playbackPosition = 60_000L, played = false)
+        val episodeWithProgressPlayed = makeEpisode(id = 2L, playbackPosition = 120_000L, played = true)
+        val episodeNoProgress = makeEpisode(id = 3L, playbackPosition = 0L, played = false)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(episodeWithProgress, episodeWithProgressPlayed, episodeNoProgress)
+
+            val state = awaitItem()
+            assertEquals(3, state.recentEpisodes.size)
+            assertEquals(1, state.inProgressEpisodes.size)
+            assertEquals(1L, state.inProgressEpisodes[0].episodeId)
+        }
+    }
+
+    @Test
+    fun `inProgressEpisodes is empty when no episodes have progress`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val episode1 = makeEpisode(id = 1L, playbackPosition = 0L)
+        val episode2 = makeEpisode(id = 2L, playbackPosition = 0L)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(episode1, episode2)
+
+            val state = awaitItem()
+            assertEquals(2, state.recentEpisodes.size)
+            assertTrue(state.inProgressEpisodes.isEmpty())
         }
     }
 
