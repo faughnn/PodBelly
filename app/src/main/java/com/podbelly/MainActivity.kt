@@ -8,6 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.animation.Crossfade
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +30,14 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private val appViewModel: AppViewModel by viewModels()
+
+    private val lifecycleObserver = LifecycleEventObserver { _, event ->
+        if (event == Lifecycle.Event.ON_START) {
+            appViewModel.refreshIfStale()
+        }
+    }
+
     @Inject
     lateinit var playbackController: PlaybackController
 
@@ -40,6 +51,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        lifecycle.addObserver(lifecycleObserver)
         requestNotificationPermissionIfNeeded()
         playbackController.connectToService(this)
         setContent {
@@ -74,5 +86,6 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         // PlaybackController lifecycle is managed at the singleton level;
         // no explicit release needed here since the service continues in the background.
+        lifecycle.removeObserver(lifecycleObserver)
     }
 }

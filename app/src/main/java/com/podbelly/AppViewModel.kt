@@ -27,6 +27,8 @@ class AppViewModel @Inject constructor(
     private val searchRepository: PodcastSearchRepository,
 ) : ViewModel() {
 
+    private var lastRefreshTime = 0L
+
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
@@ -35,6 +37,14 @@ class AppViewModel @Inject constructor(
 
     init {
         refreshFeeds()
+    }
+
+    fun refreshIfStale() {
+        val elapsed = System.currentTimeMillis() - lastRefreshTime
+        val fifteenMinutes = 15 * 60 * 1000L
+        if (elapsed >= fifteenMinutes) {
+            refreshFeeds()
+        }
     }
 
     fun refreshFeeds() {
@@ -84,6 +94,7 @@ class AppViewModel @Inject constructor(
             } finally {
                 _isRefreshing.value = false
                 _refreshResult.tryEmit(newEpisodeCount)
+                lastRefreshTime = System.currentTimeMillis()
             }
         }
     }
