@@ -20,6 +20,16 @@ When implementing a new feature:
 
 4. **Build and test** — Verify compilation, run unit tests, and install on device to confirm the feature works end-to-end.
 
+## Download-First Playback Pattern
+
+Episodes must be downloaded before they can be played. Never offer a standalone "Play" option for episodes that haven't been downloaded. Every screen should use a single unified action button that follows this state progression:
+
+1. **Not downloaded** → Show download icon/button. Tapping starts the download.
+2. **Downloading** → Show progress indicator. Tapping does nothing.
+3. **Downloaded** → Show play icon/button. Tapping plays the episode.
+
+This pattern is already implemented in HomeScreen's `EpisodeCard`, PodcastDetailScreen's `EpisodeCard`, and EpisodeDetailScreen. Do not add separate Play and Download buttons — always combine them into one button that transitions through the states above.
+
 ## Key Principle
 
 Always prefer using a known working feature pattern from an established open-source podcast app over designing from scratch. The reference apps have been battle-tested on millions of devices. When in doubt, look at how Pocket Casts does it.

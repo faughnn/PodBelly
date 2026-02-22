@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.FileDownload
@@ -224,68 +223,45 @@ fun EpisodeDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action buttons row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // Play button
-                FilledTonalButton(
-                    onClick = { viewModel.playEpisode() },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Play")
-                }
-
-                // Download button
-                FilledTonalButton(
-                    onClick = {
-                        when {
-                            episodeProgress != null -> { /* downloading */ }
-                            uiState.isDownloaded -> { /* already downloaded, do nothing */ }
-                            else -> viewModel.downloadEpisode()
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
+            // Download / Play button — download-first pattern
+            FilledTonalButton(
+                onClick = {
                     when {
-                        episodeProgress != null -> {
-                            CircularProgressIndicator(
-                                progress = { episodeProgress ?: 0f },
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                            )
-                        }
-                        uiState.isDownloaded -> {
-                            Icon(
-                                imageVector = Icons.Filled.CheckCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.tertiary,
-                            )
-                        }
-                        else -> {
-                            Icon(
-                                imageVector = Icons.Outlined.FileDownload,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
+                        uiState.isDownloaded -> viewModel.playEpisode()
+                        episodeProgress != null -> { /* downloading, do nothing */ }
+                        else -> viewModel.downloadEpisode()
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        when {
-                            episodeProgress != null -> "Downloading"
-                            uiState.isDownloaded -> "Downloaded"
-                            else -> "Download"
-                        }
-                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                when {
+                    episodeProgress != null -> {
+                        CircularProgressIndicator(
+                            progress = { episodeProgress ?: 0f },
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Downloading")
+                    }
+                    uiState.isDownloaded -> {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Play")
+                    }
+                    else -> {
+                        Icon(
+                            imageVector = Icons.Outlined.FileDownload,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Download")
+                    }
                 }
             }
 
