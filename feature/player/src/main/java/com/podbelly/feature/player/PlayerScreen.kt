@@ -737,7 +737,10 @@ internal fun SpeedPickerContent(
     onSelect: (Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val speeds = listOf(0.5f, 0.8f, 1.0f, 1.2f, 1.5f, 1.8f, 2.0f, 2.5f, 3.0f)
+    val presets = listOf(1.0f, 1.2f, 1.4f, 1.5f, 1.6f, 1.8f, 2.0f, 2.5f, 3.0f)
+
+    // Local slider state — snaps to 0.1 increments
+    var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
 
     Column(
         modifier = Modifier
@@ -754,24 +757,18 @@ internal fun SpeedPickerContent(
             modifier = Modifier.padding(bottom = 20.dp),
         )
 
+        // Preset buttons grid
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            items(speeds) { speed ->
-                val isSelected = speed == currentSpeed
-                val containerColor by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
-                    label = "speedChipColor",
-                )
+            items(presets) { speed ->
+                val isSelected = speed == sliderSpeed
                 FilledTonalButton(
                     onClick = {
+                        sliderSpeed = speed
                         onSelect(speed)
                         onDismiss()
                     },
@@ -790,6 +787,56 @@ internal fun SpeedPickerContent(
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Current speed display
+        Text(
+            text = formatSpeed(sliderSpeed),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Fine-tune slider (0.5x to 3.0x, snapped to 0.1 increments)
+        Slider(
+            value = sliderSpeed,
+            onValueChange = { raw ->
+                sliderSpeed = (Math.round(raw * 10f) / 10f)
+            },
+            onValueChangeFinished = {
+                onSelect(sliderSpeed)
+                onDismiss()
+            },
+            valueRange = 0.5f..3.0f,
+            modifier = Modifier.fillMaxWidth(),
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+        )
+
+        // Range labels
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "0.5x",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "3.0x",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

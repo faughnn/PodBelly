@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -296,7 +297,8 @@ class PlayerScreenInteractionTest {
         }
 
         composeTestRule.onNodeWithText("Playback Speed").assertIsDisplayed()
-        composeTestRule.onNodeWithText("1.0x").assertIsDisplayed()
+        // 1.0x appears in both the preset button and the current speed display
+        composeTestRule.onAllNodesWithText("1.0x")[0].assertIsDisplayed()
         composeTestRule.onNodeWithText("1.5x").assertIsDisplayed()
         composeTestRule.onNodeWithText("2.0x").assertIsDisplayed()
     }
