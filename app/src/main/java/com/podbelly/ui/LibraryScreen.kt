@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -295,6 +296,7 @@ internal fun PodcastGridItem(
             fallback = rememberVectorPainter(Icons.Default.Podcasts),
             modifier = Modifier
                 .fillMaxWidth()
+                .aspectRatio(1f)
                 .clip(RoundedCornerShape(14.dp)),
             contentScale = ContentScale.Crop,
         )
