@@ -48,6 +48,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import android.view.HapticFeedbackConstants
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -158,6 +160,7 @@ internal fun SearchSection(
             Icon(
                 imageVector = Icons.Filled.Search,
                 contentDescription = "Search",
+                tint = MaterialTheme.colorScheme.primary,
             )
         },
         trailingIcon = {
@@ -222,7 +225,7 @@ internal fun RssUrlSection(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Done,
@@ -291,6 +294,7 @@ internal fun SearchResultItem(
     isSubscribing: Boolean,
     onSubscribe: () -> Unit,
 ) {
+    val view = LocalView.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -305,7 +309,7 @@ internal fun SearchResultItem(
             fallback = rememberVectorPainter(Icons.Default.Podcasts),
             modifier = Modifier
                 .size(64.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop,
         )
 
@@ -350,7 +354,10 @@ internal fun SearchResultItem(
             }
         } else {
             Button(
-                onClick = onSubscribe,
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    onSubscribe()
+                },
                 enabled = !isSubscribing,
                 shape = RoundedCornerShape(20.dp),
             ) {

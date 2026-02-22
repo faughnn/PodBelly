@@ -35,11 +35,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,7 +62,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.podbelly.AppViewModel
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState
 import com.podbelly.feature.discover.DiscoverScreen
@@ -69,7 +76,9 @@ import com.podbelly.feature.settings.SettingsScreen
 import com.podbelly.feature.settings.StatsScreen
 import com.podbelly.ui.DownloadsScreen
 import com.podbelly.ui.LibraryScreen
+import com.podbelly.feature.player.MiniPlayer
 import com.podbelly.feature.player.PlayerScreen
+import androidx.compose.material3.NavigationBarItemDefaults
 
 private sealed class BottomNavItem(
     val route: String,
@@ -94,48 +103,60 @@ private val bottomNavItems = listOf(
 @Composable
 fun PodbellNavHost(
     playbackController: PlaybackController,
+    appViewModel: AppViewModel = hiltViewModel(),
     navController: NavHostController = rememberNavController()
 ) {
     val playbackState by playbackController.playbackState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val isRefreshing by appViewModel.isRefreshing.collectAsStateWithLifecycle()
 
     // Determine whether to show bottom nav and mini player
     val isFullScreenRoute = currentRoute == Screen.Player.route
-    val showMiniPlayer = playbackState.episodeId != 0L && !isFullScreenRoute
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        appViewModel.refreshResult.collect { newCount ->
+            val message = if (newCount > 0) {
+                "$newCount new episode${if (newCount == 1) "" else "s"} found"
+            } else {
+                "Everything up to date"
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             if (!isFullScreenRoute) {
                 Column(
                     modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
                 ) {
                     // Mini player above the bottom navigation
-                    AnimatedVisibility(
-                        visible = showMiniPlayer,
-                        enter = fadeIn() + slideInVertically { it },
-                        exit = fadeOut() + slideOutVertically { it }
-                    ) {
-                        MiniPlayer(
-                            playbackState = playbackState,
-                            onTogglePlayPause = {
-                                if (playbackState.isPlaying) {
-                                    playbackController.pause()
-                                } else {
-                                    playbackController.resume()
-                                }
-                            },
-                            onClick = {
-                                navController.navigate(Screen.Player.route) {
-                                    launchSingleTop = true
-                                }
+                    MiniPlayer(
+                        playbackState = playbackState,
+                        onTogglePlayPause = {
+                            if (playbackState.isPlaying) {
+                                playbackController.pause()
+                            } else {
+                                playbackController.resume()
                             }
-                        )
-                    }
+                        },
+                        onClick = {
+                            navController.navigate(Screen.Player.route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
 
-                    // Bottom navigation bar
-                    NavigationBar {
+                    // Bottom navigation bar — Jukebox styling
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp,
+                    ) {
                         bottomNavItems.forEach { item ->
                             val selected = navBackStackEntry?.destination?.hierarchy?.any {
                                 it.route == item.route
@@ -158,7 +179,14 @@ fun PodbellNavHost(
                                         contentDescription = item.label
                                     )
                                 },
-                                label = { Text(item.label) }
+                                label = { Text(item.label) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.outline,
+                                    unselectedTextColor = MaterialTheme.colorScheme.outline,
+                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                ),
                             )
                         }
                     }
@@ -175,6 +203,8 @@ fun PodbellNavHost(
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { appViewModel.refreshFeeds() },
                     onEpisodeClick = { episodeId ->
                         navController.navigate(Screen.EpisodeDetail.createRoute(episodeId))
                     },
@@ -263,93 +293,3 @@ fun PodbellNavHost(
     }
 }
 
-@Composable
-private fun MiniPlayer(
-    playbackState: PlaybackState,
-    onTogglePlayPause: () -> Unit,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        tonalElevation = 3.dp,
-        color = MaterialTheme.colorScheme.surfaceContainer
-    ) {
-        Column {
-            // Progress bar
-            if (playbackState.duration > 0L) {
-                LinearProgressIndicator(
-                    progress = {
-                        (playbackState.currentPosition.toFloat() / playbackState.duration.toFloat())
-                            .coerceIn(0f, 1f)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Artwork
-                AsyncImage(
-                    model = playbackState.artworkUrl.ifBlank { null },
-                    contentDescription = null,
-                    placeholder = rememberVectorPainter(Icons.Default.Podcasts),
-                    error = rememberVectorPainter(Icons.Default.Podcasts),
-                    fallback = rememberVectorPainter(Icons.Default.Podcasts),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Title and podcast name
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = playbackState.episodeTitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (playbackState.podcastTitle.isNotBlank()) {
-                        Text(
-                            text = playbackState.podcastTitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Play/Pause button
-                IconButton(onClick = onTogglePlayPause) {
-                    Icon(
-                        imageVector = if (playbackState.isPlaying) {
-                            Icons.Filled.Pause
-                        } else {
-                            Icons.Filled.PlayArrow
-                        },
-                        contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-}

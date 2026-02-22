@@ -14,6 +14,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.CommandButton
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
@@ -38,6 +39,7 @@ class PlaybackService : MediaSessionService() {
         private const val TAG = "PlaybackService"
         const val CUSTOM_COMMAND_SET_SKIP_SILENCE = "SET_SKIP_SILENCE"
         const val CUSTOM_COMMAND_SET_VOLUME_BOOST = "SET_VOLUME_BOOST"
+        const val CUSTOM_COMMAND_REWIND = "REWIND_10S"
         private const val NOTIFICATION_CHANNEL_ID = "podbelly_playback"
     }
 
@@ -63,6 +65,12 @@ class PlaybackService : MediaSessionService() {
 
         exoPlayer = player
 
+        val rewindCommand = SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
+        val rewindButton = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
+            .setDisplayName("Rewind 10s")
+            .setSessionCommand(rewindCommand)
+            .build()
+
         val sessionCallback = object : MediaSession.Callback {
             override fun onConnect(
                 session: MediaSession,
@@ -71,10 +79,12 @@ class PlaybackService : MediaSessionService() {
                 val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                     .add(SessionCommand(CUSTOM_COMMAND_SET_SKIP_SILENCE, Bundle.EMPTY))
                     .add(SessionCommand(CUSTOM_COMMAND_SET_VOLUME_BOOST, Bundle.EMPTY))
+                    .add(rewindCommand)
                     .build()
 
                 return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                     .setAvailableSessionCommands(sessionCommands)
+                    .setCustomLayout(listOf(rewindButton))
                     .build()
             }
 
@@ -94,6 +104,13 @@ class PlaybackService : MediaSessionService() {
                         val enabled = customCommand.customExtras.getBoolean("enabled", false)
                         applyVolumeBoost(enabled)
                         Log.d(TAG, "Volume boost set to $enabled")
+                    }
+                    CUSTOM_COMMAND_REWIND -> {
+                        exoPlayer?.let { player ->
+                            val newPos = (player.currentPosition - 10_000L).coerceAtLeast(0L)
+                            player.seekTo(newPos)
+                        }
+                        Log.d(TAG, "Rewound 10 seconds")
                     }
                 }
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))

@@ -38,4 +38,10 @@ interface PodcastDao {
 
     @Query("UPDATE podcasts SET notifyNewEpisodes = :enabled WHERE id = :id")
     suspend fun setNotifyNewEpisodes(id: Long, enabled: Boolean)
+
+    @Query("SELECT playbackSpeed FROM podcasts WHERE id = :id LIMIT 1")
+    suspend fun getPlaybackSpeed(id: Long): Float?
+
+    @Query("UPDATE podcasts SET playbackSpeed = :speed WHERE id = :id")
+    suspend fun updatePlaybackSpeed(id: Long, speed: Float)
 }

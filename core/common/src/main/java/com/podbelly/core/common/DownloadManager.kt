@@ -1,6 +1,8 @@
 package com.podbelly.core.common
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import com.podbelly.core.database.dao.DownloadErrorDao
 import com.podbelly.core.database.dao.EpisodeDao
@@ -12,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -32,6 +35,7 @@ class DownloadManager @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val episodeDao: EpisodeDao,
     private val downloadErrorDao: DownloadErrorDao,
+    private val preferencesManager: PreferencesManager,
     @ApplicationContext private val context: Context,
 ) {
 
@@ -58,6 +62,21 @@ class DownloadManager @Inject constructor(
 
         if (episode.audioUrl.isBlank()) {
             Log.w(TAG, "Episode $episodeId has no audio URL, skipping download")
+            return@withContext
+        }
+
+        // Enforce WiFi-only setting
+        val wifiOnly = preferencesManager.downloadOnWifiOnly.first()
+        if (wifiOnly && !isOnWifi()) {
+            Log.w(TAG, "WiFi-only download enabled but not on WiFi, skipping episode $episodeId")
+            downloadErrorDao.insert(
+                DownloadErrorEntity(
+                    episodeId = episodeId,
+                    errorMessage = "WiFi required – connect to WiFi or disable in Settings",
+                    errorCode = 0,
+                    timestamp = System.currentTimeMillis(),
+                )
+            )
             return@withContext
         }
 
@@ -247,6 +266,14 @@ class DownloadManager @Inject constructor(
      */
     fun registerDownloadJob(episodeId: Long, job: Job) {
         activeDownloads[episodeId] = job
+    }
+
+    private fun isOnWifi(): Boolean {
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
     companion object {

@@ -31,8 +31,7 @@ enum class DownloadsSortOrder {
     DATE_NEWEST,
     DATE_OLDEST,
     NAME_A_TO_Z,
-    PODCAST_NAME,
-    FILE_SIZE;
+    PODCAST_NAME;
 
     companion object {
         fun fromString(value: String): DownloadsSortOrder {

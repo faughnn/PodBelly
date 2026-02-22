@@ -88,17 +88,6 @@ class EpisodeDetailViewModel @Inject constructor(
         }
     }
 
-    fun togglePlayed() {
-        viewModelScope.launch {
-            val episode = episodeDao.getByIdOnce(episodeId) ?: return@launch
-            if (episode.played) {
-                episodeDao.markAsUnplayed(episodeId)
-            } else {
-                episodeDao.markAsPlayed(episodeId)
-            }
-        }
-    }
-
     fun downloadEpisode() {
         val job = viewModelScope.launch {
             downloadManager.downloadEpisode(episodeId)

@@ -17,13 +17,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.SortByAlpha
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -100,9 +102,13 @@ fun LibraryScreen(
                 }
             }
         } else {
+            val gridState = rememberLazyGridState()
+            val listState = rememberLazyListState()
+
             when (uiState.viewMode) {
                 LibraryViewMode.GRID -> {
                     LazyVerticalGrid(
+                        state = gridState,
                         columns = GridCells.Adaptive(minSize = 100.dp),
                         modifier = Modifier
                             .fillMaxSize()
@@ -124,6 +130,7 @@ fun LibraryScreen(
                 }
                 LibraryViewMode.LIST -> {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues),
@@ -181,7 +188,7 @@ private fun LibraryTopBar(
             Box {
                 IconButton(onClick = { showSortMenu = true }) {
                     Icon(
-                        imageVector = Icons.Default.SortByAlpha,
+                        imageVector = Icons.AutoMirrored.Filled.Sort,
                         contentDescription = "Sort podcasts",
                     )
                 }
@@ -270,7 +277,7 @@ private fun SortMenuItem(
 }
 
 @Composable
-private fun PodcastGridItem(
+internal fun PodcastGridItem(
     podcast: PodcastEntity,
     onClick: () -> Unit
 ) {
@@ -288,7 +295,7 @@ private fun PodcastGridItem(
             fallback = rememberVectorPainter(Icons.Default.Podcasts),
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
+                .clip(RoundedCornerShape(14.dp)),
             contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -304,7 +311,7 @@ private fun PodcastGridItem(
 }
 
 @Composable
-private fun PodcastListRow(
+internal fun PodcastListRow(
     podcast: PodcastEntity,
     onClick: () -> Unit
 ) {

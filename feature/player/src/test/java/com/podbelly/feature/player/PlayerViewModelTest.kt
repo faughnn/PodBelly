@@ -3,6 +3,7 @@ package com.podbelly.feature.player
 import app.cash.turbine.test
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState
@@ -34,6 +35,7 @@ class PlayerViewModelTest {
 
     private val playbackController = mockk<PlaybackController>(relaxed = true)
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
+    private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val queueDao = mockk<QueueDao>(relaxed = true)
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
     private val sleepTimer = mockk<SleepTimer>(relaxed = true)
@@ -62,6 +64,7 @@ class PlayerViewModelTest {
         return PlayerViewModel(
             playbackController = playbackController,
             episodeDao = episodeDao,
+            podcastDao = podcastDao,
             queueDao = queueDao,
             preferencesManager = preferencesManager,
             sleepTimer = sleepTimer,
@@ -286,34 +289,6 @@ class PlayerViewModelTest {
     }
 
     @Test
-    fun `markAsPlayed marks episode and removes from queue`() = runTest {
-        playbackStateFlow.value = PlaybackState(episodeId = 42L)
-
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-
-        viewModel.markAsPlayed()
-        advanceUntilIdle()
-
-        coVerify { episodeDao.markAsPlayed(42L) }
-        coVerify { queueDao.removeFromQueue(42L) }
-    }
-
-    @Test
-    fun `markAsPlayed does nothing when episodeId is zero`() = runTest {
-        playbackStateFlow.value = PlaybackState(episodeId = 0L)
-
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-
-        viewModel.markAsPlayed()
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { episodeDao.markAsPlayed(any()) }
-        coVerify(exactly = 0) { queueDao.removeFromQueue(any()) }
-    }
-
-    @Test
     fun `savePosition saves current position for current episode`() = runTest {
         playbackStateFlow.value = PlaybackState(episodeId = 99L, currentPosition = 55000L)
 
@@ -366,5 +341,83 @@ class PlayerViewModelTest {
 
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    // -- Chapter navigation tests --
+
+    @Test
+    fun `seekToNextChapter delegates to playbackController`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.seekToNextChapter()
+
+        verify { playbackController.seekToNextChapter() }
+    }
+
+    @Test
+    fun `seekToPreviousChapter delegates to playbackController`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.seekToPreviousChapter()
+
+        verify { playbackController.seekToPreviousChapter() }
+    }
+
+    @Test
+    fun `seekToChapter delegates to playbackController with correct index`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.seekToChapter(3)
+
+        verify { playbackController.seekToChapter(3) }
+    }
+
+    @Test
+    fun `showChaptersList and hideChaptersList toggle the chapters state`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertFalse(initial.showChaptersList)
+
+            viewModel.showChaptersList()
+            val shown = awaitItem()
+            assertTrue(shown.showChaptersList)
+
+            viewModel.hideChaptersList()
+            val hidden = awaitItem()
+            assertFalse(hidden.showChaptersList)
+
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    // -- Per-podcast speed tests --
+
+    @Test
+    fun `setPlaybackSpeed saves to podcastDao when podcast is playing`() = runTest {
+        playbackStateFlow.value = PlaybackState(podcastId = 42L)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.setPlaybackSpeed(2.0f)
+        advanceUntilIdle()
+
+        verify { playbackController.setPlaybackSpeed(2.0f) }
+        coVerify { podcastDao.updatePlaybackSpeed(42L, 2.0f) }
+        coVerify(exactly = 0) { preferencesManager.setPlaybackSpeed(any()) }
+    }
+
+    // -- Save position edge case --
+
+    @Test
+    fun `savePosition does nothing when no episode is playing`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 0L)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.savePosition()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { episodeDao.updatePlaybackPosition(any(), any()) }
     }
 }

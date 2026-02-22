@@ -4,21 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.DownloadManager
-import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
 
 data class HomeEpisodeItem(
@@ -29,12 +23,12 @@ data class HomeEpisodeItem(
     val publicationDate: Long,
     val durationSeconds: Int,
     val played: Boolean,
-    val downloadPath: String
+    val downloadPath: String,
+    val playbackPosition: Long = 0L,
 )
 
 data class HomeUiState(
     val recentEpisodes: List<HomeEpisodeItem> = emptyList(),
-    val isRefreshing: Boolean = false,
     val isEmpty: Boolean = false
 )
 
@@ -43,19 +37,15 @@ class HomeViewModel @Inject constructor(
     private val episodeDao: EpisodeDao,
     private val podcastDao: PodcastDao,
     private val playbackController: PlaybackController,
-    private val searchRepository: PodcastSearchRepository,
     private val downloadManager: DownloadManager,
 ) : ViewModel() {
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
 
-    private val _isRefreshing = MutableStateFlow(false)
-
     val uiState: StateFlow<HomeUiState> = combine(
         episodeDao.getRecentEpisodes(50),
         podcastDao.getAll(),
-        _isRefreshing
-    ) { episodes, podcasts, refreshing ->
+    ) { episodes, podcasts ->
         val podcastMap: Map<Long, PodcastEntity> = podcasts.associateBy { it.id }
 
         val items = episodes.mapNotNull { episode ->
@@ -69,13 +59,13 @@ class HomeViewModel @Inject constructor(
                 publicationDate = episode.publicationDate,
                 durationSeconds = episode.durationSeconds,
                 played = episode.played,
-                downloadPath = episode.downloadPath
+                downloadPath = episode.downloadPath,
+                playbackPosition = episode.playbackPosition,
             )
         }
 
         HomeUiState(
             recentEpisodes = items,
-            isRefreshing = refreshing,
             isEmpty = podcasts.isEmpty()
         )
     }.stateIn(
@@ -83,49 +73,6 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState()
     )
-
-    fun refreshFeeds() {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            try {
-                val podcasts: List<PodcastEntity> = podcastDao.getAll().first()
-                val semaphore = Semaphore(5)
-                podcasts.map { podcast ->
-                    launch {
-                        semaphore.withPermit {
-                            try {
-                                val rssFeed = searchRepository.fetchFeed(podcast.feedUrl)
-
-                                val episodeEntities = rssFeed.episodes.map { rssEpisode ->
-                                    EpisodeEntity(
-                                        podcastId = podcast.id,
-                                        guid = rssEpisode.guid,
-                                        title = rssEpisode.title,
-                                        description = rssEpisode.description,
-                                        audioUrl = rssEpisode.audioUrl,
-                                        publicationDate = rssEpisode.publishedAt,
-                                        durationSeconds = (rssEpisode.duration / 1000).toInt(),
-                                        artworkUrl = rssEpisode.artworkUrl ?: "",
-                                        fileSize = rssEpisode.fileSize
-                                    )
-                                }
-
-                                episodeDao.insertAll(episodeEntities)
-
-                                podcastDao.update(
-                                    podcast.copy(lastRefreshedAt = System.currentTimeMillis())
-                                )
-                            } catch (_: Exception) {
-                                // Skip this feed and continue with the next one.
-                            }
-                        }
-                    }
-                }.forEach { it.join() }
-            } finally {
-                _isRefreshing.value = false
-            }
-        }
-    }
 
     fun downloadEpisode(episodeId: Long) {
         val job = viewModelScope.launch {

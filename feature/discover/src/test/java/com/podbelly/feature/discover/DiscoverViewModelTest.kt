@@ -225,4 +225,119 @@ class DiscoverViewModelTest {
             assertNull(state.message)
         }
     }
+
+    // -- subscribeByUrl tests --
+
+    @Test
+    fun `subscribeByUrl trims URL and subscribes`() = runTest {
+        val feedUrl = "https://example.com/feed.xml"
+
+        val rssFeed = RssFeed(
+            title = "Direct Feed",
+            description = "Desc",
+            author = "Author",
+            artworkUrl = "https://art.com",
+            link = "https://example.com",
+            episodes = emptyList(),
+        )
+
+        coEvery { podcastDao.getByFeedUrl(feedUrl) } returns null
+        coEvery { searchRepository.fetchFeed(feedUrl) } returns rssFeed
+        coEvery { podcastDao.insert(any()) } returns 10L
+
+        val viewModel = createViewModel()
+        viewModel.subscribeByUrl("  $feedUrl  ")
+        advanceUntilIdle()
+
+        coVerify { searchRepository.fetchFeed(feedUrl) }
+        coVerify { podcastDao.insert(match { it.feedUrl == feedUrl }) }
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("", state.feedUrlInput)
+        }
+    }
+
+    @Test
+    fun `subscribeByUrl with blank URL shows error message`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.subscribeByUrl("   ")
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("Please enter a feed URL", state.message)
+        }
+    }
+
+    // -- updateSearchQuery tests --
+
+    @Test
+    fun `updateSearchQuery clears results when blank`() = runTest {
+        // First do a search to populate results
+        val searchResults = listOf(
+            SearchResult(
+                feedUrl = "https://feed.com/rss",
+                title = "Podcast",
+                author = "Author",
+                artworkUrl = "https://art.com",
+            ),
+        )
+        coEvery { searchRepository.search("test") } returns searchResults
+
+        val viewModel = createViewModel()
+        viewModel.search("test")
+        advanceUntilIdle()
+
+        // Now clear the query
+        viewModel.updateSearchQuery("")
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.searchResults.isEmpty())
+            assertFalse(state.isSearching)
+            assertEquals("", state.searchQuery)
+        }
+    }
+
+    // -- updateFeedUrl tests --
+
+    @Test
+    fun `updateFeedUrl updates feedUrlInput in state`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.updateFeedUrl("https://my-podcast.com/rss")
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("https://my-podcast.com/rss", state.feedUrlInput)
+        }
+    }
+
+    // -- Subscribe error tests --
+
+    @Test
+    fun `error during subscribe sets error message`() = runTest {
+        val feedUrl = "https://bad-feed.com/rss"
+        coEvery { podcastDao.getByFeedUrl(feedUrl) } returns null
+        coEvery { searchRepository.fetchFeed(feedUrl) } throws RuntimeException("Connection refused")
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            viewModel.subscribeToPodcast(feedUrl)
+            advanceUntilIdle()
+
+            val states = cancelAndConsumeRemainingEvents()
+            val lastItem = states.filterIsInstance<app.cash.turbine.Event.Item<DiscoverUiState>>().lastOrNull()?.value
+
+            if (lastItem != null) {
+                assertTrue(lastItem.message?.contains("Subscription failed") == true)
+                assertFalse(lastItem.isSubscribing)
+            }
+        }
+    }
 }

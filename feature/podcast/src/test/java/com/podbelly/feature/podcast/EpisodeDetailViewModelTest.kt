@@ -199,28 +199,6 @@ class EpisodeDetailViewModelTest {
     }
 
     @Test
-    fun `togglePlayed marks unplayed episode as played`() = runTest {
-        coEvery { episodeDao.getByIdOnce(5L) } returns testEpisode.copy(played = false)
-
-        val viewModel = createViewModel()
-        viewModel.togglePlayed()
-        advanceUntilIdle()
-
-        coVerify { episodeDao.markAsPlayed(5L) }
-    }
-
-    @Test
-    fun `togglePlayed marks played episode as unplayed`() = runTest {
-        coEvery { episodeDao.getByIdOnce(5L) } returns testEpisode.copy(played = true)
-
-        val viewModel = createViewModel()
-        viewModel.togglePlayed()
-        advanceUntilIdle()
-
-        coVerify { episodeDao.markAsUnplayed(5L) }
-    }
-
-    @Test
     fun `downloadEpisode delegates to downloadManager`() = runTest {
         val viewModel = createViewModel()
         viewModel.downloadEpisode()

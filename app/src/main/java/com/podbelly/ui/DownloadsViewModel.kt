@@ -31,6 +31,7 @@ data class DownloadedEpisodeItem(
     val downloadPath: String,
     val downloadedAt: Long,
     val fileSize: Long,
+    val playbackPosition: Long = 0L,
 )
 
 data class DownloadsUiState(
@@ -73,6 +74,7 @@ class DownloadsViewModel @Inject constructor(
                 downloadPath = episode.downloadPath,
                 downloadedAt = episode.downloadedAt,
                 fileSize = episode.fileSize,
+                playbackPosition = episode.playbackPosition,
             )
         }
 
@@ -81,7 +83,6 @@ class DownloadsViewModel @Inject constructor(
             DownloadsSortOrder.DATE_OLDEST -> items.sortedBy { it.downloadedAt }
             DownloadsSortOrder.NAME_A_TO_Z -> items.sortedBy { it.title.lowercase() }
             DownloadsSortOrder.PODCAST_NAME -> items.sortedBy { it.podcastTitle.lowercase() }
-            DownloadsSortOrder.FILE_SIZE -> items.sortedByDescending { it.fileSize }
         }
 
         DownloadsUiState(episodes = sorted, sortOrder = sortOrder, downloadErrors = errors)

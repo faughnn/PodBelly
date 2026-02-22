@@ -19,8 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,7 +26,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,8 +48,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -100,7 +104,7 @@ fun EpisodeDetailScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Artwork
+            // Artwork with colored glow shadow
             AsyncImage(
                 model = uiState.artworkUrl.ifBlank { null },
                 contentDescription = "${uiState.title} artwork",
@@ -109,6 +113,12 @@ fun EpisodeDetailScreen(
                 fallback = rememberVectorPainter(Icons.Default.Podcasts),
                 modifier = Modifier
                     .size(200.dp)
+                    .shadow(
+                        elevation = 24.dp,
+                        shape = RoundedCornerShape(16.dp),
+                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    )
                     .clip(RoundedCornerShape(16.dp))
                     .align(Alignment.CenterHorizontally),
                 contentScale = ContentScale.Crop,
@@ -175,15 +185,31 @@ fun EpisodeDetailScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                LinearProgressIndicator(
-                    progress = { progress.coerceIn(0f, 1f) },
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                )
+                        .clip(RoundedCornerShape(2.dp))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progress.coerceIn(0f, 1f))
+                            .fillMaxHeight()
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.tertiary,
+                                    )
+                                )
+                            )
+                    )
+                }
 
                 val remainingSeconds = uiState.durationSeconds - (uiState.playbackPosition / 1000).toInt()
                 if (remainingSeconds > 0) {
@@ -263,57 +289,35 @@ fun EpisodeDetailScreen(
                 }
             }
 
-            // Mark played + Share row
-            Row(
+            // Share button
+            FilledTonalButton(
+                onClick = {
+                    val shareText = buildString {
+                        append(uiState.title)
+                        if (uiState.podcastTitle.isNotBlank()) {
+                            append(" - ${uiState.podcastTitle}")
+                        }
+                        if (uiState.audioUrl.isNotBlank()) {
+                            append("\n${uiState.audioUrl}")
+                        }
+                    }
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Episode"))
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                FilledTonalButton(
-                    onClick = { viewModel.togglePlayed() },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(
-                        imageVector = if (uiState.played) {
-                            Icons.Outlined.CheckCircle
-                        } else {
-                            Icons.Outlined.Circle
-                        },
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (uiState.played) "Played" else "Mark Played")
-                }
-
-                FilledTonalButton(
-                    onClick = {
-                        val shareText = buildString {
-                            append(uiState.title)
-                            if (uiState.podcastTitle.isNotBlank()) {
-                                append(" - ${uiState.podcastTitle}")
-                            }
-                            if (uiState.audioUrl.isNotBlank()) {
-                                append("\n${uiState.audioUrl}")
-                            }
-                        }
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareText)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Episode"))
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Share,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share")
-                }
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Share")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -330,13 +334,33 @@ fun EpisodeDetailScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = uiState.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = if (isExpanded) Int.MAX_VALUE else 8,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.animateContentSize(),
+                val notesTextColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+                val notesLinkColor = MaterialTheme.colorScheme.primary.toArgb()
+                val notesMaxLines = if (isExpanded) Int.MAX_VALUE else 8
+
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.TextView(ctx).apply {
+                            setTextColor(notesTextColor)
+                            setLinkTextColor(notesLinkColor)
+                            textSize = 14f
+                            maxLines = notesMaxLines
+                            ellipsize = android.text.TextUtils.TruncateAt.END
+                            movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                        }
+                    },
+                    update = { textView ->
+                        textView.text = android.text.Html.fromHtml(
+                            uiState.description,
+                            android.text.Html.FROM_HTML_MODE_COMPACT,
+                        )
+                        textView.maxLines = notesMaxLines
+                        textView.setTextColor(notesTextColor)
+                        textView.setLinkTextColor(notesLinkColor)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
                 )
 
                 if (uiState.description.length > 200) {

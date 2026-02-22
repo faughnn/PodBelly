@@ -1,9 +1,13 @@
 package com.podbelly.feature.player
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -83,11 +87,21 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalContext
+import androidx.palette.graphics.Palette
+import coil.ImageLoader
+import coil.request.ImageRequest
+import android.view.HapticFeedbackConstants
+import androidx.compose.ui.platform.LocalView
+import coil.request.SuccessResult
 import com.podbelly.core.playback.Chapter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,6 +114,16 @@ fun PlayerScreen(
     val playback = uiState.playbackState
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val speedPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Extract dominant color from artwork for background tinting
+    val dominantColor = rememberDominantColor(
+        imageUrl = playback.artworkUrl,
+        defaultColor = MaterialTheme.colorScheme.primaryContainer,
+    )
+    val animatedDominant by animateColorAsState(
+        targetValue = dominantColor,
+        label = "dominantColor",
+    )
 
     // Save playback position when leaving the screen
     DisposableEffect(Unit) {
@@ -132,7 +156,7 @@ fun PlayerScreen(
         containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
 
-        // Subtle gradient background behind the artwork area
+        // Artwork-tinted gradient background
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -141,7 +165,7 @@ fun PlayerScreen(
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
+                                animatedDominant.copy(alpha = 0.3f),
                                 Color.Transparent,
                             ),
                         ),
@@ -274,10 +298,11 @@ fun PlayerScreen(
         ModalBottomSheet(
             onDismissRequest = { viewModel.hideSpeedPicker() },
             sheetState = speedPickerSheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ) {
             SpeedPickerContent(
                 currentSpeed = uiState.playbackSpeed,
+                podcastTitle = uiState.playbackState.podcastTitle,
                 onSelect = { viewModel.setPlaybackSpeed(it) },
                 onDismiss = { viewModel.hideSpeedPicker() },
             )
@@ -289,7 +314,7 @@ fun PlayerScreen(
         ModalBottomSheet(
             onDismissRequest = { viewModel.hideSleepTimerPicker() },
             sheetState = sleepTimerSheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ) {
             SleepTimerPickerContent(
                 isSleepTimerActive = uiState.isSleepTimerActive,
@@ -311,7 +336,7 @@ fun PlayerScreen(
         ModalBottomSheet(
             onDismissRequest = { viewModel.hideChaptersList() },
             sheetState = chaptersSheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ) {
             ChaptersListContent(
                 chapters = playback.chapters,
@@ -347,7 +372,68 @@ private fun SeekBar(
         0f
     }
 
+    // Animated thumb size: grows when dragging for easier interaction
+    val thumbSize by animateDpAsState(
+        targetValue = if (isDragging) 24.dp else 14.dp,
+        label = "thumbSize",
+    )
+
+    // The time shown in the tooltip while dragging
+    val displayPosition = if (isDragging) {
+        (localSlider * duration).toLong()
+    } else {
+        currentPosition
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
+        // Floating time tooltip that appears above the slider when dragging
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isDragging,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                // Position the tooltip based on slider fraction
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // Offset the chip horizontally based on slider position
+                    val offsetFraction = sliderPosition - 0.5f
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .padding(
+                                start = if (offsetFraction > 0f) (offsetFraction * 200).dp.coerceAtMost(120.dp) else 0.dp,
+                                end = if (offsetFraction < 0f) (-offsetFraction * 200).dp.coerceAtMost(120.dp) else 0.dp,
+                            ),
+                        contentAlignment = if (offsetFraction < -0.15f) Alignment.CenterStart
+                        else if (offsetFraction > 0.15f) Alignment.CenterEnd
+                        else Alignment.Center,
+                    ) {
+                        androidx.compose.material3.Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.inverseSurface,
+                            shadowElevation = 4.dp,
+                        ) {
+                            Text(
+                                text = formatMillis(displayPosition),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.inverseOnSurface,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         Slider(
             value = sliderPosition,
             onValueChange = { fraction ->
@@ -361,6 +447,20 @@ private fun SeekBar(
                 activeTrackColor = MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
             ),
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(thumbSize)
+                        .shadow(
+                            elevation = if (isDragging) 6.dp else 2.dp,
+                            shape = CircleShape,
+                        )
+                        .background(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = CircleShape,
+                        ),
+                )
+            },
         )
 
         Row(
@@ -390,7 +490,7 @@ private fun SeekBar(
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun MainControls(
+internal fun MainControls(
     isPlaying: Boolean,
     hasChapters: Boolean,
     hasPreviousChapter: Boolean,
@@ -401,6 +501,7 @@ private fun MainControls(
     onPreviousChapter: () -> Unit,
     onNextChapter: () -> Unit,
 ) {
+    val view = LocalView.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -439,7 +540,10 @@ private fun MainControls(
 
         // Play / Pause -- large filled circle (64dp)
         FilledIconButton(
-            onClick = onTogglePlayPause,
+            onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                onTogglePlayPause()
+            },
             modifier = Modifier.size(64.dp),
             shape = CircleShape,
             colors = IconButtonDefaults.filledIconButtonColors(
@@ -492,7 +596,7 @@ private fun MainControls(
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun SecondaryControls(
+internal fun SecondaryControls(
     playbackSpeed: Float,
     sleepTimerRemaining: Long,
     isSleepTimerActive: Boolean,
@@ -627,8 +731,9 @@ private fun SecondaryControls(
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun SpeedPickerContent(
+internal fun SpeedPickerContent(
     currentSpeed: Float,
+    podcastTitle: String = "",
     onSelect: (Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -641,9 +746,11 @@ private fun SpeedPickerContent(
             .padding(bottom = 40.dp),
     ) {
         Text(
-            text = "Playback Speed",
+            text = if (podcastTitle.isNotBlank()) "Speed for $podcastTitle" else "Playback Speed",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(bottom = 20.dp),
         )
 
@@ -692,7 +799,7 @@ private fun SpeedPickerContent(
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun SleepTimerPickerContent(
+internal fun SleepTimerPickerContent(
     isSleepTimerActive: Boolean,
     sleepTimerRemaining: Long,
     onSelect: (Int) -> Unit,
@@ -735,6 +842,8 @@ private fun SleepTimerPickerContent(
         }
 
         val timerOptions = listOf(
+            "5 minutes" to 5,
+            "10 minutes" to 10,
             "15 minutes" to 15,
             "30 minutes" to 30,
             "45 minutes" to 45,
@@ -814,7 +923,7 @@ private fun SleepTimerPickerContent(
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun ChaptersListContent(
+internal fun ChaptersListContent(
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterClick: (Int) -> Unit,
@@ -905,4 +1014,46 @@ private fun formatSpeed(speed: Float): String {
     } else {
         "${speed}x"
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Artwork color extraction
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun rememberDominantColor(imageUrl: String, defaultColor: Color): Color {
+    var dominantColor by remember { mutableStateOf(defaultColor) }
+    val context = LocalContext.current
+
+    LaunchedEffect(imageUrl) {
+        if (imageUrl.isBlank()) {
+            dominantColor = defaultColor
+            return@LaunchedEffect
+        }
+        try {
+            val loader = ImageLoader(context)
+            val request = ImageRequest.Builder(context)
+                .data(imageUrl)
+                .allowHardware(false)
+                .build()
+            val result = loader.execute(request)
+            val bitmap = (result as? SuccessResult)
+                ?.drawable
+                ?.let { it as? BitmapDrawable }
+                ?.bitmap
+            if (bitmap != null) {
+                val palette = Palette.from(bitmap).generate()
+                val swatch = palette.darkMutedSwatch
+                    ?: palette.mutedSwatch
+                    ?: palette.dominantSwatch
+                if (swatch != null) {
+                    dominantColor = Color(swatch.rgb)
+                }
+            }
+        } catch (_: Exception) {
+            dominantColor = defaultColor
+        }
+    }
+
+    return dominantColor
 }

@@ -264,13 +264,8 @@ class PlaybackController @Inject constructor(
             .setMediaMetadata(metadata)
             .build()
 
-        controller.setMediaItem(mediaItem)
+        controller.setMediaItem(mediaItem, startPosition)
         controller.prepare()
-
-        if (startPosition > 0L) {
-            controller.seekTo(startPosition)
-        }
-
         controller.play()
         refreshQueueFlags()
     }

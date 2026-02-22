@@ -6,9 +6,6 @@ import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.DownloadManager
-import com.podbelly.core.network.api.PodcastSearchRepository
-import com.podbelly.core.network.model.RssEpisode
-import com.podbelly.core.network.model.RssFeed
 import com.podbelly.core.playback.PlaybackController
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -38,7 +35,6 @@ class HomeViewModelTest {
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val playbackController = mockk<PlaybackController>(relaxed = true)
-    private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
     private val downloadManager = mockk<DownloadManager>(relaxed = true)
 
     private val episodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
@@ -61,7 +57,6 @@ class HomeViewModelTest {
             episodeDao = episodeDao,
             podcastDao = podcastDao,
             playbackController = playbackController,
-            searchRepository = searchRepository,
             downloadManager = downloadManager,
         )
     }
@@ -171,44 +166,6 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `refreshFeeds calls fetchFeed for each podcast and inserts episodes`() = runTest {
-        val podcast1 = makePodcast(id = 1L, feedUrl = "https://feed1.com/rss")
-        val podcast2 = makePodcast(id = 2L, feedUrl = "https://feed2.com/rss")
-
-        podcastsFlow.value = listOf(podcast1, podcast2)
-
-        val rssEpisode = RssEpisode(
-            guid = "guid-rss-1",
-            title = "RSS Episode",
-            description = "Desc",
-            audioUrl = "https://audio.com/ep.mp3",
-            publishedAt = 123456L,
-            duration = 60000L,
-            artworkUrl = null,
-            fileSize = 5000L,
-        )
-        val rssFeed = RssFeed(
-            title = "Feed",
-            description = "Feed Desc",
-            author = "Author",
-            artworkUrl = "https://art.com",
-            link = "https://link.com",
-            episodes = listOf(rssEpisode),
-        )
-
-        coEvery { searchRepository.fetchFeed(any()) } returns rssFeed
-
-        val viewModel = createViewModel()
-        viewModel.refreshFeeds()
-        advanceUntilIdle()
-
-        coVerify { searchRepository.fetchFeed("https://feed1.com/rss") }
-        coVerify { searchRepository.fetchFeed("https://feed2.com/rss") }
-        coVerify(exactly = 2) { episodeDao.insertAll(any()) }
-        coVerify(exactly = 2) { podcastDao.update(any()) }
-    }
-
-    @Test
     fun `playEpisode calls playbackController play with correct params`() = runTest {
         val podcast = makePodcast(id = 1L, title = "Show Title", artworkUrl = "https://art.com/podcast.jpg")
         val episode = makeEpisode(
@@ -237,6 +194,36 @@ class HomeViewModelTest {
                 podcastId = 1L,
             )
         }
+    }
+
+    @Test
+    fun `downloadEpisode delegates to downloadManager and registers job`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.downloadEpisode(5L)
+        advanceUntilIdle()
+
+        coVerify { downloadManager.downloadEpisode(5L) }
+        verify { downloadManager.registerDownloadJob(5L, any()) }
+    }
+
+    @Test
+    fun `deleteDownload delegates to downloadManager`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.deleteDownload(5L)
+        advanceUntilIdle()
+
+        coVerify { downloadManager.deleteDownload(5L) }
+    }
+
+    @Test
+    fun `playEpisode does nothing when episode not found`() = runTest {
+        coEvery { episodeDao.getByIdOnce(999L) } returns null
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(999L)
+        advanceUntilIdle()
+
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test

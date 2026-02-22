@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Podbelly — Design Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=Nunito:wght@400;500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display&family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Sora', sans-serif;
+    background: #0E0E10;
+    color: #e0e0e0;
+    padding: 48px 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 8px;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .subtitle {
+    text-align: center;
+    color: #777;
+    margin-bottom: 56px;
+    font-size: 0.9rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+  }
+  .directions {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .direction {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+  @media (max-width: 800px) {
+    .direction { grid-template-columns: 1fr; }
+  }
+  .direction-info { padding-top: 16px; }
+  .direction-number {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .direction-name {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+  }
+  .direction-desc {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    opacity: 0.6;
+    margin-bottom: 24px;
+  }
+  .traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .trait {
+    font-size: 0.72rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .key-moves {
+    font-size: 0.8rem;
+    line-height: 1.8;
+    opacity: 0.5;
+  }
+  .key-moves strong { opacity: 1; color: #ccc; }
+
+  /* ============ PHONE FRAMES ============ */
+  .phone {
+    width: 360px;
+    border-radius: 36px;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #000;
+    border-radius: 0 0 16px 16px;
+    z-index: 10;
+  }
+
+  /* =============================================
+     DIRECTION 1: WARM & COZY — "The Nook"
+     ============================================= */
+  .phone-nook {
+    background: #1A1410;
+    box-shadow: 0 16px 80px rgba(181,107,69,0.15);
+  }
+  .phone-nook .screen {
+    padding: 36px 0 0;
+  }
+  .nook-header {
+    padding: 16px 24px 20px;
+  }
+  .nook-greeting {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.8rem;
+    color: #A89070;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .nook-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.65rem;
+    color: #F5E6D3;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .nook-section-label {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #8A7560;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0 24px;
+    margin-bottom: 12px;
+  }
+  .nook-now-playing {
+    margin: 0 20px 16px;
+    background: #261F18;
+    border-radius: 20px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  }
+  .nook-now-art {
+    width: 64px; height: 64px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #B56B45, #D4885E);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 16px rgba(181,107,69,0.3);
+    flex-shrink: 0;
+  }
+  .nook-now-info { flex: 1; min-width: 0; }
+  .nook-now-label {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.65rem;
+    color: #B56B45;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .nook-now-title {
+    font-family: 'Fraunces', serif;
+    font-size: 0.95rem;
+    color: #F0DCC8;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+  .nook-now-podcast {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.72rem;
+    color: #A89070;
+  }
+  .nook-now-progress {
+    height: 4px;
+    background: #3A2E24;
+    border-radius: 2px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .nook-now-progress-fill {
+    width: 42%;
+    height: 100%;
+    background: linear-gradient(90deg, #B56B45, #C49A42);
+    border-radius: 2px;
+  }
+  .nook-now-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: #B56B45;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .nook-episodes {
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .nook-ep {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #211B15;
+    border-radius: 16px;
+    align-items: center;
+  }
+  .nook-ep-art {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .nook-ep-info { flex: 1; min-width: 0; }
+  .nook-ep-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.8rem;
+    color: #E8D4C0;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nook-ep-meta {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.68rem;
+    color: #7A6B5D;
+    margin-top: 2px;
+  }
+  .nook-ep-dur {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.68rem;
+    color: #A89070;
+    font-weight: 600;
+    background: #2E2419;
+    padding: 3px 10px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .nook-bottom {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 0 20px;
+    margin-top: 12px;
+    border-top: 1px solid #261F18;
+  }
+  .nook-tab {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.6rem; font-weight: 700;
+    color: #5A4D40;
+  }
+  .nook-tab.active { color: #B56B45; }
+  .nook-tab-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #B56B45;
+  }
+  .nook-tab-icon {
+    width: 22px; height: 22px;
+  }
+
+  /* =============================================
+     DIRECTION 2: BOLD & PLAYFUL — "Jukebox"
+     ============================================= */
+  .phone-jukebox {
+    background: #0A0A12;
+    box-shadow: 0 16px 80px rgba(255,107,107,0.1);
+  }
+  .phone-jukebox .screen {
+    padding: 36px 0 0;
+  }
+  .juke-header {
+    padding: 12px 20px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .juke-logo {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.04em;
+  }
+  .juke-logo span { color: #FF6B6B; }
+  .juke-avatar {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #FF6B6B, #FFA502);
+  }
+  .juke-hero {
+    margin: 0 16px 16px;
+    background: linear-gradient(135deg, #1A1530, #0F1828);
+    border-radius: 20px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #ffffff08;
+  }
+  .juke-hero::after {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, #FF6B6B20, transparent 70%);
+  }
+  .juke-hero-label {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #FF6B6B;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .juke-hero-label::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: #FF6B6B;
+    border-radius: 50%;
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .juke-hero-row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  .juke-hero-art {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #FF6B6B, #FF4757);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    transform: rotate(-3deg);
+    box-shadow: 0 6px 24px rgba(255,107,107,0.4);
+    flex-shrink: 0;
+  }
+  .juke-hero-info { flex: 1; }
+  .juke-hero-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+    color: #fff;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .juke-hero-pod {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    color: #8892A8;
+  }
+  .juke-hero-bar {
+    height: 4px;
+    background: #ffffff10;
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  .juke-hero-bar-fill {
+    width: 38%;
+    height: 100%;
+    background: linear-gradient(90deg, #FF6B6B, #FFA502);
+    border-radius: 2px;
+  }
+  .juke-section {
+    padding: 0 16px;
+    margin-bottom: 12px;
+  }
+  .juke-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .juke-section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    color: #fff;
+    font-weight: 700;
+  }
+  .juke-section-more {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.7rem;
+    color: #FF6B6B;
+    font-weight: 600;
+  }
+  .juke-cards {
+    display: flex;
+    gap: 10px;
+    overflow-x: hidden;
+  }
+  .juke-card {
+    min-width: 130px;
+    background: #12141E;
+    border-radius: 14px;
+    padding: 10px;
+    border: 1px solid #ffffff06;
+  }
+  .juke-card-art {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+  .juke-card-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    color: #E0E4F0;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .juke-card-pod {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.62rem;
+    color: #5A6480;
+    margin-top: 2px;
+  }
+  .juke-list { display: flex; flex-direction: column; gap: 2px; }
+  .juke-ep {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    align-items: center;
+  }
+  .juke-ep:hover { background: #12141E; }
+  .juke-ep-num {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.75rem;
+    color: #3A4060;
+    font-weight: 700;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .juke-ep-art {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .juke-ep-info { flex: 1; min-width: 0; }
+  .juke-ep-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.78rem;
+    color: #E0E4F0;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .juke-ep-meta {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.65rem;
+    color: #5A6480;
+    margin-top: 1px;
+  }
+  .juke-ep-tag {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.58rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .juke-bottom {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 18px;
+    border-top: 1px solid #ffffff06;
+    margin-top: 8px;
+  }
+  .juke-tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.6rem; font-weight: 600;
+    color: #3A4060;
+  }
+  .juke-tab.active { color: #FF6B6B; }
+  .juke-tab-bar {
+    width: 16px; height: 3px;
+    border-radius: 2px;
+    background: #FF6B6B;
+  }
+
+  /* =============================================
+     DIRECTION 3: DARK & IMMERSIVE — "Cinema"
+     ============================================= */
+  .phone-cinema {
+    background: #060608;
+    box-shadow: 0 16px 80px rgba(60,50,90,0.15);
+  }
+  .phone-cinema .screen {
+    padding: 36px 0 0;
+  }
+  .cinema-header {
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cinema-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: #D8D0E8;
+    font-weight: 400;
+    font-style: italic;
+  }
+  .cinema-time {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.7rem;
+    color: #4A4458;
+  }
+  .cinema-hero {
+    margin: 8px 0 0;
+    padding: 0 20px;
+    position: relative;
+  }
+  .cinema-hero-art {
+    width: 100%;
+    aspect-ratio: 1.4;
+    border-radius: 24px;
+    background: linear-gradient(160deg, #2D2040, #181228, #0D0A18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 60px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(60,40,100,0.5);
+  }
+  .cinema-hero-art::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 40%, rgba(107,91,149,0.3), transparent 60%),
+                radial-gradient(ellipse at 70% 60%, rgba(149,107,91,0.2), transparent 50%);
+  }
+  .cinema-hero-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 24px 20px 16px;
+    background: linear-gradient(transparent, rgba(6,6,8,0.9));
+  }
+  .cinema-hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    color: #F0ECF8;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .cinema-hero-pod {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.7rem;
+    color: #8B7BAA;
+    font-weight: 300;
+  }
+  .cinema-hero-play {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.2);
+    z-index: 2;
+  }
+  .cinema-episodes {
+    padding: 20px 20px 0;
+  }
+  .cinema-ep-label {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.65rem;
+    color: #4A4458;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .cinema-ep {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid #ffffff06;
+  }
+  .cinema-ep-art {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .cinema-ep-info { flex: 1; min-width: 0; }
+  .cinema-ep-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.85rem;
+    color: #E8E0F0;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cinema-ep-meta {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.65rem;
+    color: #4A4458;
+    margin-top: 3px;
+    font-weight: 300;
+  }
+  .cinema-ep-play {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid #2A2438;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .cinema-bottom {
+    display: flex;
+    justify-content: space-around;
+    padding: 14px 0 22px;
+    margin-top: 8px;
+  }
+  .cinema-tab {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.58rem; font-weight: 400;
+    color: #2A2438;
+    letter-spacing: 0.04em;
+  }
+  .cinema-tab.active { color: #D8D0E8; }
+
+  /* =============================================
+     DIRECTION 4: CLEAN & REFINED — "Editorial"
+     ============================================= */
+  .phone-editorial {
+    background: #F6F4F0;
+    box-shadow: 0 16px 80px rgba(0,0,0,0.08);
+  }
+  .phone-editorial .screen {
+    padding: 36px 0 0;
+  }
+  .ed-header {
+    padding: 20px 24px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .ed-title {
+    font-family: 'Lora', serif;
+    font-size: 1.5rem;
+    color: #1A1A18;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .ed-date {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.65rem;
+    color: #999;
+    font-weight: 400;
+  }
+  .ed-line {
+    height: 1px;
+    background: #E0DDD6;
+    margin: 0 24px;
+  }
+  .ed-now {
+    padding: 16px 24px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .ed-now-art {
+    width: 72px; height: 72px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+    border: 1px solid #E0DDD6;
+  }
+  .ed-now-info { flex: 1; }
+  .ed-now-label {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.6rem;
+    color: #B08C3E;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+  }
+  .ed-now-title {
+    font-family: 'Lora', serif;
+    font-size: 1rem;
+    color: #1A1A18;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .ed-now-pod {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.72rem;
+    color: #888;
+    font-weight: 300;
+    margin-top: 2px;
+  }
+  .ed-now-progress {
+    height: 2px;
+    background: #E0DDD6;
+    margin: 12px 24px 0;
+  }
+  .ed-now-progress-fill {
+    width: 42%;
+    height: 100%;
+    background: #B08C3E;
+  }
+  .ed-section-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.6rem;
+    color: #aaa;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 20px 24px 10px;
+  }
+  .ed-episodes { padding: 0; }
+  .ed-ep {
+    display: flex;
+    gap: 14px;
+    padding: 12px 24px;
+    align-items: flex-start;
+    border-bottom: 1px solid #EBE8E2;
+  }
+  .ed-ep-time {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.65rem;
+    color: #bbb;
+    font-weight: 400;
+    width: 42px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .ed-ep-info { flex: 1; min-width: 0; }
+  .ed-ep-title {
+    font-family: 'Lora', serif;
+    font-size: 0.88rem;
+    color: #1A1A18;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 3px;
+  }
+  .ed-ep-pod {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.68rem;
+    color: #999;
+    font-weight: 300;
+  }
+  .ed-ep-dur {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.62rem;
+    color: #bbb;
+    font-weight: 400;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .ed-bottom {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 20px;
+    border-top: 1px solid #E0DDD6;
+    margin-top: 8px;
+  }
+  .ed-tab {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: #ccc;
+    letter-spacing: 0.04em;
+  }
+  .ed-tab.active {
+    color: #1A1A18;
+    border-bottom: 2px solid #B08C3E;
+    padding-bottom: 2px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Podbelly Design Directions</h1>
+<p class="subtitle">Four genuinely different approaches — different layouts, typography, spacing, visual texture. Not just color swaps.</p>
+
+<div class="directions">
+
+  <!-- ===== DIRECTION 1: THE NOOK ===== -->
+  <div class="direction">
+    <div class="phone phone-nook">
+      <div class="screen">
+        <div class="nook-header">
+          <div class="nook-greeting">Good evening</div>
+          <div class="nook-title">Your Nook</div>
+        </div>
+
+        <div class="nook-now-playing">
+          <div class="nook-now-art">&#127911;</div>
+          <div class="nook-now-info">
+            <div class="nook-now-label">&#9654; Now Playing</div>
+            <div class="nook-now-title">The Art of Slow Living</div>
+            <div class="nook-now-podcast">Cozy Corner Pod</div>
+            <div class="nook-now-progress"><div class="nook-now-progress-fill"></div></div>
+          </div>
+          <div class="nook-now-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#1A1410"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="nook-section-label">Up Next</div>
+        <div class="nook-episodes">
+          <div class="nook-ep">
+            <div class="nook-ep-art" style="background: linear-gradient(135deg, #7A8B6F, #94A888);">&#127793;</div>
+            <div class="nook-ep-info">
+              <div class="nook-ep-title">Forest Bathing 101</div>
+              <div class="nook-ep-meta">Nature Sounds &bull; Feb 19</div>
+            </div>
+            <div class="nook-ep-dur">28m</div>
+          </div>
+          <div class="nook-ep">
+            <div class="nook-ep-art" style="background: linear-gradient(135deg, #C49A42, #D8B060);">&#9749;</div>
+            <div class="nook-ep-info">
+              <div class="nook-ep-title">Bean to Cup: Ethiopia</div>
+              <div class="nook-ep-meta">Coffee Chronicles &bull; Feb 18</div>
+            </div>
+            <div class="nook-ep-dur">55m</div>
+          </div>
+          <div class="nook-ep">
+            <div class="nook-ep-art" style="background: linear-gradient(135deg, #8B6B4A, #A88868);">&#128214;</div>
+            <div class="nook-ep-info">
+              <div class="nook-ep-title">Reading by Candlelight</div>
+              <div class="nook-ep-meta">Book Club Pod &bull; Feb 17</div>
+            </div>
+            <div class="nook-ep-dur">36m</div>
+          </div>
+        </div>
+
+        <div class="nook-bottom">
+          <div class="nook-tab active">
+            <svg class="nook-tab-icon" viewBox="0 0 24 24" fill="#B56B45"><path d="M4 13h2l4-6 3 8 2-3h5" fill="none" stroke="#B56B45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="nook-tab-dot"></div>
+            Home
+          </div>
+          <div class="nook-tab">
+            <svg class="nook-tab-icon" viewBox="0 0 24 24" fill="none" stroke="#5A4D40" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16 16l4 4"/></svg>
+            Discover
+          </div>
+          <div class="nook-tab">
+            <svg class="nook-tab-icon" viewBox="0 0 24 24" fill="none" stroke="#5A4D40" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+            Library
+          </div>
+          <div class="nook-tab">
+            <svg class="nook-tab-icon" viewBox="0 0 24 24" fill="none" stroke="#5A4D40" stroke-width="2"><path d="M12 5v10M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>
+            Downloads
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="direction-info">
+      <div class="direction-number" style="color: #B56B45;">Direction 1</div>
+      <div class="direction-name" style="color: #F0DCC8;">The Nook</div>
+      <div class="direction-desc">Like settling into your favorite reading spot. Large, rounded shapes invite you in. The "now playing" card takes center stage — it's the warm hearth of the experience. Generous spacing lets everything breathe.</div>
+      <div class="traits">
+        <span class="trait" style="background: #B56B4520; color: #B56B45;">Fraunces serif</span>
+        <span class="trait" style="background: #B56B4520; color: #B56B45;">Extra-rounded corners</span>
+        <span class="trait" style="background: #7A8B6F20; color: #7A8B6F;">Warm earth tones</span>
+        <span class="trait" style="background: #C49A4220; color: #C49A42;">Generous spacing</span>
+      </div>
+      <div class="key-moves">
+        <strong>Key design moves:</strong><br>
+        &bull; Personal greeting replaces generic "Home"<br>
+        &bull; Now-playing card is hero-sized, not a mini-player<br>
+        &bull; Episode list is compact rows, not full cards<br>
+        &bull; Duration badges instead of full metadata rows<br>
+        &bull; Dot indicator on active tab (not pill)
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DIRECTION 2: JUKEBOX ===== -->
+  <div class="direction" style="direction: rtl;">
+    <div class="direction-info" style="direction: ltr;">
+      <div class="direction-number" style="color: #FF6B6B;">Direction 2</div>
+      <div class="direction-name" style="color: #F0F2F8;">Jukebox</div>
+      <div class="direction-desc">Energetic and alive. The layout uses multiple card sizes and a horizontal scroll to create visual variety. Numbered lists, colorful tags, and gradient progress bars add personality. It feels like a music app that's actually fun to browse.</div>
+      <div class="traits">
+        <span class="trait" style="background: #FF6B6B20; color: #FF6B6B;">Outfit sans-serif</span>
+        <span class="trait" style="background: #FF6B6B20; color: #FF6B6B;">Gradient accents</span>
+        <span class="trait" style="background: #4ECDC420; color: #4ECDC4;">Horizontal cards</span>
+        <span class="trait" style="background: #FFA50220; color: #FFA502;">Color-coded tags</span>
+      </div>
+      <div class="key-moves">
+        <strong>Key design moves:</strong><br>
+        &bull; Brand logo with colored accent letter<br>
+        &bull; Live pulse indicator on now-playing<br>
+        &bull; Tilted artwork (playful rotation)<br>
+        &bull; Horizontal card carousel for recently added<br>
+        &bull; Numbered list with color-coded duration tags<br>
+        &bull; Bottom tab uses underline bar, not pill
+      </div>
+    </div>
+    <div class="phone phone-jukebox" style="direction: ltr;">
+      <div class="screen">
+        <div class="juke-header">
+          <div class="juke-logo">pod<span>belly</span></div>
+          <div class="juke-avatar"></div>
+        </div>
+
+        <div class="juke-hero">
+          <div class="juke-hero-label">&#9654; Now Playing</div>
+          <div class="juke-hero-row">
+            <div class="juke-hero-art">&#127911;</div>
+            <div class="juke-hero-info">
+              <div class="juke-hero-title">The Art of Slow Living</div>
+              <div class="juke-hero-pod">Cozy Corner Pod &bull; 18m left</div>
+            </div>
+          </div>
+          <div class="juke-hero-bar"><div class="juke-hero-bar-fill"></div></div>
+        </div>
+
+        <div class="juke-section">
+          <div class="juke-section-head">
+            <div class="juke-section-title">Recently Added</div>
+            <div class="juke-section-more">See all &rarr;</div>
+          </div>
+          <div class="juke-cards">
+            <div class="juke-card">
+              <div class="juke-card-art" style="background: linear-gradient(135deg, #4ECDC4, #2AC4B8);">&#127793;</div>
+              <div class="juke-card-title">Forest Bathing</div>
+              <div class="juke-card-pod">Nature Sounds</div>
+            </div>
+            <div class="juke-card">
+              <div class="juke-card-art" style="background: linear-gradient(135deg, #FFA502, #FF8C00);">&#9749;</div>
+              <div class="juke-card-title">Bean to Cup</div>
+              <div class="juke-card-pod">Coffee Chronicles</div>
+            </div>
+            <div class="juke-card" style="opacity: 0.5;">
+              <div class="juke-card-art" style="background: linear-gradient(135deg, #6B5B95, #8B7BAA);">&#128214;</div>
+              <div class="juke-card-title">Reading by...</div>
+              <div class="juke-card-pod">Book Club</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="juke-section">
+          <div class="juke-section-head">
+            <div class="juke-section-title">Your Queue</div>
+          </div>
+          <div class="juke-list">
+            <div class="juke-ep">
+              <div class="juke-ep-num">1</div>
+              <div class="juke-ep-art" style="background: linear-gradient(135deg, #4ECDC4, #2AC4B8);">&#127793;</div>
+              <div class="juke-ep-info">
+                <div class="juke-ep-title">Forest Bathing 101</div>
+                <div class="juke-ep-meta">Nature Sounds</div>
+              </div>
+              <div class="juke-ep-tag" style="background: #4ECDC418; color: #4ECDC4;">28m</div>
+            </div>
+            <div class="juke-ep">
+              <div class="juke-ep-num">2</div>
+              <div class="juke-ep-art" style="background: linear-gradient(135deg, #FFA502, #FF8C00);">&#9749;</div>
+              <div class="juke-ep-info">
+                <div class="juke-ep-title">Bean to Cup: Ethiopia</div>
+                <div class="juke-ep-meta">Coffee Chronicles</div>
+              </div>
+              <div class="juke-ep-tag" style="background: #FFA50218; color: #FFA502;">55m</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="juke-bottom">
+          <div class="juke-tab active">
+            <svg width="20" height="20" fill="#FF6B6B" viewBox="0 0 24 24"><path d="M4 13h2l4-6 3 8 2-3h5" fill="none" stroke="#FF6B6B" stroke-width="2" stroke-linecap="round"/></svg>
+            <div class="juke-tab-bar"></div>
+          </div>
+          <div class="juke-tab">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3A4060" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16 16l4 4"/></svg>
+            <span style="height:3px;"></span>
+          </div>
+          <div class="juke-tab">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3A4060" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+            <span style="height:3px;"></span>
+          </div>
+          <div class="juke-tab">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3A4060" stroke-width="2"><path d="M12 5v10M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>
+            <span style="height:3px;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DIRECTION 3: CINEMA ===== -->
+  <div class="direction">
+    <div class="phone phone-cinema">
+      <div class="screen">
+        <div class="cinema-header">
+          <div class="cinema-title">Podbelly</div>
+          <div class="cinema-time">9:41 PM</div>
+        </div>
+
+        <div class="cinema-hero">
+          <div class="cinema-hero-art">
+            &#127911;
+            <div class="cinema-hero-play">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><polygon points="9,6 18,12 9,18"/></svg>
+            </div>
+            <div class="cinema-hero-overlay">
+              <div class="cinema-hero-title">The Art of Slow Living</div>
+              <div class="cinema-hero-pod">Cozy Corner Pod &bull; 18 min left</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cinema-episodes">
+          <div class="cinema-ep-label">Continue Listening</div>
+          <div class="cinema-ep">
+            <div class="cinema-ep-art" style="background: linear-gradient(135deg, #2A3D2F, #1A2820); box-shadow: 0 4px 16px rgba(42,61,47,0.4);">&#127793;</div>
+            <div class="cinema-ep-info">
+              <div class="cinema-ep-title">Forest Bathing 101</div>
+              <div class="cinema-ep-meta">Nature Sounds &bull; 28 min</div>
+            </div>
+            <div class="cinema-ep-play">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#6B5B95"><polygon points="9,6 18,12 9,18"/></svg>
+            </div>
+          </div>
+          <div class="cinema-ep">
+            <div class="cinema-ep-art" style="background: linear-gradient(135deg, #3D2D1A, #281E10); box-shadow: 0 4px 16px rgba(61,45,26,0.4);">&#9749;</div>
+            <div class="cinema-ep-info">
+              <div class="cinema-ep-title">Bean to Cup: Ethiopia</div>
+              <div class="cinema-ep-meta">Coffee Chronicles &bull; 55 min</div>
+            </div>
+            <div class="cinema-ep-play">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#6B5B95"><polygon points="9,6 18,12 9,18"/></svg>
+            </div>
+          </div>
+          <div class="cinema-ep">
+            <div class="cinema-ep-art" style="background: linear-gradient(135deg, #2A2040, #1A1430); box-shadow: 0 4px 16px rgba(42,32,64,0.4);">&#128214;</div>
+            <div class="cinema-ep-info">
+              <div class="cinema-ep-title">Reading by Candlelight</div>
+              <div class="cinema-ep-meta">Book Club Pod &bull; 36 min</div>
+            </div>
+            <div class="cinema-ep-play">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#6B5B95"><polygon points="9,6 18,12 9,18"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="cinema-bottom">
+          <div class="cinema-tab active">
+            <svg width="20" height="20" fill="none" stroke="#D8D0E8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 13h2l4-6 3 8 2-3h5" stroke-linecap="round"/></svg>
+            Home
+          </div>
+          <div class="cinema-tab">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2438" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M16 16l4 4"/></svg>
+            Discover
+          </div>
+          <div class="cinema-tab">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2438" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+            Library
+          </div>
+          <div class="cinema-tab">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A2438" stroke-width="1.5"><path d="M12 5v10M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>
+            Saved
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="direction-info">
+      <div class="direction-number" style="color: #8B7BAA;">Direction 3</div>
+      <div class="direction-name" style="color: #E8E0F0;">Cinema</div>
+      <div class="direction-desc">The content IS the interface. A massive hero artwork dominates the screen with a frosted glass play button floating over it. Everything else recedes into darkness. Artwork glows cast subtle colored light. It feels like watching a film, not using an app.</div>
+      <div class="traits">
+        <span class="trait" style="background: #6B5B9520; color: #8B7BAA;">Playfair Display serif</span>
+        <span class="trait" style="background: #6B5B9520; color: #8B7BAA;">Minimal chrome</span>
+        <span class="trait" style="background: #4A445820; color: #6B6580;">Artwork glow</span>
+        <span class="trait" style="background: #4A445820; color: #6B6580;">Ultra-dark surfaces</span>
+      </div>
+      <div class="key-moves">
+        <strong>Key design moves:</strong><br>
+        &bull; Hero artwork takes 40% of screen height<br>
+        &bull; Frosted glass play button overlay<br>
+        &bull; Episode info overlays gradient on artwork<br>
+        &bull; Episode list uses hairline dividers, no cards<br>
+        &bull; Each artwork casts a colored shadow glow<br>
+        &bull; Thin, lightweight bottom navigation
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DIRECTION 4: EDITORIAL ===== -->
+  <div class="direction" style="direction: rtl;">
+    <div class="direction-info" style="direction: ltr;">
+      <div class="direction-number" style="color: #B08C3E;">Direction 4</div>
+      <div class="direction-name" style="color: #1A1A18;">Editorial</div>
+      <div class="direction-desc">The anti-app. Inspired by magazine and newspaper layouts. No cards, no rounded corners. Hairline dividers, precise typography, and generous whitespace. The reading experience is paramount. A single gold accent marks what's playing. It looks like nothing else in your app drawer.</div>
+      <div class="traits">
+        <span class="trait" style="background: #B08C3E18; color: #B08C3E;">Lora serif</span>
+        <span class="trait" style="background: #B08C3E18; color: #B08C3E;">No cards</span>
+        <span class="trait" style="background: #1A1A1810; color: #888;">Hairline dividers</span>
+        <span class="trait" style="background: #1A1A1810; color: #888;">Light background</span>
+      </div>
+      <div class="key-moves">
+        <strong>Key design moves:</strong><br>
+        &bull; Light mode default (unusual for podcast apps)<br>
+        &bull; Zero rounded corners — all sharp edges<br>
+        &bull; Typography hierarchy does all the work<br>
+        &bull; Timestamps replace artwork in the episode list<br>
+        &bull; Single gold accent color, everything else is grayscale<br>
+        &bull; Text-only bottom navigation with underline
+      </div>
+    </div>
+    <div class="phone phone-editorial" style="direction: ltr;">
+      <div class="screen">
+        <div class="ed-header">
+          <div class="ed-title">Podbelly</div>
+          <div class="ed-date">Feb 21, 2026</div>
+        </div>
+        <div class="ed-line"></div>
+
+        <div class="ed-now">
+          <div class="ed-now-art" style="background: #F0EDE6;">&#127911;</div>
+          <div class="ed-now-info">
+            <div class="ed-now-label">Now Playing</div>
+            <div class="ed-now-title">The Art of Slow Living</div>
+            <div class="ed-now-pod">Cozy Corner Pod</div>
+          </div>
+        </div>
+        <div class="ed-now-progress"><div class="ed-now-progress-fill"></div></div>
+
+        <div class="ed-section-title">Latest Episodes</div>
+        <div class="ed-episodes">
+          <div class="ed-ep">
+            <div class="ed-ep-time">2h ago</div>
+            <div class="ed-ep-info">
+              <div class="ed-ep-title">Forest Bathing 101</div>
+              <div class="ed-ep-pod">Nature Sounds</div>
+            </div>
+            <div class="ed-ep-dur">28 min</div>
+          </div>
+          <div class="ed-ep">
+            <div class="ed-ep-time">5h ago</div>
+            <div class="ed-ep-info">
+              <div class="ed-ep-title">Bean to Cup: Ethiopia</div>
+              <div class="ed-ep-pod">Coffee Chronicles</div>
+            </div>
+            <div class="ed-ep-dur">55 min</div>
+          </div>
+          <div class="ed-ep">
+            <div class="ed-ep-time">1d ago</div>
+            <div class="ed-ep-info">
+              <div class="ed-ep-title">Reading by Candlelight</div>
+              <div class="ed-ep-pod">Book Club Pod</div>
+            </div>
+            <div class="ed-ep-dur">36 min</div>
+          </div>
+          <div class="ed-ep">
+            <div class="ed-ep-time">2d ago</div>
+            <div class="ed-ep-info">
+              <div class="ed-ep-title">The History of Sleep</div>
+              <div class="ed-ep-pod">Nocturnal Radio</div>
+            </div>
+            <div class="ed-ep-dur">44 min</div>
+          </div>
+        </div>
+
+        <div class="ed-bottom">
+          <div class="ed-tab active">Home</div>
+          <div class="ed-tab">Discover</div>
+          <div class="ed-tab">Library</div>
+          <div class="ed-tab">Saved</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

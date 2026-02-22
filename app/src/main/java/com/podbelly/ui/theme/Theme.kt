@@ -1,14 +1,10 @@
 package com.podbelly.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import com.podbelly.core.common.AppTheme
 
 private val LightColorScheme = lightColorScheme(
@@ -139,22 +135,9 @@ fun PodbellTheme(
     val colorScheme = when (appTheme) {
         AppTheme.OLED_DARK -> OledDarkColorScheme
         AppTheme.HIGH_CONTRAST -> HighContrastColorScheme
-        else -> {
-            val darkTheme = when (appTheme) {
-                AppTheme.SYSTEM -> isSystemInDarkTheme()
-                AppTheme.LIGHT -> false
-                AppTheme.DARK -> true
-                else -> isSystemInDarkTheme()
-            }
-            when {
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                    val context = LocalContext.current
-                    if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-                }
-                darkTheme -> DarkColorScheme
-                else -> LightColorScheme
-            }
-        }
+        AppTheme.LIGHT -> LightColorScheme
+        AppTheme.DARK -> DarkColorScheme
+        AppTheme.SYSTEM -> if (isSystemInDarkTheme()) DarkColorScheme else LightColorScheme
     }
 
     MaterialTheme(

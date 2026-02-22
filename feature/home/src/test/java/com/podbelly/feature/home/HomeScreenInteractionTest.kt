@@ -1,8 +1,10 @@
 package com.podbelly.feature.home
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -140,9 +142,10 @@ class HomeScreenInteractionTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Episode Alpha").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Episode Beta").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Episode Gamma").assertIsDisplayed()
+        // Episodes appear in the carousel; main list cards may be off-viewport
+        composeTestRule.onAllNodesWithText("Episode Alpha")[0].assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Episode Beta")[0].assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Episode Gamma")[0].assertIsDisplayed()
     }
 
     @Test

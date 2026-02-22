@@ -44,7 +44,7 @@ interface EpisodeDao {
     suspend fun getDownloadedEpisodesOnce(): List<EpisodeEntity>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertAll(episodes: List<EpisodeEntity>)
+    suspend fun insertAll(episodes: List<EpisodeEntity>): List<Long>
 
     @Update
     suspend fun update(episode: EpisodeEntity)

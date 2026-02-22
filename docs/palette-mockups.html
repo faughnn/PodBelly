@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Podbelly — Color Palette Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=Nunito:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=DM+Serif+Display&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    text-align: center;
+    font-size: 2.4rem;
+    margin-bottom: 8px;
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #999;
+    margin-bottom: 48px;
+    font-size: 1rem;
+  }
+
+  .theme-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+
+  .theme-toggle button {
+    font-family: 'Nunito', sans-serif;
+    padding: 10px 24px;
+    border: 2px solid #444;
+    background: transparent;
+    color: #ccc;
+    border-radius: 24px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+
+  .theme-toggle button.active {
+    border-color: #E0A872;
+    background: #E0A87220;
+    color: #E0A872;
+  }
+
+  .theme-toggle button:hover {
+    border-color: #888;
+  }
+
+  .palettes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .palette-card {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .palette-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  .palette-card.selected {
+    border-color: #E0A872;
+    box-shadow: 0 0 0 4px #E0A87230;
+  }
+
+  .palette-label {
+    padding: 20px 24px 16px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .palette-desc {
+    padding: 0 24px 20px;
+    font-size: 0.85rem;
+    opacity: 0.7;
+    line-height: 1.5;
+  }
+
+  /* --- Phone Mockup --- */
+  .phone {
+    width: 320px;
+    margin: 0 auto 20px;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    position: relative;
+  }
+
+  .status-bar {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .top-bar {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .top-bar-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .episode-list {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 8px;
+  }
+
+  .episode-card {
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .episode-art {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .episode-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .episode-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .episode-podcast {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-bottom: 4px;
+  }
+
+  .episode-meta {
+    font-size: 0.7rem;
+    opacity: 0.5;
+    display: flex;
+    gap: 8px;
+  }
+
+  .episode-progress {
+    height: 3px;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .episode-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  .play-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .play-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Mini Player */
+  .mini-player {
+    margin: 8px 12px;
+    border-radius: 16px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mini-player-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 65%;
+  }
+
+  .mini-art {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .mini-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mini-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mini-podcast {
+    font-size: 0.7rem;
+    opacity: 0.6;
+  }
+
+  .mini-play {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Bottom Nav */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0 16px;
+    align-items: center;
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    opacity: 0.5;
+  }
+
+  .nav-item.active {
+    opacity: 1;
+  }
+
+  .nav-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-indicator {
+    width: 48px;
+    height: 28px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Color swatches row */
+  .swatches {
+    display: flex;
+    gap: 6px;
+    padding: 0 24px 20px;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.1);
+    position: relative;
+  }
+
+  .swatch-label {
+    font-size: 0.6rem;
+    text-align: center;
+    margin-top: 2px;
+    opacity: 0.5;
+  }
+
+  /* Section separator */
+  .section-divider {
+    text-align: center;
+    padding: 60px 0 20px;
+    font-family: 'Fraunces', serif;
+    font-size: 1.8rem;
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .section-subtitle {
+    text-align: center;
+    color: #888;
+    margin-bottom: 40px;
+    font-size: 0.9rem;
+  }
+
+  /* Dark mode mockups hidden by default */
+  .dark-mockups { display: grid; }
+  .light-mockups { display: none; }
+
+  body.light-mode .dark-mockups { display: none; }
+  body.light-mode .light-mockups { display: grid; }
+</style>
+</head>
+<body>
+  <h1>Podbelly Palettes</h1>
+  <p class="subtitle">Pick the palette that feels most like home. Click Light/Dark to see both modes.</p>
+
+  <div class="theme-toggle">
+    <button class="active" onclick="setMode('dark')">Dark Mode</button>
+    <button onclick="setMode('light')">Light Mode</button>
+  </div>
+
+  <!-- ========== DARK MODE MOCKUPS ========== -->
+  <div class="palettes dark-mockups">
+
+    <!-- PALETTE A: Terracotta & Sage -->
+    <div class="palette-card" style="background: #1e1915;">
+      <div class="palette-label" style="color: #E8C4A8;">A. Terracotta & Sage</div>
+      <div class="palette-desc" style="color: #A89888;">Earthy and grounded. Clay, sage, honey. Like a cabin in the woods.</div>
+
+      <div class="phone" style="background: #1A1410;">
+        <div class="status-bar" style="background: #1A1410; color: #A89888;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #1A1410;">
+          <span class="top-bar-title" style="color: #F5E6D3; font-family: 'Fraunces', serif;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#B56B45" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #261F18;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #B56B45, #8B4A2B);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F0DCC8;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #A89888;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #7A6B5D;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #3A2E24;"><div class="episode-progress-fill" style="background: #B56B45; width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #B56B45;">
+              <svg viewBox="0 0 24 24" fill="#1A1410"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #261F18;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #7A8B6F, #5B6B50);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F0DCC8;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #A89888;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #7A6B5D;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #332A22;">
+              <svg viewBox="0 0 24 24" fill="#B56B45"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #261F18;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #C49A42, #9A7832);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F0DCC8;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #A89888;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #7A6B5D;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #332A22;">
+              <svg viewBox="0 0 24 24" fill="#B56B45"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #2E2419;">
+          <div class="mini-player-progress" style="background: #B56B45;"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #B56B45, #8B4A2B);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #F0DCC8;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #A89888;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #B56B45;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#1A1410"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #1A1410; border-top: 1px solid #2A2018;">
+          <div class="nav-item active" style="color: #B56B45;">
+            <div class="nav-indicator" style="background: #B56B4520;"><svg width="20" height="20" fill="#B56B45" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #7A6B5D;"><div class="nav-icon"><svg width="20" height="20" fill="#7A6B5D" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#7A6B5D" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#7A6B5D" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #7A6B5D;"><div class="nav-icon"><svg width="20" height="20" fill="#7A6B5D" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#7A6B5D" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#7A6B5D" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#7A6B5D" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#7A6B5D" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #7A6B5D;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A6B5D" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #B56B45;"></div><div class="swatch-label">Primary</div></div>
+        <div><div class="swatch" style="background: #7A8B6F;"></div><div class="swatch-label">Secondary</div></div>
+        <div><div class="swatch" style="background: #C49A42;"></div><div class="swatch-label">Tertiary</div></div>
+        <div><div class="swatch" style="background: #1A1410;"></div><div class="swatch-label">Bg</div></div>
+        <div><div class="swatch" style="background: #261F18;"></div><div class="swatch-label">Surface</div></div>
+        <div><div class="swatch" style="background: #F0DCC8;"></div><div class="swatch-label">Text</div></div>
+      </div>
+    </div>
+
+    <!-- PALETTE B: Amber & Cream -->
+    <div class="palette-card" style="background: #1a1612;">
+      <div class="palette-label" style="color: #F0C987;">B. Amber & Cream</div>
+      <div class="palette-desc" style="color: #A8967E;">Golden and warm. Honey, candlelight, wheat. Like a cozy bakery at golden hour.</div>
+
+      <div class="phone" style="background: #171210;">
+        <div class="status-bar" style="background: #171210; color: #A8967E;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #171210;">
+          <span class="top-bar-title" style="color: #FFF0D6; font-family: 'Fraunces', serif;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#D4943C" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #241D16;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #D4943C, #A87230);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #FFF0D6;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #B8A48E;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #7E6E5A;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #3A2E20;"><div class="episode-progress-fill" style="background: #D4943C; width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #D4943C;">
+              <svg viewBox="0 0 24 24" fill="#171210"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #241D16;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #8E7B5A, #6B5D42);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #FFF0D6;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #B8A48E;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #7E6E5A;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #302618;">
+              <svg viewBox="0 0 24 24" fill="#D4943C"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #241D16;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #C2784A, #995D38);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #FFF0D6;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #B8A48E;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #7E6E5A;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #302618;">
+              <svg viewBox="0 0 24 24" fill="#D4943C"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #2A2118;">
+          <div class="mini-player-progress" style="background: #D4943C;"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #D4943C, #A87230);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #FFF0D6;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #B8A48E;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #D4943C;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#171210"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #171210; border-top: 1px solid #2A2018;">
+          <div class="nav-item active" style="color: #D4943C;">
+            <div class="nav-indicator" style="background: #D4943C20;"><svg width="20" height="20" fill="#D4943C" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #7E6E5A;"><div class="nav-icon"><svg width="20" height="20" fill="#7E6E5A" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#7E6E5A" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#7E6E5A" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #7E6E5A;"><div class="nav-icon"><svg width="20" height="20" fill="#7E6E5A" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#7E6E5A" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#7E6E5A" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#7E6E5A" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#7E6E5A" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #7E6E5A;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7E6E5A" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #D4943C;"></div><div class="swatch-label">Primary</div></div>
+        <div><div class="swatch" style="background: #8E7B5A;"></div><div class="swatch-label">Secondary</div></div>
+        <div><div class="swatch" style="background: #C2784A;"></div><div class="swatch-label">Tertiary</div></div>
+        <div><div class="swatch" style="background: #171210;"></div><div class="swatch-label">Bg</div></div>
+        <div><div class="swatch" style="background: #241D16;"></div><div class="swatch-label">Surface</div></div>
+        <div><div class="swatch" style="background: #FFF0D6;"></div><div class="swatch-label">Text</div></div>
+      </div>
+    </div>
+
+    <!-- PALETTE C: Dusty Rose & Warm Gray -->
+    <div class="palette-card" style="background: #1c1718;">
+      <div class="palette-label" style="color: #D4A0A0;">C. Dusty Rose & Walnut</div>
+      <div class="palette-desc" style="color: #A0908A;">Soft and intimate. Muted rose, warm walnut, parchment. Like a worn velvet armchair.</div>
+
+      <div class="phone" style="background: #181314;">
+        <div class="status-bar" style="background: #181314; color: #A0908A;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #181314;">
+          <span class="top-bar-title" style="color: #F2E2DE; font-family: 'Fraunces', serif;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#C07070" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #241E1F;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #C07070, #9A5555);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F2E2DE;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #B0A098;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #7A6E68;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #382E2F;"><div class="episode-progress-fill" style="background: #C07070; width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #C07070;">
+              <svg viewBox="0 0 24 24" fill="#181314"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #241E1F;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #8A7B6E, #6B5E52);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F2E2DE;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #B0A098;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #7A6E68;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #302828;">
+              <svg viewBox="0 0 24 24" fill="#C07070"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #241E1F;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #B8946A, #957550);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F2E2DE;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #B0A098;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #7A6E68;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #302828;">
+              <svg viewBox="0 0 24 24" fill="#C07070"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #2A2222;">
+          <div class="mini-player-progress" style="background: #C07070;"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #C07070, #9A5555);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #F2E2DE;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #B0A098;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #C07070;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#181314"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #181314; border-top: 1px solid #2A2222;">
+          <div class="nav-item active" style="color: #C07070;">
+            <div class="nav-indicator" style="background: #C0707020;"><svg width="20" height="20" fill="#C07070" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #7A6E68;"><div class="nav-icon"><svg width="20" height="20" fill="#7A6E68" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#7A6E68" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#7A6E68" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #7A6E68;"><div class="nav-icon"><svg width="20" height="20" fill="#7A6E68" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#7A6E68" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#7A6E68" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#7A6E68" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#7A6E68" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #7A6E68;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A6E68" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #C07070;"></div><div class="swatch-label">Primary</div></div>
+        <div><div class="swatch" style="background: #8A7B6E;"></div><div class="swatch-label">Secondary</div></div>
+        <div><div class="swatch" style="background: #B8946A;"></div><div class="swatch-label">Tertiary</div></div>
+        <div><div class="swatch" style="background: #181314;"></div><div class="swatch-label">Bg</div></div>
+        <div><div class="swatch" style="background: #241E1F;"></div><div class="swatch-label">Surface</div></div>
+        <div><div class="swatch" style="background: #F2E2DE;"></div><div class="swatch-label">Text</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== OTHER DIRECTIONS (Dark Mode only) ========== -->
+  <div class="section-divider">Other Directions</div>
+  <p class="section-subtitle">These explore different aesthetic moods beyond warm & cozy</p>
+
+  <div class="palettes" style="margin-bottom: 48px;">
+
+    <!-- PALETTE D: Bold & Playful -->
+    <div class="palette-card" style="background: #141820;">
+      <div class="palette-label" style="color: #FF6B6B;">D. Bold & Playful</div>
+      <div class="palette-desc" style="color: #8892A8;">Vibrant and energetic. Coral, electric blue, sunshine. Podcast listening should feel exciting.</div>
+
+      <div class="phone" style="background: #0F1218;">
+        <div class="status-bar" style="background: #0F1218; color: #6B7590;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #0F1218;">
+          <span class="top-bar-title" style="color: #F0F2F8; font-family: 'Outfit', sans-serif; font-weight: 700;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#FF6B6B" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #1A1F2E; border-left: 3px solid #FF6B6B;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #FF6B6B, #FF4757);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F0F2F8;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #8892A8;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #5A6480;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #252B3D;"><div class="episode-progress-fill" style="background: linear-gradient(90deg, #FF6B6B, #FFA502); width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #FF6B6B;">
+              <svg viewBox="0 0 24 24" fill="#0F1218"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #1A1F2E;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #4ECDC4, #2AC4B8);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F0F2F8;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #8892A8;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #5A6480;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #1E2436;">
+              <svg viewBox="0 0 24 24" fill="#FF6B6B"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #1A1F2E;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #FFA502, #FF8C00);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #F0F2F8;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #8892A8;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #5A6480;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #1E2436;">
+              <svg viewBox="0 0 24 24" fill="#FF6B6B"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: linear-gradient(135deg, #1E2436, #252B3D);">
+          <div class="mini-player-progress" style="background: linear-gradient(90deg, #FF6B6B, #FFA502);"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #FF6B6B, #FF4757);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #F0F2F8;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #8892A8;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #FF6B6B;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#0F1218"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #0F1218; border-top: 1px solid #1E2436;">
+          <div class="nav-item active" style="color: #FF6B6B;">
+            <div class="nav-indicator" style="background: #FF6B6B20;"><svg width="20" height="20" fill="#FF6B6B" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #5A6480;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#5A6480" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#5A6480" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #5A6480;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#5A6480" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#5A6480" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#5A6480" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#5A6480" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #5A6480;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A6480" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #FF6B6B;"></div><div class="swatch-label">Primary</div></div>
+        <div><div class="swatch" style="background: #4ECDC4;"></div><div class="swatch-label">Secondary</div></div>
+        <div><div class="swatch" style="background: #FFA502;"></div><div class="swatch-label">Tertiary</div></div>
+        <div><div class="swatch" style="background: #0F1218;"></div><div class="swatch-label">Bg</div></div>
+        <div><div class="swatch" style="background: #1A1F2E;"></div><div class="swatch-label">Surface</div></div>
+        <div><div class="swatch" style="background: #F0F2F8;"></div><div class="swatch-label">Text</div></div>
+      </div>
+    </div>
+
+    <!-- PALETTE E: Dark & Immersive -->
+    <div class="palette-card" style="background: #0C0C10;">
+      <div class="palette-label" style="color: #B8B0C8;">E. Dark & Immersive</div>
+      <div class="palette-desc" style="color: #6A6578;">Cinematic and deep. The content is the star. UI disappears into rich darkness.</div>
+
+      <div class="phone" style="background: #08080C;">
+        <div class="status-bar" style="background: #08080C; color: #5A5568;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #08080C;">
+          <span class="top-bar-title" style="color: #E8E4F0; font-family: 'DM Serif Display', serif;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#8B7BAA" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #121218;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #6B5B95, #4A3F6B); box-shadow: 0 4px 20px rgba(107,91,149,0.3);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #E8E4F0;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #8B7BAA;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #5A5568;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #1E1E28;"><div class="episode-progress-fill" style="background: linear-gradient(90deg, #6B5B95, #8B7BAA); width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #E8E4F0;">
+              <svg viewBox="0 0 24 24" fill="#08080C"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #121218;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #3D6B5B, #2A4A3F);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #E8E4F0;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #8B7BAA;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #5A5568;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #1E1E28;">
+              <svg viewBox="0 0 24 24" fill="#E8E4F0"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #121218;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #956B5B, #6B4A3F);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #E8E4F0;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #8B7BAA;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #5A5568;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #1E1E28;">
+              <svg viewBox="0 0 24 24" fill="#E8E4F0"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #14141C; border: 1px solid #1E1E28;">
+          <div class="mini-player-progress" style="background: linear-gradient(90deg, #6B5B95, #8B7BAA);"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #6B5B95, #4A3F6B); box-shadow: 0 2px 12px rgba(107,91,149,0.4);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #E8E4F0;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #8B7BAA;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #E8E4F0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#08080C"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #08080C; border-top: 1px solid #1A1A24;">
+          <div class="nav-item active" style="color: #E8E4F0;">
+            <div class="nav-indicator" style="background: #6B5B9520;"><svg width="20" height="20" fill="#E8E4F0" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #5A5568;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#5A5568" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#5A5568" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #5A5568;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#5A5568" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#5A5568" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#5A5568" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#5A6568" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #5A5568;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5568" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #6B5B95;"></div><div class="swatch-label">Primary</div></div>
+        <div><div class="swatch" style="background: #3D6B5B;"></div><div class="swatch-label">Secondary</div></div>
+        <div><div class="swatch" style="background: #956B5B;"></div><div class="swatch-label">Tertiary</div></div>
+        <div><div class="swatch" style="background: #08080C;"></div><div class="swatch-label">Bg</div></div>
+        <div><div class="swatch" style="background: #121218;"></div><div class="swatch-label">Surface</div></div>
+        <div><div class="swatch" style="background: #E8E4F0;"></div><div class="swatch-label">Text</div></div>
+      </div>
+    </div>
+
+    <!-- PALETTE F: Clean & Refined -->
+    <div class="palette-card" style="background: #151618;">
+      <div class="palette-label" style="color: #C8C4B8;">F. Clean & Refined</div>
+      <div class="palette-desc" style="color: #7A7870;">Elegant and precise. Neutral tones, sharp typography, subtle gold accent. Premium without being flashy.</div>
+
+      <div class="phone" style="background: #111214;">
+        <div class="status-bar" style="background: #111214; color: #6A6860;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #111214;">
+          <span class="top-bar-title" style="color: #EEEAE0; font-family: 'Lora', serif; font-weight: 600;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#C4A95A" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #1A1B1E;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #8A8578, #6B6860);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #EEEAE0;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #8A8578;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #5A5850;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #252628;"><div class="episode-progress-fill" style="background: #C4A95A; width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #EEEAE0;">
+              <svg viewBox="0 0 24 24" fill="#111214"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #1A1B1E;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #6B7268, #525850);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #EEEAE0;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #8A8578;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #5A5850;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #252628;">
+              <svg viewBox="0 0 24 24" fill="#EEEAE0"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #1A1B1E;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #8A7560, #6B5A48);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #EEEAE0;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #8A8578;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #5A5850;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #252628;">
+              <svg viewBox="0 0 24 24" fill="#EEEAE0"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #1A1B1E; border-top: 1px solid #C4A95A30;">
+          <div class="mini-player-progress" style="background: #C4A95A;"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #8A8578, #6B6860);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #EEEAE0;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #8A8578;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #EEEAE0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#111214"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #111214; border-top: 1px solid #1E1F22;">
+          <div class="nav-item active" style="color: #EEEAE0;">
+            <div class="nav-indicator" style="background: #C4A95A18;"><svg width="20" height="20" fill="#EEEAE0" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #5A5850;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#5A5850" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#5A5850" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #5A5850;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#5A5850" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#5A5850" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#5A5850" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#5A5850" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #5A5850;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5850" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #C4A95A;"></div><div class="swatch-label">Accent</div></div>
+        <div><div class="swatch" style="background: #8A8578;"></div><div class="swatch-label">Neutral</div></div>
+        <div><div class="swatch" style="background: #6B7268;"></div><div class="swatch-label">Secondary</div></div>
+        <div><div class="swatch" style="background: #111214;"></div><div class="swatch-label">Bg</div></div>
+        <div><div class="swatch" style="background: #1A1B1E;"></div><div class="swatch-label">Surface</div></div>
+        <div><div class="swatch" style="background: #EEEAE0;"></div><div class="swatch-label">Text</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== LIGHT MODE MOCKUPS ========== -->
+  <div class="palettes light-mockups">
+
+    <!-- PALETTE A Light: Terracotta & Sage -->
+    <div class="palette-card" style="background: #F8F0E8;">
+      <div class="palette-label" style="color: #2B1D14;">A. Terracotta & Sage</div>
+      <div class="palette-desc" style="color: #6B5A4A;">Earthy and grounded. Clay, sage, honey. Like a cabin in the woods.</div>
+
+      <div class="phone" style="background: #FFF8F0;">
+        <div class="status-bar" style="background: #FFF8F0; color: #6B5A4A;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #FFF8F0;">
+          <span class="top-bar-title" style="color: #2B1D14; font-family: 'Fraunces', serif;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#B56B45" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #F5EBE0;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #B56B45, #D4885E);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2B1D14;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #7A6650;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #9A8872;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #E4D8CC;"><div class="episode-progress-fill" style="background: #B56B45; width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #B56B45;">
+              <svg viewBox="0 0 24 24" fill="#FFF8F0"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #F5EBE0;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #7A8B6F, #94A888);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2B1D14;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #7A6650;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #9A8872;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #F5EBE0; border: 2px solid #B56B45;">
+              <svg viewBox="0 0 24 24" fill="#B56B45"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #F5EBE0;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #C49A42, #D8B060);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2B1D14;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #7A6650;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #9A8872;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #F5EBE0; border: 2px solid #B56B45;">
+              <svg viewBox="0 0 24 24" fill="#B56B45"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #EEDFD0; box-shadow: 0 -2px 12px rgba(181,107,69,0.12);">
+          <div class="mini-player-progress" style="background: #B56B45;"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #B56B45, #D4885E);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #2B1D14;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #7A6650;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #B56B45;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFF8F0"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #FFF8F0; border-top: 1px solid #E8D8C8;">
+          <div class="nav-item active" style="color: #B56B45;">
+            <div class="nav-indicator" style="background: #B56B4518;"><svg width="20" height="20" fill="#B56B45" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #9A8872;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#9A8872" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#9A8872" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #9A8872;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#9A8872" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#9A8872" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#9A8872" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#9A8872" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #9A8872;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9A8872" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #B56B45;"></div><div class="swatch-label" style="color:#555;">Primary</div></div>
+        <div><div class="swatch" style="background: #7A8B6F;"></div><div class="swatch-label" style="color:#555;">Secondary</div></div>
+        <div><div class="swatch" style="background: #C49A42;"></div><div class="swatch-label" style="color:#555;">Tertiary</div></div>
+        <div><div class="swatch" style="background: #FFF8F0; border-color: #ddd;"></div><div class="swatch-label" style="color:#555;">Bg</div></div>
+        <div><div class="swatch" style="background: #F5EBE0;"></div><div class="swatch-label" style="color:#555;">Surface</div></div>
+        <div><div class="swatch" style="background: #2B1D14;"></div><div class="swatch-label" style="color:#555;">Text</div></div>
+      </div>
+    </div>
+
+    <!-- PALETTE B Light: Amber & Cream -->
+    <div class="palette-card" style="background: #FAF3E8;">
+      <div class="palette-label" style="color: #2A1E0E;">B. Amber & Cream</div>
+      <div class="palette-desc" style="color: #7A6848;">Golden and warm. Honey, candlelight, wheat. Like a cozy bakery at golden hour.</div>
+
+      <div class="phone" style="background: #FFFAF0;">
+        <div class="status-bar" style="background: #FFFAF0; color: #7A6848;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #FFFAF0;">
+          <span class="top-bar-title" style="color: #2A1E0E; font-family: 'Fraunces', serif;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#C4862E" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #F5ECD8;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #C4862E, #E0A54A);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2A1E0E;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #7A6848;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #A09070;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #E4D8C0;"><div class="episode-progress-fill" style="background: #C4862E; width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #C4862E;">
+              <svg viewBox="0 0 24 24" fill="#FFFAF0"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #F5ECD8;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #8E7B5A, #A89470);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2A1E0E;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #7A6848;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #A09070;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #F5ECD8; border: 2px solid #C4862E;">
+              <svg viewBox="0 0 24 24" fill="#C4862E"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #F5ECD8;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #B06840, #CC8458);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2A1E0E;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #7A6848;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #A09070;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #F5ECD8; border: 2px solid #C4862E;">
+              <svg viewBox="0 0 24 24" fill="#C4862E"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #EDE0C8; box-shadow: 0 -2px 12px rgba(196,134,46,0.12);">
+          <div class="mini-player-progress" style="background: #C4862E;"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #C4862E, #E0A54A);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #2A1E0E;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #7A6848;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #C4862E;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFAF0"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #FFFAF0; border-top: 1px solid #E8DCC4;">
+          <div class="nav-item active" style="color: #C4862E;">
+            <div class="nav-indicator" style="background: #C4862E18;"><svg width="20" height="20" fill="#C4862E" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #A09070;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#A09070" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#A09070" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #A09070;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#A09070" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#A09070" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#A09070" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#A09070" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #A09070;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A09070" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #C4862E;"></div><div class="swatch-label" style="color:#555;">Primary</div></div>
+        <div><div class="swatch" style="background: #8E7B5A;"></div><div class="swatch-label" style="color:#555;">Secondary</div></div>
+        <div><div class="swatch" style="background: #B06840;"></div><div class="swatch-label" style="color:#555;">Tertiary</div></div>
+        <div><div class="swatch" style="background: #FFFAF0; border-color: #ddd;"></div><div class="swatch-label" style="color:#555;">Bg</div></div>
+        <div><div class="swatch" style="background: #F5ECD8;"></div><div class="swatch-label" style="color:#555;">Surface</div></div>
+        <div><div class="swatch" style="background: #2A1E0E;"></div><div class="swatch-label" style="color:#555;">Text</div></div>
+      </div>
+    </div>
+
+    <!-- PALETTE C Light: Dusty Rose & Walnut -->
+    <div class="palette-card" style="background: #F8F0EE;">
+      <div class="palette-label" style="color: #2D1A1A;">C. Dusty Rose & Walnut</div>
+      <div class="palette-desc" style="color: #7A6260;">Soft and intimate. Muted rose, warm walnut, parchment. Like a worn velvet armchair.</div>
+
+      <div class="phone" style="background: #FFF6F4;">
+        <div class="status-bar" style="background: #FFF6F4; color: #7A6260;">
+          <span>9:41</span>
+          <span>&#x1F50B; 87%</span>
+        </div>
+        <div class="top-bar" style="background: #FFF6F4;">
+          <span class="top-bar-title" style="color: #2D1A1A; font-family: 'Fraunces', serif;">Home</span>
+          <svg width="22" height="22" fill="none" stroke="#B06060" stroke-width="2"><circle cx="11" cy="11" r="9"/><path d="M11 7v4l3 2"/></svg>
+        </div>
+
+        <div class="episode-list">
+          <div class="episode-card" style="background: #F2E6E4;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #B06060, #CC7878);">&#127911;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2D1A1A;">The Art of Slow Living</div>
+              <div class="episode-podcast" style="color: #7A6260;">Cozy Corner Pod</div>
+              <div class="episode-meta" style="color: #A09088;">Feb 20 &bull; 42 min</div>
+              <div class="episode-progress" style="background: #E0D4D0;"><div class="episode-progress-fill" style="background: #B06060; width: 35%;"></div></div>
+            </div>
+            <div class="play-btn" style="background: #B06060;">
+              <svg viewBox="0 0 24 24" fill="#FFF6F4"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #F2E6E4;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #8A7B6E, #A09488);">&#127793;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2D1A1A;">Forest Bathing 101</div>
+              <div class="episode-podcast" style="color: #7A6260;">Nature Sounds</div>
+              <div class="episode-meta" style="color: #A09088;">Feb 19 &bull; 28 min</div>
+            </div>
+            <div class="play-btn" style="background: #F2E6E4; border: 2px solid #B06060;">
+              <svg viewBox="0 0 24 24" fill="#B06060"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+
+          <div class="episode-card" style="background: #F2E6E4;">
+            <div class="episode-art" style="background: linear-gradient(135deg, #A88A60, #C0A478);">&#9749;</div>
+            <div class="episode-info">
+              <div class="episode-title" style="color: #2D1A1A;">Bean to Cup: Ethiopia</div>
+              <div class="episode-podcast" style="color: #7A6260;">Coffee Chronicles</div>
+              <div class="episode-meta" style="color: #A09088;">Feb 18 &bull; 55 min</div>
+            </div>
+            <div class="play-btn" style="background: #F2E6E4; border: 2px solid #B06060;">
+              <svg viewBox="0 0 24 24" fill="#B06060"><polygon points="8,5 19,12 8,19"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-player" style="background: #E8DAD8; box-shadow: 0 -2px 12px rgba(176,96,96,0.10);">
+          <div class="mini-player-progress" style="background: #B06060;"></div>
+          <div class="mini-art" style="background: linear-gradient(135deg, #B06060, #CC7878);">&#127911;</div>
+          <div class="mini-info">
+            <div class="mini-title" style="color: #2D1A1A;">The Art of Slow Living</div>
+            <div class="mini-podcast" style="color: #7A6260;">Cozy Corner Pod</div>
+          </div>
+          <div class="mini-play" style="background: #B06060;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#FFF6F4"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+        </div>
+
+        <div class="bottom-nav" style="background: #FFF6F4; border-top: 1px solid #E8D8D4;">
+          <div class="nav-item active" style="color: #B06060;">
+            <div class="nav-indicator" style="background: #B0606018;"><svg width="20" height="20" fill="#B06060" viewBox="0 0 24 24"><path d="M3 13h1l5-7 4 8 3-4h5"/></svg></div>
+            Home
+          </div>
+          <div class="nav-item" style="color: #A09088;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#A09088" stroke-width="2"/><path d="M12 8v4l3 2" fill="none" stroke="#A09088" stroke-width="2"/></svg></div>Discover</div>
+          <div class="nav-item" style="color: #A09088;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#A09088" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="#A09088" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#A09088" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="#A09088" stroke-width="2"/></svg></div>Library</div>
+          <div class="nav-item" style="color: #A09088;"><div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A09088" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>Downloads</div>
+        </div>
+      </div>
+
+      <div class="swatches">
+        <div><div class="swatch" style="background: #B06060;"></div><div class="swatch-label" style="color:#555;">Primary</div></div>
+        <div><div class="swatch" style="background: #8A7B6E;"></div><div class="swatch-label" style="color:#555;">Secondary</div></div>
+        <div><div class="swatch" style="background: #A88A60;"></div><div class="swatch-label" style="color:#555;">Tertiary</div></div>
+        <div><div class="swatch" style="background: #FFF6F4; border-color: #ddd;"></div><div class="swatch-label" style="color:#555;">Bg</div></div>
+        <div><div class="swatch" style="background: #F2E6E4;"></div><div class="swatch-label" style="color:#555;">Surface</div></div>
+        <div><div class="swatch" style="background: #2D1A1A;"></div><div class="swatch-label" style="color:#555;">Text</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setMode(mode) {
+      document.body.classList.toggle('light-mode', mode === 'light');
+      document.querySelectorAll('.theme-toggle button').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(mode));
+      });
+    }
+  </script>
+</body>
+</html>

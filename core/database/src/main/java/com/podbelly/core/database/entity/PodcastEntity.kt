@@ -51,4 +51,7 @@ data class PodcastEntity(
 
     @ColumnInfo(name = "notifyNewEpisodes", defaultValue = "1")
     val notifyNewEpisodes: Boolean = true,
+
+    @ColumnInfo(name = "playbackSpeed", defaultValue = "0.0")
+    val playbackSpeed: Float = 0.0f,
 )

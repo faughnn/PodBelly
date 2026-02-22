@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState
@@ -13,6 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -33,6 +37,7 @@ data class PlayerUiState(
 class PlayerViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val episodeDao: EpisodeDao,
+    private val podcastDao: PodcastDao,
     private val queueDao: QueueDao,
     private val preferencesManager: PreferencesManager,
     private val sleepTimer: SleepTimer,
@@ -67,9 +72,35 @@ class PlayerViewModel @Inject constructor(
     )
 
     init {
+        // Apply per-podcast playback speed when the podcast changes
         viewModelScope.launch {
-            preferencesManager.playbackSpeed.collect { speed ->
-                playbackController.setPlaybackSpeed(speed)
+            playbackController.playbackState
+                .map { it.podcastId }
+                .distinctUntilChanged()
+                .collect { podcastId ->
+                    if (podcastId != 0L) {
+                        val podcastSpeed = podcastDao.getPlaybackSpeed(podcastId)
+                        if (podcastSpeed != null && podcastSpeed > 0f) {
+                            playbackController.setPlaybackSpeed(podcastSpeed)
+                        } else {
+                            val globalSpeed = preferencesManager.playbackSpeed.first()
+                            playbackController.setPlaybackSpeed(globalSpeed)
+                        }
+                    }
+                }
+        }
+        // Apply global speed changes only if the current podcast has no override
+        viewModelScope.launch {
+            preferencesManager.playbackSpeed.collect { globalSpeed ->
+                val podcastId = playbackController.playbackState.value.podcastId
+                if (podcastId != 0L) {
+                    val podcastSpeed = podcastDao.getPlaybackSpeed(podcastId)
+                    if (podcastSpeed == null || podcastSpeed <= 0f) {
+                        playbackController.setPlaybackSpeed(globalSpeed)
+                    }
+                } else {
+                    playbackController.setPlaybackSpeed(globalSpeed)
+                }
             }
         }
         viewModelScope.launch {
@@ -108,7 +139,12 @@ class PlayerViewModel @Inject constructor(
     fun setPlaybackSpeed(speed: Float) {
         playbackController.setPlaybackSpeed(speed)
         viewModelScope.launch {
-            preferencesManager.setPlaybackSpeed(speed)
+            val podcastId = playbackController.playbackState.value.podcastId
+            if (podcastId != 0L) {
+                podcastDao.updatePlaybackSpeed(podcastId, speed)
+            } else {
+                preferencesManager.setPlaybackSpeed(speed)
+            }
         }
         _showSpeedPicker.value = false
     }
@@ -157,16 +193,6 @@ class PlayerViewModel @Inject constructor(
         sleepTimer.cancel()
         viewModelScope.launch {
             preferencesManager.setSleepTimerMinutes(0)
-        }
-    }
-
-    fun markAsPlayed() {
-        viewModelScope.launch {
-            val episodeId = playbackController.playbackState.value.episodeId
-            if (episodeId != 0L) {
-                episodeDao.markAsPlayed(episodeId)
-                queueDao.removeFromQueue(episodeId)
-            }
         }
     }
 

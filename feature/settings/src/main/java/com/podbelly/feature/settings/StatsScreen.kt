@@ -161,16 +161,16 @@ fun StatsScreen(
 // =====================================================================
 
 @Composable
-private fun StatsSummaryCard(
+internal fun StatsSummaryCard(
     title: String,
     value: String,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
     ) {
         Column(
             modifier = Modifier
@@ -185,8 +185,8 @@ private fun StatsSummaryCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -194,7 +194,7 @@ private fun StatsSummaryCard(
 }
 
 @Composable
-private fun PodcastStatRow(
+internal fun PodcastStatRow(
     rank: Int,
     title: String,
     artworkUrl: String,
@@ -205,9 +205,9 @@ private fun PodcastStatRow(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
     ) {
         Row(
             modifier = Modifier
@@ -257,7 +257,7 @@ private fun PodcastStatRow(
 }
 
 @Composable
-private fun EpisodeStatRow(
+internal fun EpisodeStatRow(
     rank: Int,
     title: String,
     podcastTitle: String,
@@ -266,9 +266,9 @@ private fun EpisodeStatRow(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
     ) {
         Row(
             modifier = Modifier

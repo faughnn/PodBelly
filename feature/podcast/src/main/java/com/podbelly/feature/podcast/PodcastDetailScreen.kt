@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
@@ -53,8 +52,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -124,7 +125,6 @@ fun PodcastDetailScreen(
                         onPlay = { viewModel.playEpisode(episode.id) },
                         onDownload = { viewModel.downloadEpisode(episode.id) },
                         onDeleteDownload = { viewModel.deleteDownload(episode.id) },
-                        onTogglePlayed = { viewModel.togglePlayed(episode.id) },
                     )
                 }
             }
@@ -262,15 +262,34 @@ private fun PodcastHeader(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = podcast.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3,
-                overflow = TextOverflow.Ellipsis,
+            val descTextColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+            val descLinkColor = MaterialTheme.colorScheme.primary.toArgb()
+            val descMaxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3
+
+            AndroidView(
+                factory = { ctx ->
+                    android.widget.TextView(ctx).apply {
+                        setTextColor(descTextColor)
+                        setLinkTextColor(descLinkColor)
+                        textSize = 12f
+                        maxLines = descMaxLines
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                    }
+                },
+                update = { textView ->
+                    textView.text = android.text.Html.fromHtml(
+                        podcast.description,
+                        android.text.Html.FROM_HTML_MODE_COMPACT,
+                    )
+                    textView.maxLines = descMaxLines
+                    textView.setTextColor(descTextColor)
+                    textView.setLinkTextColor(descLinkColor)
+                },
                 modifier = Modifier
+                    .fillMaxWidth()
                     .animateContentSize()
-                    .clickable { isDescriptionExpanded = !isDescriptionExpanded }
+                    .clickable { isDescriptionExpanded = !isDescriptionExpanded },
             )
 
             if (podcast.description.length > 100) {
@@ -288,7 +307,7 @@ private fun PodcastHeader(
 }
 
 @Composable
-private fun FilterChipsRow(
+internal fun FilterChipsRow(
     currentFilter: EpisodeFilter,
     onFilterSelected: (EpisodeFilter) -> Unit
 ) {
@@ -317,17 +336,18 @@ private fun FilterChipsRow(
 }
 
 @Composable
-private fun EpisodeCard(
+internal fun EpisodeCard(
     episode: EpisodeUiModel,
     downloadProgress: Float?,
     onClick: () -> Unit = {},
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onDeleteDownload: () -> Unit,
-    onTogglePlayed: () -> Unit,
 ) {
     val isDownloading = downloadProgress != null
     var showMenu by remember { mutableStateOf(false) }
+
+    val cardShape = RoundedCornerShape(14.dp)
 
     Card(
         modifier = Modifier
@@ -335,9 +355,9 @@ private fun EpisodeCard(
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = cardShape
     ) {
         Row(
             modifier = Modifier
@@ -389,11 +409,24 @@ private fun EpisodeCard(
                         )
                     }
                     if (episode.durationSeconds > 0) {
-                        Text(
-                            text = DateUtils.formatDuration(episode.durationSeconds),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        val durationMinutes = episode.durationSeconds / 60
+                        val tagColor = when {
+                            durationMinutes < 15 -> MaterialTheme.colorScheme.secondary
+                            durationMinutes <= 45 -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                        androidx.compose.material3.Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = tagColor.copy(alpha = 0.1f),
+                        ) {
+                            Text(
+                                text = DateUtils.formatDuration(episode.durationSeconds),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = tagColor,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
                     }
                     if (episode.isDownloaded) {
                         Text(
@@ -427,26 +460,12 @@ private fun EpisodeCard(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Play button (only for downloaded episodes)
-                if (episode.isDownloaded) {
-                    IconButton(
-                        onClick = onPlay,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play episode",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                // Download button
+                // Single action button: Download → Progress → Play
                 IconButton(
                     onClick = {
                         when {
+                            episode.isDownloaded -> onPlay()
                             isDownloading -> { /* downloading, do nothing */ }
-                            episode.isDownloaded -> { /* already downloaded, do nothing */ }
                             else -> onDownload()
                         }
                     },
@@ -463,9 +482,9 @@ private fun EpisodeCard(
                         }
                         episode.isDownloaded -> {
                             Icon(
-                                imageVector = Icons.Filled.CheckCircle,
-                                contentDescription = "Downloaded — tap to delete",
-                                tint = MaterialTheme.colorScheme.tertiary
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play episode",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                         else -> {
@@ -478,25 +497,24 @@ private fun EpisodeCard(
                     }
                 }
 
-                // Overflow menu
-                Box {
-                    IconButton(
-                        onClick = { showMenu = true },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                // Overflow menu (only when downloaded, for delete option)
+                if (episode.isDownloaded) {
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        // Delete download (only shown if downloaded)
-                        if (episode.isDownloaded) {
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
                             DropdownMenuItem(
                                 text = { Text("Delete download") },
                                 onClick = {
@@ -505,20 +523,6 @@ private fun EpisodeCard(
                                 }
                             )
                         }
-
-                        // Mark played / unplayed
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    if (episode.played) "Mark as unplayed"
-                                    else "Mark as played"
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onTogglePlayed()
-                            }
-                        )
                     }
                 }
             }

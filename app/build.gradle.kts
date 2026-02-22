@@ -89,6 +89,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.palette)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
     implementation(libs.work.runtime.ktx)
@@ -104,6 +105,8 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.navigation.testing)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.compose.ui.test.manifest)
 

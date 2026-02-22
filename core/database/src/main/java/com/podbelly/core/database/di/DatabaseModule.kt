@@ -29,7 +29,7 @@ object DatabaseModule {
             PodbellDatabase::class.java,
             "podbelly.db"
         )
-            .addMigrations(PodbellDatabase.MIGRATION_1_2)
+            .addMigrations(PodbellDatabase.MIGRATION_1_2, PodbellDatabase.MIGRATION_2_3)
             .build()
     }
 
