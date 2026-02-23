@@ -3,7 +3,9 @@ package com.podbelly.core.playback
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.media.audiofx.LoudnessEnhancer
 import android.os.Bundle
 import android.util.Log
@@ -46,6 +48,9 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var exoPlayer: ExoPlayer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
+
+    /** Volume level before boost was enabled, so it can be restored on disable. */
+    private var previousStreamVolume: Int = -1
 
     override fun onCreate() {
         super.onCreate()
@@ -171,9 +176,17 @@ class PlaybackService : MediaSessionService() {
      */
     private fun applyVolumeBoost(enabled: Boolean) {
         val player = exoPlayer ?: return
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         if (enabled) {
             try {
+                // Save current volume so we can restore it when boost is disabled
+                previousStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+                // Max out the system media volume
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
+
                 if (loudnessEnhancer == null) {
                     loudnessEnhancer = LoudnessEnhancer(player.audioSessionId)
                 }
@@ -184,6 +197,16 @@ class PlaybackService : MediaSessionService() {
             }
         } else {
             loudnessEnhancer?.enabled = false
+
+            // Restore previous volume level
+            if (previousStreamVolume >= 0) {
+                try {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, previousStreamVolume, 0)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to restore stream volume", e)
+                }
+                previousStreamVolume = -1
+            }
         }
     }
 
