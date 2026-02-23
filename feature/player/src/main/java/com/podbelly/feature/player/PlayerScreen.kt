@@ -330,6 +330,30 @@ fun PlayerScreen(
         }
     }
 
+    // ── Volume boost warning dialog ────────────────────────────────────
+    if (uiState.showVolumeBoostWarning) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissVolumeBoostWarning() },
+            title = { Text("Enable volume boost?") },
+            text = {
+                Text(
+                    "This will set your media volume to maximum and apply " +
+                        "an extra +20 dB boost. It will be loud.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmVolumeBoost() }) {
+                    Text("Turn on")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissVolumeBoostWarning() }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     // ── Chapters list bottom sheet ────────────────────────────────────
     if (uiState.showChaptersList && playback.chapters.isNotEmpty()) {
         val chaptersSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

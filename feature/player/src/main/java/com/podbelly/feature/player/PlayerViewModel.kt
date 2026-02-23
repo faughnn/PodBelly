@@ -31,6 +31,7 @@ data class PlayerUiState(
     val showSleepTimerPicker: Boolean = false,
     val showSpeedPicker: Boolean = false,
     val showChaptersList: Boolean = false,
+    val showVolumeBoostWarning: Boolean = false,
 )
 
 @HiltViewModel
@@ -46,14 +47,15 @@ class PlayerViewModel @Inject constructor(
     private val _showSleepTimerPicker = MutableStateFlow(false)
     private val _showSpeedPicker = MutableStateFlow(false)
     private val _showChaptersList = MutableStateFlow(false)
+    private val _showVolumeBoostWarning = MutableStateFlow(false)
 
     val uiState: StateFlow<PlayerUiState> = combine(
         playbackController.playbackState,
         sleepTimer.remainingMillis,
         _showSleepTimerPicker,
         _showSpeedPicker,
-        _showChaptersList,
-    ) { playback, timerRemaining, showSleep, showSpeed, showChapters ->
+        combine(_showChaptersList, _showVolumeBoostWarning, ::Pair),
+    ) { playback, timerRemaining, showSleep, showSpeed, (showChapters, showBoostWarning) ->
         PlayerUiState(
             playbackState = playback,
             sleepTimerRemaining = timerRemaining,
@@ -64,6 +66,7 @@ class PlayerViewModel @Inject constructor(
             showSleepTimerPicker = showSleep,
             showSpeedPicker = showSpeed,
             showChaptersList = showChapters,
+            showVolumeBoostWarning = showBoostWarning,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -160,13 +163,29 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun toggleVolumeBoost() {
-        // Read from PlaybackState which is now updated by PlaybackController
         val current = playbackController.playbackState.value.volumeBoost
-        val newValue = !current
-        playbackController.setVolumeBoost(newValue)
-        viewModelScope.launch {
-            preferencesManager.setVolumeBoost(newValue)
+        if (current) {
+            // Disabling — no warning needed
+            playbackController.setVolumeBoost(false)
+            viewModelScope.launch {
+                preferencesManager.setVolumeBoost(false)
+            }
+        } else {
+            // Enabling — show warning first
+            _showVolumeBoostWarning.value = true
         }
+    }
+
+    fun confirmVolumeBoost() {
+        _showVolumeBoostWarning.value = false
+        playbackController.setVolumeBoost(true)
+        viewModelScope.launch {
+            preferencesManager.setVolumeBoost(true)
+        }
+    }
+
+    fun dismissVolumeBoostWarning() {
+        _showVolumeBoostWarning.value = false
     }
 
     /**
