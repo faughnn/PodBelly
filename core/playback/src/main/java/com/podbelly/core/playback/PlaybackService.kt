@@ -42,6 +42,7 @@ class PlaybackService : MediaSessionService() {
         const val CUSTOM_COMMAND_SET_SKIP_SILENCE = "SET_SKIP_SILENCE"
         const val CUSTOM_COMMAND_SET_VOLUME_BOOST = "SET_VOLUME_BOOST"
         const val CUSTOM_COMMAND_REWIND = "REWIND_10S"
+        const val CUSTOM_COMMAND_FAST_FORWARD = "FAST_FORWARD_30S"
         private const val NOTIFICATION_CHANNEL_ID = "podbelly_playback"
     }
 
@@ -76,6 +77,12 @@ class PlaybackService : MediaSessionService() {
             .setSessionCommand(rewindCommand)
             .build()
 
+        val fastForwardCommand = SessionCommand(CUSTOM_COMMAND_FAST_FORWARD, Bundle.EMPTY)
+        val fastForwardButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
+            .setDisplayName("Fast forward 30s")
+            .setSessionCommand(fastForwardCommand)
+            .build()
+
         val sessionCallback = object : MediaSession.Callback {
             override fun onConnect(
                 session: MediaSession,
@@ -85,11 +92,12 @@ class PlaybackService : MediaSessionService() {
                     .add(SessionCommand(CUSTOM_COMMAND_SET_SKIP_SILENCE, Bundle.EMPTY))
                     .add(SessionCommand(CUSTOM_COMMAND_SET_VOLUME_BOOST, Bundle.EMPTY))
                     .add(rewindCommand)
+                    .add(fastForwardCommand)
                     .build()
 
                 return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                     .setAvailableSessionCommands(sessionCommands)
-                    .setCustomLayout(listOf(rewindButton))
+                    .setCustomLayout(listOf(rewindButton, fastForwardButton))
                     .build()
             }
 
@@ -116,6 +124,18 @@ class PlaybackService : MediaSessionService() {
                             player.seekTo(newPos)
                         }
                         Log.d(TAG, "Rewound 10 seconds")
+                    }
+                    CUSTOM_COMMAND_FAST_FORWARD -> {
+                        exoPlayer?.let { player ->
+                            val duration = player.duration
+                            val newPos = if (duration > 0) {
+                                (player.currentPosition + 30_000L).coerceAtMost(duration)
+                            } else {
+                                player.currentPosition + 30_000L
+                            }
+                            player.seekTo(newPos)
+                        }
+                        Log.d(TAG, "Fast forwarded 30 seconds")
                     }
                 }
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
