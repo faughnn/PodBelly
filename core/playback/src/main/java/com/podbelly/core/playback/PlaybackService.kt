@@ -177,7 +177,7 @@ class PlaybackService : MediaSessionService() {
                 if (loudnessEnhancer == null) {
                     loudnessEnhancer = LoudnessEnhancer(player.audioSessionId)
                 }
-                loudnessEnhancer?.setTargetGain(800) // ~8 dB boost
+                loudnessEnhancer?.setTargetGain(2000) // ~20 dB boost
                 loudnessEnhancer?.enabled = true
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to enable LoudnessEnhancer", e)

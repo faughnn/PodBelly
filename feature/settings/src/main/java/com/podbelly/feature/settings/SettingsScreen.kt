@@ -163,7 +163,7 @@ fun SettingsScreen(
 
                     SwitchRow(
                         title = "Volume boost",
-                        subtitle = "Increase volume for quiet audio",
+                        subtitle = "Extra-loud mode for noisy environments",
                         checked = uiState.volumeBoost,
                         onCheckedChange = { viewModel.setVolumeBoost(it) },
                     )
