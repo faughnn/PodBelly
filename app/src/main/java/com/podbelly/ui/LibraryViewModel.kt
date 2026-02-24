@@ -10,6 +10,7 @@ import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.PodcastEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -21,6 +22,8 @@ data class LibraryUiState(
     val podcasts: List<PodcastEntity> = emptyList(),
     val sortOrder: LibrarySortOrder = LibrarySortOrder.NAME_A_TO_Z,
     val viewMode: LibraryViewMode = LibraryViewMode.GRID,
+    val searchQuery: String = "",
+    val isSearchActive: Boolean = false,
 )
 
 @HiltViewModel
@@ -30,6 +33,9 @@ class LibraryViewModel @Inject constructor(
     private val listeningSessionDao: ListeningSessionDao,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
+
+    private val searchQuery = MutableStateFlow("")
+    private val isSearchActive = MutableStateFlow(false)
 
     val uiState: StateFlow<LibraryUiState> = combine(
         podcastDao.getAll(),
@@ -49,11 +55,35 @@ class LibraryViewModel @Inject constructor(
             LibrarySortOrder.MOST_LISTENED -> podcasts.sortedByDescending { listenedMap[it.id] ?: 0L }
         }
         LibraryUiState(podcasts = sorted, sortOrder = sortOrder, viewMode = viewMode)
+    }.combine(searchQuery) { state, query ->
+        val filtered = if (query.isBlank()) {
+            state.podcasts
+        } else {
+            val lowerQuery = query.lowercase()
+            state.podcasts.filter { podcast ->
+                podcast.title.lowercase().contains(lowerQuery) ||
+                    podcast.author.lowercase().contains(lowerQuery)
+            }
+        }
+        state.copy(podcasts = filtered, searchQuery = query)
+    }.combine(isSearchActive) { state, active ->
+        state.copy(isSearchActive = active)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = LibraryUiState(),
     )
+
+    fun setSearchQuery(query: String) {
+        searchQuery.value = query
+    }
+
+    fun setSearchActive(active: Boolean) {
+        isSearchActive.value = active
+        if (!active) {
+            searchQuery.value = ""
+        }
+    }
 
     fun setSortOrder(sortOrder: LibrarySortOrder) {
         viewModelScope.launch {
