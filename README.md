@@ -2,13 +2,6 @@
 
 An ad-free, open-source podcast player for Android.
 
-<p align="center">
-  <img src="docs/screenshots/home.png" width="180" alt="Home">
-  <img src="docs/screenshots/continue-listening.png" width="180" alt="Continue Listening">
-  <img src="docs/screenshots/discover.png" width="180" alt="Discover">
-  <img src="docs/screenshots/queue.png" width="180" alt="Queue">
-  <img src="docs/screenshots/settings.png" width="180" alt="Settings">
-</p>
 
 ## Features
 
