@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -238,6 +239,122 @@ class LibraryViewModelTest {
 
             val state = awaitItem()
             assertEquals(LibraryViewMode.LIST, state.viewMode)
+        }
+    }
+
+    // -- Search tests --
+
+    @Test
+    fun `search filters podcasts by title`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(
+                makePodcast(id = 1L, title = "Tech Talk"),
+                makePodcast(id = 2L, title = "History Hour"),
+                makePodcast(id = 3L, title = "Tech News Daily"),
+            )
+            awaitItem() // podcasts loaded
+
+            viewModel.setSearchActive(true)
+            awaitItem() // search active
+
+            viewModel.setSearchQuery("tech")
+            val state = awaitItem()
+            assertEquals(2, state.podcasts.size)
+            assertTrue(state.podcasts.all { it.title.lowercase().contains("tech") })
+            assertEquals("tech", state.searchQuery)
+            assertTrue(state.isSearchActive)
+        }
+    }
+
+    @Test
+    fun `search filters podcasts by author`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem()
+
+            podcastsFlow.value = listOf(
+                makePodcast(id = 1L, title = "Show A"),
+                makePodcast(id = 2L, title = "Show B"),
+            )
+            awaitItem()
+
+            viewModel.setSearchQuery("Author")
+            val state = awaitItem()
+            assertEquals(2, state.podcasts.size)
+        }
+    }
+
+    @Test
+    fun `empty search query shows all podcasts`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem()
+
+            podcastsFlow.value = listOf(
+                makePodcast(id = 1L, title = "Alpha"),
+                makePodcast(id = 2L, title = "Bravo"),
+            )
+            awaitItem()
+
+            viewModel.setSearchQuery("Alpha")
+            awaitItem()
+
+            viewModel.setSearchQuery("")
+            val state = awaitItem()
+            assertEquals(2, state.podcasts.size)
+        }
+    }
+
+    @Test
+    fun `closing search clears query`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem()
+
+            podcastsFlow.value = listOf(
+                makePodcast(id = 1L, title = "Alpha"),
+                makePodcast(id = 2L, title = "Bravo"),
+            )
+            awaitItem()
+
+            viewModel.setSearchActive(true)
+            awaitItem()
+
+            viewModel.setSearchQuery("Alpha")
+            awaitItem()
+
+            viewModel.setSearchActive(false)
+            val state = awaitItem()
+            assertEquals("", state.searchQuery)
+            assertFalse(state.isSearchActive)
+            assertEquals(2, state.podcasts.size)
+        }
+    }
+
+    @Test
+    fun `search is case insensitive`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem()
+
+            podcastsFlow.value = listOf(
+                makePodcast(id = 1L, title = "Tech Talk"),
+                makePodcast(id = 2L, title = "History Hour"),
+            )
+            awaitItem()
+
+            viewModel.setSearchQuery("TECH")
+            val state = awaitItem()
+            assertEquals(1, state.podcasts.size)
+            assertEquals("Tech Talk", state.podcasts[0].title)
         }
     }
 

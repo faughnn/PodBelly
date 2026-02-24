@@ -22,10 +22,14 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.DropdownMenu
@@ -39,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -69,15 +77,37 @@ fun LibraryScreen(
 
     Scaffold(
         topBar = {
-            LibraryTopBar(
-                sortOrder = uiState.sortOrder,
-                viewMode = uiState.viewMode,
-                onSortOrderChange = { viewModel.setSortOrder(it) },
-                onToggleViewMode = { viewModel.toggleViewMode() },
-            )
+            if (uiState.isSearchActive) {
+                SearchTopBar(
+                    query = uiState.searchQuery,
+                    onQueryChange = { viewModel.setSearchQuery(it) },
+                    onClose = { viewModel.setSearchActive(false) },
+                )
+            } else {
+                LibraryTopBar(
+                    sortOrder = uiState.sortOrder,
+                    viewMode = uiState.viewMode,
+                    onSortOrderChange = { viewModel.setSortOrder(it) },
+                    onToggleViewMode = { viewModel.toggleViewMode() },
+                    onSearchClick = { viewModel.setSearchActive(true) },
+                )
+            }
         }
     ) { paddingValues ->
-        if (uiState.podcasts.isEmpty()) {
+        if (uiState.podcasts.isEmpty() && uiState.searchQuery.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No matching podcasts",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else if (uiState.podcasts.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -156,11 +186,73 @@ fun LibraryScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun SearchTopBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Close search",
+                )
+            }
+        },
+        title = {
+            Box {
+                if (query.isEmpty()) {
+                    Text(
+                        text = "Search library...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                )
+            }
+        },
+        actions = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear search",
+                    )
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun LibraryTopBar(
     sortOrder: LibrarySortOrder,
     viewMode: LibraryViewMode,
     onSortOrderChange: (LibrarySortOrder) -> Unit,
     onToggleViewMode: () -> Unit,
+    onSearchClick: () -> Unit,
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -172,6 +264,12 @@ private fun LibraryTopBar(
             )
         },
         actions = {
+            IconButton(onClick = onSearchClick) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search library",
+                )
+            }
             IconButton(onClick = onToggleViewMode) {
                 Icon(
                     imageVector = if (viewMode == LibraryViewMode.GRID) {
