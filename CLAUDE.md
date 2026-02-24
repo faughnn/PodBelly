@@ -30,6 +30,16 @@ Episodes must be downloaded before they can be played. Never offer a standalone 
 
 This pattern is already implemented in HomeScreen's `EpisodeCard`, PodcastDetailScreen's `EpisodeCard`, and EpisodeDetailScreen. Do not add separate Play and Download buttons — always combine them into one button that transitions through the states above.
 
+## Version Number Management
+
+The app version **must be incremented with every commit**. Update **all three** of the following locations to keep them in sync:
+
+1. **`app/build.gradle.kts`** — `versionCode` (integer, increment by 1)
+2. **`app/build.gradle.kts`** — `versionName` (string, e.g. `"1.0.2"`)
+3. **`feature/settings/src/main/java/com/podbelly/feature/settings/SettingsScreen.kt`** — The `"Version X.Y.Z"` string displayed in the Settings/About section
+
+All three values must match (versionName and the Settings string should be identical). Forgetting to update any of these causes version mismatches that can trigger update crash loops.
+
 ## Key Principle
 
 Always prefer using a known working feature pattern from an established open-source podcast app over designing from scratch. The reference apps have been battle-tested on millions of devices. When in doubt, look at how Pocket Casts does it.
