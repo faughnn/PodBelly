@@ -16,8 +16,8 @@ android {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -43,7 +43,8 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             firebaseAppDistribution {
                 artifactType = "APK"
-                groups = "testers"
+                groups = project.findProperty("appDistributionGroup")?.toString() ?: "testers"
+                releaseNotes = project.findProperty("appDistributionReleaseNotes")?.toString()
             }
         }
     }
