@@ -21,6 +21,7 @@ import com.podbelly.ui.SplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.PreferencesManager
+import com.google.firebase.appdistribution.FirebaseAppDistribution
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.navigation.PodbellNavHost
 import com.podbelly.ui.theme.PodbellTheme
@@ -80,6 +81,11 @@ class MainActivity : ComponentActivity() {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        FirebaseAppDistribution.getInstance().updateIfNewReleaseAvailable()
     }
 
     override fun onDestroy() {

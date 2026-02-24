@@ -98,6 +98,8 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
 
+    implementation(libs.firebase.appdistribution.api)
+
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
     debugImplementation(libs.firebase.appdistribution)
