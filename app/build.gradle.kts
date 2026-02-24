@@ -95,9 +95,11 @@ dependencies {
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
 
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
-    debugImplementation(platform(libs.firebase.bom))
     debugImplementation(libs.firebase.appdistribution)
 
     testImplementation(libs.junit)
