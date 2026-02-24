@@ -32,13 +32,12 @@ This pattern is already implemented in HomeScreen's `EpisodeCard`, PodcastDetail
 
 ## Version Number Management
 
-The app version **must be incremented with every commit**. Update **all three** of the following locations to keep them in sync:
+The app version **must be incremented with every commit**. Update **both** of the following locations in `app/build.gradle.kts`:
 
-1. **`app/build.gradle.kts`** — `versionCode` (integer, increment by 1)
-2. **`app/build.gradle.kts`** — `versionName` (string, e.g. `"1.0.2"`)
-3. **`feature/settings/src/main/java/com/podbelly/feature/settings/SettingsScreen.kt`** — The `"Version X.Y.Z"` string displayed in the Settings/About section
+1. **`versionCode`** (integer, increment by 1)
+2. **`versionName`** (string, e.g. `"1.0.2"`)
 
-All three values must match (versionName and the Settings string should be identical). Forgetting to update any of these causes version mismatches that can trigger update crash loops.
+The Settings screen reads the version dynamically at runtime via `PackageManager`, so it does **not** need manual updates.
 
 ## Key Principle
 
