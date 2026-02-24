@@ -84,8 +84,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private var hasCheckedForUpdate = false
-
     override fun onResume() {
         super.onResume()
         if (!hasCheckedForUpdate) {
@@ -96,6 +94,10 @@ class MainActivity : ComponentActivity() {
                     Log.w("MainActivity", "App distribution update check failed", e)
                 }
         }
+    }
+
+    companion object {
+        private var hasCheckedForUpdate = false
     }
 
     override fun onDestroy() {
