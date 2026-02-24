@@ -8,8 +8,10 @@ import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -42,6 +44,9 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
+
+    private val _showMobileDataWarning = MutableStateFlow(false)
+    val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
 
     val uiState: StateFlow<HomeUiState> = combine(
         episodeDao.getRecentEpisodes(50),
@@ -79,10 +84,20 @@ class HomeViewModel @Inject constructor(
     )
 
     fun downloadEpisode(episodeId: Long) {
-        val job = viewModelScope.launch {
-            downloadManager.downloadEpisode(episodeId)
+        viewModelScope.launch {
+            if (downloadManager.isDownloadBlockedByWifiSetting()) {
+                _showMobileDataWarning.value = true
+                return@launch
+            }
+            val job = launch {
+                downloadManager.downloadEpisode(episodeId)
+            }
+            downloadManager.registerDownloadJob(episodeId, job)
         }
-        downloadManager.registerDownloadJob(episodeId, job)
+    }
+
+    fun dismissMobileDataWarning() {
+        _showMobileDataWarning.value = false
     }
 
     fun deleteDownload(episodeId: Long) {
