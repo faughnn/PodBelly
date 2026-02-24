@@ -21,6 +21,7 @@ import com.podbelly.ui.SplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.PreferencesManager
+import android.util.Log
 import com.google.firebase.appdistribution.FirebaseAppDistribution
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.navigation.PodbellNavHost
@@ -83,9 +84,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var hasCheckedForUpdate = false
+
     override fun onResume() {
         super.onResume()
-        FirebaseAppDistribution.getInstance().updateIfNewReleaseAvailable()
+        if (!hasCheckedForUpdate) {
+            hasCheckedForUpdate = true
+            FirebaseAppDistribution.getInstance()
+                .updateIfNewReleaseAvailable()
+                .addOnFailureListener { e ->
+                    Log.w("MainActivity", "App distribution update check failed", e)
+                }
+        }
     }
 
     override fun onDestroy() {
