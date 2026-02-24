@@ -48,6 +48,16 @@ class DownloadManager @Inject constructor(
     private val activeDownloads = mutableMapOf<Long, Job>()
 
     /**
+     * Returns `true` when the user has enabled WiFi-only downloads and the device is not
+     * currently on WiFi. Callers should check this *before* launching a download so they
+     * can show a user-facing warning instead of silently failing.
+     */
+    suspend fun isDownloadBlockedByWifiSetting(): Boolean {
+        val wifiOnly = preferencesManager.downloadOnWifiOnly.first()
+        return wifiOnly && !isOnWifi()
+    }
+
+    /**
      * Downloads the audio file for the given episode.
      *
      * The file is saved to `context.getExternalFilesDir("podcasts")/<episodeId>.mp3`.

@@ -13,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -63,6 +64,9 @@ class PodcastDetailViewModel @Inject constructor(
 
     /** Download progress map exposed for the UI (episodeId -> 0.0..1.0). */
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
+
+    private val _showMobileDataWarning = MutableStateFlow(false)
+    val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
 
     private val podcastId: Long = checkNotNull(savedStateHandle["podcastId"])
 
@@ -179,10 +183,20 @@ class PodcastDetailViewModel @Inject constructor(
     }
 
     fun downloadEpisode(episodeId: Long) {
-        val job = viewModelScope.launch {
-            downloadManager.downloadEpisode(episodeId)
+        viewModelScope.launch {
+            if (downloadManager.isDownloadBlockedByWifiSetting()) {
+                _showMobileDataWarning.value = true
+                return@launch
+            }
+            val job = launch {
+                downloadManager.downloadEpisode(episodeId)
+            }
+            downloadManager.registerDownloadJob(episodeId, job)
         }
-        downloadManager.registerDownloadJob(episodeId, job)
+    }
+
+    fun dismissMobileDataWarning() {
+        _showMobileDataWarning.value = false
     }
 
     fun deleteDownload(episodeId: Long) {

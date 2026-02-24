@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.podbelly.core.common.DownloadsSortOrder
+import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.database.dao.DownloadErrorWithEpisode
 import com.podbelly.feature.home.EpisodeCard
 import com.podbelly.feature.home.HomeEpisodeItem
@@ -60,6 +61,11 @@ fun DownloadsScreen(
     onEpisodeClick: (Long) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
+
+    if (showMobileDataWarning) {
+        MobileDataWarningDialog(onDismiss = { viewModel.dismissMobileDataWarning() })
+    }
 
     Scaffold(
         topBar = {

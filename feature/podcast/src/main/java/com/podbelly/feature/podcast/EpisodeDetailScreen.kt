@@ -57,6 +57,7 @@ import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.DateUtils
+import com.podbelly.core.common.MobileDataWarningDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +70,11 @@ fun EpisodeDetailScreen(
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val episodeProgress = downloadProgress[uiState.episodeId]
     val context = LocalContext.current
+    val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
+
+    if (showMobileDataWarning) {
+        MobileDataWarningDialog(onDismiss = { viewModel.dismissMobileDataWarning() })
+    }
 
     Scaffold(
         topBar = {

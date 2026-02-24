@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.podbelly.core.common.MobileDataWarningDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +77,11 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
+    val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
+
+    if (showMobileDataWarning) {
+        MobileDataWarningDialog(onDismiss = { viewModel.dismissMobileDataWarning() })
+    }
 
     Scaffold(
         topBar = {
