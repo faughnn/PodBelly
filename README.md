@@ -2,24 +2,34 @@
 
 An ad-free, open-source podcast player for Android.
 
+<p align="center">
+  <img src="docs/screenshots/home.png" width="180" alt="Home">
+  <img src="docs/screenshots/continue-listening.png" width="180" alt="Continue Listening">
+  <img src="docs/screenshots/discover.png" width="180" alt="Discover">
+  <img src="docs/screenshots/queue.png" width="180" alt="Queue">
+  <img src="docs/screenshots/settings.png" width="180" alt="Settings">
+</p>
+
 ## Features
 
-- **Podcast Discovery** — Search iTunes for podcasts, subscribe via RSS feed URL
-- **Library Management** — Grid/list view toggle, sort by name, recently added, episode count, most recent episode, or most listened
-- **Playback Controls** — Variable speed (0.5x–3.0x), skip silence, volume boost, sleep timer, chapter navigation
-- **Download Manager** — Background episode downloads with progress tracking, error logging, and retry
+- **Podcast Discovery** — Search iTunes for podcasts or subscribe via RSS feed URL
+- **Continue Listening** — Pick up where you left off with in-progress episodes
+- **Library Management** — Grid/list view, sort by name, recently added, episode count, most recent, or most listened
+- **Full-Featured Player** — Variable speed (0.5x-3.0x), skip silence, volume boost, chapter navigation
+- **Sleep Timer** — Preset durations or end-of-episode mode
+- **Download-First Playback** — Episodes download before playing, with background download manager
 - **Queue** — Drag-to-reorder playback queue
-- **Themes** — System default, Light, Dark, OLED Dark (pure black), High Contrast
-- **Background Refresh** — Periodic feed updates via WorkManager with new episode notifications
-- **Playback Statistics** — Total listening time, time saved by speed/silence, most listened podcasts and episodes
-- **Auto-Rewind on Resume** — Automatically rewinds based on pause duration (3s–20s)
-- **Share** — Share episode links from the detail screen
+- **Themes** — System, Light, Dark, OLED Dark, High Contrast
+- **Background Refresh** — Periodic feed updates with new episode notifications
+- **Playback Statistics** — Total listening time, time saved by speed/silence, most listened podcasts
+- **OPML Import/Export** — Bring your subscriptions from another app or back them up
+- **Auto-Rewind on Resume** — Automatically rewinds based on pause duration
 
 ## Tech Stack
 
 - **Language:** Kotlin
 - **UI:** Jetpack Compose + Material 3
-- **Architecture:** Multi-module (app, core/*, feature/*)
+- **Architecture:** Multi-module (app, core/\*, feature/\*)
 - **DI:** Hilt
 - **Database:** Room
 - **Playback:** Media3 (ExoPlayer + MediaSession)
@@ -27,6 +37,7 @@ An ad-free, open-source podcast player for Android.
 - **Preferences:** DataStore
 - **Image Loading:** Coil
 - **Testing:** JUnit, MockK, Turbine, Paparazzi
+- **CI/CD:** GitHub Actions + Firebase App Distribution
 
 ## Project Structure
 
@@ -38,7 +49,7 @@ core/
   network/              Retrofit API, RSS parser, iTunes search
   playback/             Media3 controller, playback service, sleep timer
 feature/
-  home/                 Recent episodes feed
+  home/                 Recent episodes feed, continue listening
   discover/             Podcast search and discovery
   podcast/              Podcast detail, episode detail, library
   player/               Full-screen player with chapters
