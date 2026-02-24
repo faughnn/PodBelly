@@ -27,8 +27,13 @@ jobs:
       - name: Write service account key
         run: echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" | base64 -d > ${{ runner.temp }}/firebase-sa.json
 
+      - name: Decode debug keystore
+        run: echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ${{ runner.temp }}/debug.keystore
+
       - name: Build debug APK
         run: ./gradlew assembleDebug
+        env:
+          DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
 
       - name: Upload to Firebase App Distribution
         run: ./gradlew appDistributionUploadDebug
