@@ -96,4 +96,7 @@ interface ListeningSessionDao {
         """
     )
     fun getMostDownloadedPodcasts(limit: Int = 10): Flow<List<PodcastDownloadStat>>
+
+    @Query("SELECT DISTINCT startedAt / 86400000 AS epochDay FROM listening_sessions ORDER BY epochDay ASC")
+    fun getListeningDays(): Flow<List<Long>>
 }

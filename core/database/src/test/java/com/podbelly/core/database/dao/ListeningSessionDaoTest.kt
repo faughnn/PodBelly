@@ -338,6 +338,46 @@ class ListeningSessionDaoTest {
     }
 
     @Test
+    fun `getListeningDays returns distinct epoch days with activity`() = runTest {
+        val day1Start = 86400000L * 100  // day 100
+        val day2Start = 86400000L * 102  // day 102
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = day1Start, listenedMs = 60000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = day1Start + 3600000L, listenedMs = 30000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId3, podcastId = podcastId2,
+                startedAt = day2Start, listenedMs = 45000L,
+            )
+        )
+
+        listeningSessionDao.getListeningDays().test {
+            val days = awaitItem()
+            assertEquals(2, days.size)
+            assertEquals(100L, days[0])
+            assertEquals(102L, days[1])
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getListeningDays returns empty when no sessions`() = runTest {
+        listeningSessionDao.getListeningDays().test {
+            assertEquals(emptyList<Long>(), awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `CASCADE deleting a podcast removes its listening sessions`() = runTest {
         listeningSessionDao.insert(
             ListeningSessionEntity(episodeId = episodeId1, podcastId = podcastId1, startedAt = 1000L, listenedMs = 60000L)
