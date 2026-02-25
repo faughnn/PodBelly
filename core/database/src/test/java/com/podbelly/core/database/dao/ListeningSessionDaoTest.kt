@@ -302,6 +302,42 @@ class ListeningSessionDaoTest {
     }
 
     @Test
+    fun `getListenedMsSince returns total for sessions after threshold`() = runTest {
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = 1000L, listenedMs = 60000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = 5000L, listenedMs = 30000L,
+            )
+        )
+
+        listeningSessionDao.getListenedMsSince(3000L).test {
+            assertEquals(30000L, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getListenedMsSince returns zero when no sessions after threshold`() = runTest {
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = 1000L, listenedMs = 60000L,
+            )
+        )
+
+        listeningSessionDao.getListenedMsSince(5000L).test {
+            assertEquals(0L, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `CASCADE deleting a podcast removes its listening sessions`() = runTest {
         listeningSessionDao.insert(
             ListeningSessionEntity(episodeId = episodeId1, podcastId = podcastId1, startedAt = 1000L, listenedMs = 60000L)

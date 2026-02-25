@@ -53,6 +53,9 @@ interface ListeningSessionDao {
     @Query("SELECT COALESCE(SUM(silenceTrimmedMs), 0) FROM listening_sessions")
     fun getTotalSilenceTrimmedMs(): Flow<Long>
 
+    @Query("SELECT COALESCE(SUM(listenedMs), 0) FROM listening_sessions WHERE startedAt >= :since")
+    fun getListenedMsSince(since: Long): Flow<Long>
+
     @Query(
         """
         SELECT ls.podcastId, p.title AS podcastTitle, p.artworkUrl,
