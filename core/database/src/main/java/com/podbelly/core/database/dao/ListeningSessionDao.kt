@@ -37,6 +37,12 @@ data class HourOfDayStat(
     val totalListenedMs: Long,
 )
 
+data class EpisodeCompletionStat(
+    val episodeId: Long,
+    val totalListenedMs: Long,
+    val durationMs: Long,
+)
+
 @Dao
 interface ListeningSessionDao {
 
@@ -134,4 +140,17 @@ interface ListeningSessionDao {
         """
     )
     fun getListeningMsByHourOfDay(): Flow<List<HourOfDayStat>>
+
+    @Query(
+        """
+        SELECT ls.episodeId,
+               SUM(ls.listenedMs) AS totalListenedMs,
+               CAST(e.durationSeconds AS INTEGER) * 1000 AS durationMs
+        FROM listening_sessions ls
+        INNER JOIN episodes e ON ls.episodeId = e.id
+        WHERE e.durationSeconds > 0
+        GROUP BY ls.episodeId
+        """
+    )
+    fun getEpisodeCompletionStats(): Flow<List<EpisodeCompletionStat>>
 }

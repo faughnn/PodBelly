@@ -48,9 +48,9 @@ class ListeningSessionDaoTest {
         podcastId2 = podcastDao.insert(createPodcast(feedUrl = "https://p2.com/feed", title = "Podcast Two"))
 
         val eps = episodeDao.insertAll(listOf(
-            createEpisode(podcastId = podcastId1, guid = "ep1", title = "Episode 1"),
-            createEpisode(podcastId = podcastId1, guid = "ep2", title = "Episode 2"),
-            createEpisode(podcastId = podcastId2, guid = "ep3", title = "Episode 3"),
+            createEpisode(podcastId = podcastId1, guid = "ep1", title = "Episode 1", durationSeconds = 600),
+            createEpisode(podcastId = podcastId1, guid = "ep2", title = "Episode 2", durationSeconds = 1200),
+            createEpisode(podcastId = podcastId2, guid = "ep3", title = "Episode 3", durationSeconds = 1800),
         ))
         episodeId1 = eps[0]
         episodeId2 = eps[1]
@@ -75,10 +75,12 @@ class ListeningSessionDaoTest {
         podcastId: Long,
         guid: String,
         title: String = "Episode",
+        durationSeconds: Int = 0,
     ) = EpisodeEntity(
         podcastId = podcastId, guid = guid, title = title,
         description = "Desc", audioUrl = "https://example.com/$guid.mp3",
         publicationDate = 1700000000000L,
+        durationSeconds = durationSeconds,
     )
 
     @Test
@@ -464,6 +466,39 @@ class ListeningSessionDaoTest {
             assertEquals(60000L, stats[0].totalListenedMs)
             assertEquals(14, stats[1].hour)
             assertEquals(30000L, stats[1].totalListenedMs)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getEpisodeCompletionStats returns listened vs duration per episode`() = runTest {
+        // Episode 1: 600s = 600000ms duration, listened 540000ms (90%)
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = 1000L, listenedMs = 540000L,
+            )
+        )
+        // Episode 3: 1800s = 1800000ms duration, listened 200000ms (~11%)
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId3, podcastId = podcastId2,
+                startedAt = 2000L, listenedMs = 200000L,
+            )
+        )
+
+        listeningSessionDao.getEpisodeCompletionStats().test {
+            val stats = awaitItem()
+            assertEquals(2, stats.size)
+
+            val ep1 = stats.find { it.episodeId == episodeId1 }!!
+            assertEquals(540000L, ep1.totalListenedMs)
+            assertEquals(600000L, ep1.durationMs)
+
+            val ep3 = stats.find { it.episodeId == episodeId3 }!!
+            assertEquals(200000L, ep3.totalListenedMs)
+            assertEquals(1800000L, ep3.durationMs)
+
             cancelAndConsumeRemainingEvents()
         }
     }
