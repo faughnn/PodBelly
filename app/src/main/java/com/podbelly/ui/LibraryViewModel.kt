@@ -79,10 +79,10 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun setSearchActive(active: Boolean) {
-        isSearchActive.value = active
         if (!active) {
             searchQuery.value = ""
         }
+        isSearchActive.value = active
     }
 
     fun setSortOrder(sortOrder: LibrarySortOrder) {
