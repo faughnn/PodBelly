@@ -216,8 +216,8 @@ class LibraryViewModelTest {
                 makePodcast(id = 2L, title = "Most Listened"),
             )
             listenedStatsFlow.value = listOf(
-                PodcastListeningStat(podcastId = 1L, podcastTitle = "", artworkUrl = "", totalListenedMs = 1000L),
-                PodcastListeningStat(podcastId = 2L, podcastTitle = "", artworkUrl = "", totalListenedMs = 50000L),
+                PodcastListeningStat(podcastId = 1L, podcastTitle = "", artworkUrl = "", totalListenedMs = 1000L, episodeCount = 1L),
+                PodcastListeningStat(podcastId = 2L, podcastTitle = "", artworkUrl = "", totalListenedMs = 50000L, episodeCount = 3L),
             )
 
             val state = awaitItem()

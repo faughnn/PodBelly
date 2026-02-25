@@ -31,8 +31,8 @@ class StatsViewModel @Inject constructor(
         listeningSessionDao.getTotalListenedMs(),
         listeningSessionDao.getTimeSavedBySpeed(),
         listeningSessionDao.getTotalSilenceTrimmedMs(),
-        listeningSessionDao.getMostListenedPodcasts(10),
-        listeningSessionDao.getMostListenedEpisodes(10),
+        listeningSessionDao.getMostListenedPodcasts(5),
+        listeningSessionDao.getMostListenedEpisodes(5),
     ) { totalListened, timeSavedBySpeed, silenceTrimmed, mostListenedPodcasts, mostListenedEpisodes ->
         PartialStats(
             totalListenedMs = totalListened,
@@ -42,7 +42,7 @@ class StatsViewModel @Inject constructor(
             mostListenedEpisodes = mostListenedEpisodes,
         )
     }.combine(
-        listeningSessionDao.getMostDownloadedPodcasts(10),
+        listeningSessionDao.getMostDownloadedPodcasts(5),
     ) { partial, mostDownloaded ->
         StatsUiState(
             totalListenedMs = partial.totalListenedMs,
