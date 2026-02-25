@@ -378,6 +378,97 @@ class ListeningSessionDaoTest {
     }
 
     @Test
+    fun `getAverageSessionLengthMs returns average across all sessions`() = runTest {
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = 1000L, listenedMs = 60000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = 2000L, listenedMs = 30000L,
+            )
+        )
+
+        listeningSessionDao.getAverageSessionLengthMs().test {
+            assertEquals(45000L, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getAverageSessionLengthMs returns zero when no sessions`() = runTest {
+        listeningSessionDao.getAverageSessionLengthMs().test {
+            assertEquals(0L, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getListeningMsByDayOfWeek groups by day of week`() = runTest {
+        // epoch day 7 = 1970-01-08 = Thursday (dayOfWeek=3 with +3 offset)
+        val thursdayMs = 86400000L * 7
+        // epoch day 8 = Friday (dayOfWeek=4)
+        val fridayMs = 86400000L * 8
+
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = thursdayMs, listenedMs = 60000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = fridayMs, listenedMs = 30000L,
+            )
+        )
+
+        listeningSessionDao.getListeningMsByDayOfWeek().test {
+            val stats = awaitItem()
+            assertEquals(2, stats.size)
+            // Ordered by totalListenedMs DESC, Thursday first (60000 > 30000)
+            assertEquals(3, stats[0].dayOfWeek) // Thursday
+            assertEquals(60000L, stats[0].totalListenedMs)
+            assertEquals(4, stats[1].dayOfWeek) // Friday
+            assertEquals(30000L, stats[1].totalListenedMs)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getListeningMsByHourOfDay groups by hour`() = runTest {
+        val hour10Ms = 86400000L * 100 + 10 * 3600000L  // day 100, 10:00 UTC
+        val hour14Ms = 86400000L * 100 + 14 * 3600000L  // day 100, 14:00 UTC
+
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = hour10Ms, listenedMs = 60000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = hour14Ms, listenedMs = 30000L,
+            )
+        )
+
+        listeningSessionDao.getListeningMsByHourOfDay().test {
+            val stats = awaitItem()
+            assertEquals(2, stats.size)
+            // Ordered by totalListenedMs DESC, hour 10 first
+            assertEquals(10, stats[0].hour)
+            assertEquals(60000L, stats[0].totalListenedMs)
+            assertEquals(14, stats[1].hour)
+            assertEquals(30000L, stats[1].totalListenedMs)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `CASCADE deleting a podcast removes its listening sessions`() = runTest {
         listeningSessionDao.insert(
             ListeningSessionEntity(episodeId = episodeId1, podcastId = podcastId1, startedAt = 1000L, listenedMs = 60000L)

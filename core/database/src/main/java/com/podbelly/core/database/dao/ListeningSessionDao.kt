@@ -27,6 +27,16 @@ data class PodcastDownloadStat(
     val downloadCount: Long,
 )
 
+data class DayOfWeekStat(
+    val dayOfWeek: Int,
+    val totalListenedMs: Long,
+)
+
+data class HourOfDayStat(
+    val hour: Int,
+    val totalListenedMs: Long,
+)
+
 @Dao
 interface ListeningSessionDao {
 
@@ -99,4 +109,29 @@ interface ListeningSessionDao {
 
     @Query("SELECT DISTINCT startedAt / 86400000 AS epochDay FROM listening_sessions ORDER BY epochDay ASC")
     fun getListeningDays(): Flow<List<Long>>
+
+    @Query("SELECT COALESCE(AVG(listenedMs), 0) FROM listening_sessions")
+    fun getAverageSessionLengthMs(): Flow<Long>
+
+    @Query(
+        """
+        SELECT CAST((startedAt / 86400000 + 3) % 7 AS INTEGER) AS dayOfWeek,
+               SUM(listenedMs) AS totalListenedMs
+        FROM listening_sessions
+        GROUP BY dayOfWeek
+        ORDER BY totalListenedMs DESC
+        """
+    )
+    fun getListeningMsByDayOfWeek(): Flow<List<DayOfWeekStat>>
+
+    @Query(
+        """
+        SELECT CAST((startedAt % 86400000) / 3600000 AS INTEGER) AS hour,
+               SUM(listenedMs) AS totalListenedMs
+        FROM listening_sessions
+        GROUP BY hour
+        ORDER BY totalListenedMs DESC
+        """
+    )
+    fun getListeningMsByHourOfDay(): Flow<List<HourOfDayStat>>
 }
