@@ -108,6 +108,114 @@ fun StatsScreen(
                 )
             }
 
+            // ── Streaks ────────────────────────────────────────────
+            if (uiState.currentStreak > 0 || uiState.longestStreak > 0) {
+                item { SectionHeader(title = "Streaks") }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        StatsSummaryCard(
+                            title = "Current Streak",
+                            value = "${uiState.currentStreak} day${if (uiState.currentStreak != 1) "s" else ""}",
+                            modifier = Modifier.weight(1f),
+                        )
+                        StatsSummaryCard(
+                            title = "Longest Streak",
+                            value = "${uiState.longestStreak} day${if (uiState.longestStreak != 1) "s" else ""}",
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+
+            // ── Recent Activity ────────────────────────────────────
+            if (uiState.listenedThisWeekMs > 0 || uiState.listenedThisMonthMs > 0) {
+                item { SectionHeader(title = "Recent Activity") }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        StatsSummaryCard(
+                            title = "This Week",
+                            value = formatDurationMs(uiState.listenedThisWeekMs),
+                            modifier = Modifier.weight(1f),
+                        )
+                        StatsSummaryCard(
+                            title = "This Month",
+                            value = formatDurationMs(uiState.listenedThisMonthMs),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+
+            // ── Listening Habits ───────────────────────────────────
+            if (uiState.averageSessionLengthMs > 0) {
+                item { SectionHeader(title = "Listening Habits") }
+
+                item {
+                    StatsSummaryCard(
+                        title = "Average Session",
+                        value = formatDurationMs(uiState.averageSessionLengthMs),
+                    )
+                }
+
+                if (uiState.mostActiveDay.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            StatsSummaryCard(
+                                title = "Most Active Day",
+                                value = uiState.mostActiveDay,
+                                modifier = Modifier.weight(1f),
+                            )
+                            StatsSummaryCard(
+                                title = "Peak Hour",
+                                value = uiState.mostActiveHour,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Completion ─────────────────────────────────────────
+            if (uiState.averageCompletionPercent > 0) {
+                item { SectionHeader(title = "Completion") }
+
+                item {
+                    StatsSummaryCard(
+                        title = "Average Completion",
+                        value = "${uiState.averageCompletionPercent}%",
+                    )
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        StatsSummaryCard(
+                            title = "Finished",
+                            value = "${uiState.finishedEpisodes} episode${if (uiState.finishedEpisodes != 1) "s" else ""}",
+                            modifier = Modifier.weight(1f),
+                        )
+                        StatsSummaryCard(
+                            title = "Abandoned",
+                            value = "${uiState.abandonedEpisodes} episode${if (uiState.abandonedEpisodes != 1) "s" else ""}",
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+
             // ── Most Listened Podcasts ───────────────────────────────
 
             if (uiState.mostListenedPodcasts.isNotEmpty()) {
@@ -164,9 +272,10 @@ fun StatsScreen(
 internal fun StatsSummaryCard(
     title: String,
     value: String,
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
