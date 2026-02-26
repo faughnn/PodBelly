@@ -216,7 +216,11 @@ fun PodbellNavHost(
             }
 
             composable(Screen.Discover.route) {
-                DiscoverScreen()
+                DiscoverScreen(
+                    onPodcastClick = { podcastId ->
+                        navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
+                    }
+                )
             }
 
             composable(Screen.Library.route) {

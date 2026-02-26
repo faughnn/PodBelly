@@ -10,12 +10,14 @@ import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -47,6 +49,9 @@ class DiscoverViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(DiscoverUiState())
     val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
+
+    private val _navigateToPodcast = Channel<Long>(Channel.BUFFERED)
+    val navigateToPodcast = _navigateToPodcast.receiveAsFlow()
 
     private val searchQueryFlow = MutableStateFlow("")
     private var searchJob: Job? = null
@@ -191,6 +196,64 @@ class DiscoverViewModel @Inject constructor(
         }
         subscribeToPodcast(trimmedUrl)
         _uiState.update { it.copy(feedUrlInput = "") }
+    }
+
+    fun onPodcastClick(feedUrl: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubscribing = true) }
+            try {
+                val existing = podcastDao.getByFeedUrl(feedUrl)
+                if (existing != null) {
+                    _uiState.update { it.copy(isSubscribing = false) }
+                    _navigateToPodcast.send(existing.id)
+                    return@launch
+                }
+
+                val feed = searchRepository.fetchFeed(feedUrl)
+                val now = System.currentTimeMillis()
+
+                val podcastId = podcastDao.insert(
+                    PodcastEntity(
+                        feedUrl = feedUrl,
+                        title = feed.title,
+                        author = feed.author,
+                        description = feed.description,
+                        artworkUrl = feed.artworkUrl,
+                        link = feed.link,
+                        language = "",
+                        lastBuildDate = now,
+                        subscribed = false,
+                        subscribedAt = 0L,
+                        lastRefreshedAt = now,
+                        episodeCount = feed.episodes.size,
+                    )
+                )
+
+                val episodes = feed.episodes.map { episode ->
+                    EpisodeEntity(
+                        podcastId = podcastId,
+                        guid = episode.guid,
+                        title = episode.title,
+                        description = episode.description,
+                        audioUrl = episode.audioUrl,
+                        publicationDate = episode.publishedAt,
+                        durationSeconds = (episode.duration / 1000).toInt(),
+                        artworkUrl = episode.artworkUrl ?: "",
+                    )
+                }
+                episodeDao.insertAll(episodes)
+
+                _uiState.update { it.copy(isSubscribing = false) }
+                _navigateToPodcast.send(podcastId)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSubscribing = false,
+                        message = "Failed to load podcast: ${e.message}",
+                    )
+                }
+            }
+        }
     }
 
     fun clearMessage() {

@@ -1,5 +1,6 @@
 package com.podbelly.feature.discover
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,9 +61,16 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 @Composable
 fun DiscoverScreen(
     viewModel: DiscoverViewModel = hiltViewModel(),
+    onPodcastClick: (podcastId: Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.navigateToPodcast.collect { podcastId ->
+            onPodcastClick(podcastId)
+        }
+    }
 
     LaunchedEffect(uiState.message) {
         uiState.message?.let { message ->
@@ -133,6 +141,7 @@ fun DiscoverScreen(
                         results = uiState.searchResults,
                         isSubscribing = uiState.isSubscribing,
                         onSubscribe = viewModel::subscribeToPodcast,
+                        onPodcastClick = viewModel::onPodcastClick,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -268,6 +277,7 @@ internal fun SearchResultsList(
     results: List<DiscoverPodcastItem>,
     isSubscribing: Boolean,
     onSubscribe: (String) -> Unit,
+    onPodcastClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -283,6 +293,7 @@ internal fun SearchResultsList(
                 item = item,
                 isSubscribing = isSubscribing,
                 onSubscribe = { onSubscribe(item.feedUrl) },
+                onClick = { onPodcastClick(item.feedUrl) },
             )
         }
     }
@@ -293,11 +304,14 @@ internal fun SearchResultItem(
     item: DiscoverPodcastItem,
     isSubscribing: Boolean,
     onSubscribe: () -> Unit,
+    onClick: () -> Unit,
 ) {
     val view = LocalView.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
