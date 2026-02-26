@@ -2,6 +2,7 @@ package com.podbelly.feature.settings
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -72,6 +73,13 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val versionName = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        } catch (_: PackageManager.NameNotFoundException) {
+            "Unknown"
+        }
+    }
 
     // File picker for OPML import
     val opmlPickerLauncher = rememberLauncherForActivityResult(
@@ -344,7 +352,7 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Version 1.0.0",
+                            text = "Version $versionName",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

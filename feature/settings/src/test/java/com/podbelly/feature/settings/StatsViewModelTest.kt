@@ -1,7 +1,10 @@
 package com.podbelly.feature.settings
 
 import app.cash.turbine.test
+import com.podbelly.core.database.dao.DayOfWeekStat
+import com.podbelly.core.database.dao.EpisodeCompletionStat
 import com.podbelly.core.database.dao.EpisodeListeningStat
+import com.podbelly.core.database.dao.HourOfDayStat
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDownloadStat
 import com.podbelly.core.database.dao.PodcastListeningStat
@@ -33,6 +36,12 @@ class StatsViewModelTest {
     private val mostListenedPodcastsFlow = MutableStateFlow<List<PodcastListeningStat>>(emptyList())
     private val mostListenedEpisodesFlow = MutableStateFlow<List<EpisodeListeningStat>>(emptyList())
     private val mostDownloadedPodcastsFlow = MutableStateFlow<List<PodcastDownloadStat>>(emptyList())
+    private val listenedSinceFlow = MutableStateFlow(0L)
+    private val listeningDaysFlow = MutableStateFlow<List<Long>>(emptyList())
+    private val averageSessionFlow = MutableStateFlow(0L)
+    private val dayOfWeekFlow = MutableStateFlow<List<DayOfWeekStat>>(emptyList())
+    private val hourOfDayFlow = MutableStateFlow<List<HourOfDayStat>>(emptyList())
+    private val completionStatsFlow = MutableStateFlow<List<EpisodeCompletionStat>>(emptyList())
 
     @Before
     fun setUp() {
@@ -40,9 +49,15 @@ class StatsViewModelTest {
         every { listeningSessionDao.getTotalListenedMs() } returns totalListenedFlow
         every { listeningSessionDao.getTimeSavedBySpeed() } returns timeSavedBySpeedFlow
         every { listeningSessionDao.getTotalSilenceTrimmedMs() } returns silenceTrimmedFlow
-        every { listeningSessionDao.getMostListenedPodcasts(5) } returns mostListenedPodcastsFlow
-        every { listeningSessionDao.getMostListenedEpisodes(5) } returns mostListenedEpisodesFlow
-        every { listeningSessionDao.getMostDownloadedPodcasts(5) } returns mostDownloadedPodcastsFlow
+        every { listeningSessionDao.getMostListenedPodcasts(10) } returns mostListenedPodcastsFlow
+        every { listeningSessionDao.getMostListenedEpisodes(10) } returns mostListenedEpisodesFlow
+        every { listeningSessionDao.getMostDownloadedPodcasts(10) } returns mostDownloadedPodcastsFlow
+        every { listeningSessionDao.getListenedMsSince(any()) } returns listenedSinceFlow
+        every { listeningSessionDao.getListeningDays() } returns listeningDaysFlow
+        every { listeningSessionDao.getAverageSessionLengthMs() } returns averageSessionFlow
+        every { listeningSessionDao.getListeningMsByDayOfWeek() } returns dayOfWeekFlow
+        every { listeningSessionDao.getListeningMsByHourOfDay() } returns hourOfDayFlow
+        every { listeningSessionDao.getEpisodeCompletionStats() } returns completionStatsFlow
     }
 
     @After
@@ -231,6 +246,76 @@ class StatsViewModelTest {
             assertEquals(1, state.mostListenedPodcasts.size)
             assertEquals(1, state.mostListenedEpisodes.size)
             assertEquals(1, state.mostDownloadedPodcasts.size)
+        }
+    }
+
+    @Test
+    fun `streak calculation from listening days`() = runTest {
+        val today = System.currentTimeMillis() / 86400000L
+        listeningDaysFlow.value = listOf(today - 5, today - 4, today - 3, today - 1, today)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.currentStreak == 0) state = awaitItem()
+
+            assertEquals(2, state.currentStreak)
+            assertEquals(3, state.longestStreak)
+        }
+    }
+
+    @Test
+    fun `completion rates calculated from episode stats`() = runTest {
+        completionStatsFlow.value = listOf(
+            EpisodeCompletionStat(1L, 900000L, 1000000L),  // 90%
+            EpisodeCompletionStat(2L, 500000L, 1000000L),  // 50%
+            EpisodeCompletionStat(3L, 100000L, 1000000L),  // 10%
+        )
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.averageCompletionPercent == 0) state = awaitItem()
+
+            assertEquals(50, state.averageCompletionPercent)
+            assertEquals(1, state.finishedEpisodes)
+            assertEquals(1, state.abandonedEpisodes)
+        }
+    }
+
+    @Test
+    fun `most active day derived from day of week stats`() = runTest {
+        dayOfWeekFlow.value = listOf(
+            DayOfWeekStat(dayOfWeek = 0, totalListenedMs = 500000L),
+            DayOfWeekStat(dayOfWeek = 4, totalListenedMs = 300000L),
+        )
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.mostActiveDay.isEmpty()) state = awaitItem()
+
+            assertEquals("Monday", state.mostActiveDay)
+        }
+    }
+
+    @Test
+    fun `most active hour derived from hour of day stats`() = runTest {
+        hourOfDayFlow.value = listOf(
+            HourOfDayStat(hour = 8, totalListenedMs = 500000L),
+            HourOfDayStat(hour = 20, totalListenedMs = 300000L),
+        )
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.mostActiveHour.isEmpty()) state = awaitItem()
+
+            assertEquals("8 AM", state.mostActiveHour)
         }
     }
 }

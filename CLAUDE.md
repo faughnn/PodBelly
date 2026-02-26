@@ -30,6 +30,15 @@ Episodes must be downloaded before they can be played. Never offer a standalone 
 
 This pattern is already implemented in HomeScreen's `EpisodeCard`, PodcastDetailScreen's `EpisodeCard`, and EpisodeDetailScreen. Do not add separate Play and Download buttons — always combine them into one button that transitions through the states above.
 
+## Version Number Management
+
+The app version **must be incremented with every commit**. Update **both** of the following locations in `app/build.gradle.kts`:
+
+1. **`versionCode`** (integer, increment by 1)
+2. **`versionName`** (string, e.g. `"1.0.2"`)
+
+The Settings screen reads the version dynamically at runtime via `PackageManager`, so it does **not** need manual updates.
+
 ## Key Principle
 
 Always prefer using a known working feature pattern from an established open-source podcast app over designing from scratch. The reference apps have been battle-tested on millions of devices. When in doubt, look at how Pocket Casts does it.

@@ -275,13 +275,16 @@ class PlayerViewModelTest {
     }
 
     @Test
-    fun `toggleVolumeBoost toggles and persists the value`() = runTest {
+    fun `toggleVolumeBoost shows warning then confirmVolumeBoost enables and persists`() = runTest {
         playbackStateFlow.value = PlaybackState(volumeBoost = false)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
 
         viewModel.toggleVolumeBoost()
+        advanceUntilIdle()
+
+        viewModel.confirmVolumeBoost()
         advanceUntilIdle()
 
         verify { playbackController.setVolumeBoost(true) }

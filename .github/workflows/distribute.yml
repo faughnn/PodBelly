@@ -2,7 +2,7 @@ name: Build & Distribute
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 jobs:
@@ -30,12 +30,32 @@ jobs:
       - name: Decode debug keystore
         run: echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ${{ runner.temp }}/debug.keystore
 
+      - name: Run tests
+        run: ./gradlew testDebugUnitTest
+        env:
+          DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
+
+      - name: Set distribution parameters
+        id: dist
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+            echo "group=testers,dev" >> "$GITHUB_OUTPUT"
+            echo "notes=[RELEASE] ${GITHUB_REF_NAME}@${SHORT_SHA} — $(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
+          else
+            echo "group=dev" >> "$GITHUB_OUTPUT"
+            echo "notes=[DEV] ${GITHUB_REF_NAME}@${SHORT_SHA} — $(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build debug APK
         run: ./gradlew assembleDebug
         env:
           DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
 
       - name: Upload to Firebase App Distribution
-        run: ./gradlew appDistributionUploadDebug
+        run: >
+          ./gradlew appDistributionUploadDebug
+          -PappDistributionGroup="${{ steps.dist.outputs.group }}"
+          -PappDistributionReleaseNotes="${{ steps.dist.outputs.notes }}"
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
