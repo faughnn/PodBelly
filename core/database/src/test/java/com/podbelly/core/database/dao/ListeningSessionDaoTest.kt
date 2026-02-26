@@ -236,8 +236,10 @@ class ListeningSessionDaoTest {
             // Podcast Two should be first (120k > 90k)
             assertEquals("Podcast Two", stats[0].podcastTitle)
             assertEquals(120000L, stats[0].totalListenedMs)
+            assertEquals(1L, stats[0].episodeCount) // 1 distinct episode
             assertEquals("Podcast One", stats[1].podcastTitle)
             assertEquals(90000L, stats[1].totalListenedMs)
+            assertEquals(2L, stats[1].episodeCount) // 2 distinct episodes
             cancelAndConsumeRemainingEvents()
         }
     }

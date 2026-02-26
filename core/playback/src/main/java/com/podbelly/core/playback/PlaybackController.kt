@@ -83,6 +83,8 @@ class PlaybackController @Inject constructor(
     /** Listening session tracking */
     private var currentSessionId: Long = 0L
     private var sessionStartTime: Long = 0L
+    private var sessionInsertPending: Boolean = false
+    private var lastSessionSaveTime: Long = 0L
 
     // -------------------------------------------------------------------------
     // Player.Listener -- keeps PlaybackState in sync with the actual player
@@ -510,6 +512,8 @@ class PlaybackController @Inject constructor(
     private fun startListeningSession() {
         if (currentEpisodeId == 0L) return
         sessionStartTime = System.currentTimeMillis()
+        lastSessionSaveTime = sessionStartTime
+        sessionInsertPending = true
         scope.launch {
             try {
                 // Look up podcastId if we don't have it
@@ -524,24 +528,54 @@ class PlaybackController @Inject constructor(
                     playbackSpeed = _playbackState.value.playbackSpeed,
                 )
                 currentSessionId = listeningSessionDao.insert(session)
+                sessionInsertPending = false
             } catch (e: Exception) {
+                sessionInsertPending = false
                 Log.w(TAG, "Failed to start listening session", e)
             }
         }
     }
 
     private fun endListeningSession() {
-        if (currentSessionId == 0L || sessionStartTime == 0L) return
+        if (sessionStartTime == 0L) return
+        if (currentSessionId == 0L && !sessionInsertPending) return
         val endTime = System.currentTimeMillis()
         val listenedMs = endTime - sessionStartTime
         val sessionId = currentSessionId
         currentSessionId = 0L
         sessionStartTime = 0L
+        lastSessionSaveTime = 0L
+        if (sessionId != 0L) {
+            scope.launch {
+                try {
+                    listeningSessionDao.updateSession(sessionId, endTime, listenedMs)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to end listening session", e)
+                }
+            }
+        }
+        // If the insert was still pending, the session will be saved with the
+        // accumulated listenedMs from periodic updates once the insert completes.
+    }
+
+    /**
+     * Periodically saves the current listening session's accumulated time to the
+     * database. This ensures listening time is not lost if the app is killed.
+     */
+    private fun saveSessionProgress() {
+        val sessionId = currentSessionId
+        val startTime = sessionStartTime
+        if (sessionId == 0L || startTime == 0L) return
+        val now = System.currentTimeMillis()
+        // Save at most once every 30 seconds to avoid excessive DB writes
+        if (now - lastSessionSaveTime < 30_000L) return
+        lastSessionSaveTime = now
+        val listenedMs = now - startTime
         scope.launch {
             try {
-                listeningSessionDao.updateSession(sessionId, endTime, listenedMs)
+                listeningSessionDao.updateSession(sessionId, now, listenedMs)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to end listening session", e)
+                Log.w(TAG, "Failed to save session progress", e)
             }
         }
     }
@@ -634,6 +668,7 @@ class PlaybackController @Inject constructor(
                             currentChapterIndex = chapterIndex,
                         )
                     }
+                    saveSessionProgress()
                 }
                 delay(250L)
             }

@@ -136,12 +136,14 @@ class StatsViewModelTest {
                 podcastTitle = "Popular Podcast",
                 artworkUrl = "https://example.com/art.jpg",
                 totalListenedMs = 7200000L,
+                episodeCount = 5L,
             ),
             PodcastListeningStat(
                 podcastId = 2L,
                 podcastTitle = "Less Popular",
                 artworkUrl = "https://example.com/art2.jpg",
                 totalListenedMs = 3600000L,
+                episodeCount = 2L,
             ),
         )
 
@@ -222,7 +224,7 @@ class StatsViewModelTest {
             timeSavedBySpeedFlow.value = 2000000L
             silenceTrimmedFlow.value = 500000L
             mostListenedPodcastsFlow.value = listOf(
-                PodcastListeningStat(1L, "P1", "", 5000000L),
+                PodcastListeningStat(1L, "P1", "", 5000000L, 3L),
             )
             mostListenedEpisodesFlow.value = listOf(
                 EpisodeListeningStat(10L, "E1", "P1", 3000000L),

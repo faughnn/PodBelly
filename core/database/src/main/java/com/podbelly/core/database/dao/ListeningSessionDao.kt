@@ -11,6 +11,7 @@ data class PodcastListeningStat(
     val podcastTitle: String,
     val artworkUrl: String,
     val totalListenedMs: Long,
+    val episodeCount: Long,
 )
 
 data class EpisodeListeningStat(
@@ -75,7 +76,8 @@ interface ListeningSessionDao {
     @Query(
         """
         SELECT ls.podcastId, p.title AS podcastTitle, p.artworkUrl,
-               SUM(ls.listenedMs) AS totalListenedMs
+               SUM(ls.listenedMs) AS totalListenedMs,
+               COUNT(DISTINCT ls.episodeId) AS episodeCount
         FROM listening_sessions ls
         INNER JOIN podcasts p ON ls.podcastId = p.id
         GROUP BY ls.podcastId
@@ -83,7 +85,7 @@ interface ListeningSessionDao {
         LIMIT :limit
         """
     )
-    fun getMostListenedPodcasts(limit: Int = 10): Flow<List<PodcastListeningStat>>
+    fun getMostListenedPodcasts(limit: Int = 5): Flow<List<PodcastListeningStat>>
 
     @Query(
         """
@@ -97,7 +99,7 @@ interface ListeningSessionDao {
         LIMIT :limit
         """
     )
-    fun getMostListenedEpisodes(limit: Int = 10): Flow<List<EpisodeListeningStat>>
+    fun getMostListenedEpisodes(limit: Int = 5): Flow<List<EpisodeListeningStat>>
 
     @Query(
         """
