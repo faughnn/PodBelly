@@ -103,6 +103,7 @@ class DiscoverScreenScreenshotTest {
                             results = results,
                             isSubscribing = false,
                             onSubscribe = {},
+                            onPodcastClick = {},
                             modifier = Modifier.weight(1f),
                         )
                     }
