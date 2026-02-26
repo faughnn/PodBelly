@@ -125,6 +125,11 @@ class PlaybackController @Inject constructor(
                     refreshQueueFlags()
                 }
                 Player.STATE_ENDED -> {
+                    // Explicitly clear playWhenReady so the player cannot be
+                    // accidentally restarted by external controllers or media
+                    // button events while we decide what to do next.
+                    controller.playWhenReady = false
+
                     _playbackState.update {
                         it.copy(
                             isPlaying = false,
