@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
@@ -68,6 +69,11 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
 
+        // Podcast episodes should never loop. Explicitly disable repeat so that
+        // external controllers (Bluetooth, Android Auto, system media UI) cannot
+        // accidentally enable it and cause an episode to restart after finishing.
+        player.repeatMode = Player.REPEAT_MODE_OFF
+
         exoPlayer = player
 
         val rewindCommand = SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
@@ -87,8 +93,16 @@ class PlaybackService : MediaSessionService() {
                     .add(rewindCommand)
                     .build()
 
+                // Prevent external controllers from enabling repeat or shuffle —
+                // podcast episodes should never loop.
+                val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                    .remove(Player.COMMAND_SET_REPEAT_MODE)
+                    .remove(Player.COMMAND_SET_SHUFFLE_MODE)
+                    .build()
+
                 return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                     .setAvailableSessionCommands(sessionCommands)
+                    .setAvailablePlayerCommands(playerCommands)
                     .setCustomLayout(listOf(rewindButton))
                     .build()
             }
