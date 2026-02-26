@@ -76,7 +76,8 @@ class DiscoverScreenInteractionTest {
                 SearchResultItem(
                     item = item,
                     isSubscribing = false,
-                    onSubscribe = { subscribeClicked = true }
+                    onSubscribe = { subscribeClicked = true },
+                    onClick = {},
                 )
             }
         }
@@ -94,7 +95,8 @@ class DiscoverScreenInteractionTest {
                 SearchResultItem(
                     item = item,
                     isSubscribing = false,
-                    onSubscribe = {}
+                    onSubscribe = {},
+                    onClick = {},
                 )
             }
         }
