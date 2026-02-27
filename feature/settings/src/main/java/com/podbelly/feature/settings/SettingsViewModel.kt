@@ -155,17 +155,24 @@ class SettingsViewModel @Inject constructor(
             try {
                 val entries = OpmlHandler.parseOpml(xml)
                 var imported = 0
+                var skipped = 0
+                val failed = mutableListOf<String>()
 
                 for (entry in entries) {
                     try {
-                        val existing = podcastDao.getByFeedUrl(entry.feedUrl)
-                        if (existing != null) continue
+                        val normalizedUrl = normalizeFeedUrl(entry.feedUrl)
+                        val existing = podcastDao.getByFeedUrl(normalizedUrl)
+                            ?: podcastDao.getByFeedUrl(entry.feedUrl)
+                        if (existing != null) {
+                            skipped++
+                            continue
+                        }
 
                         val rssFeed = searchRepository.fetchFeed(entry.feedUrl)
                         val now = System.currentTimeMillis()
 
                         val podcast = PodcastEntity(
-                            feedUrl = entry.feedUrl,
+                            feedUrl = normalizedUrl,
                             title = rssFeed.title.ifBlank { entry.title },
                             author = rssFeed.author,
                             description = rssFeed.description,
@@ -192,14 +199,28 @@ class SettingsViewModel @Inject constructor(
                                 fileSize = ep.fileSize,
                             )
                         }
-                        episodeDao.insertAll(episodes)
+                        try {
+                            episodeDao.insertAll(episodes)
+                        } catch (e: Exception) {
+                            podcastDao.delete(podcast.copy(id = podcastId))
+                            throw e
+                        }
                         imported++
                     } catch (_: Exception) {
-                        // Skip feeds that fail
+                        failed.add(entry.title.ifBlank { entry.feedUrl })
                     }
                 }
 
-                _importExportMessage.value = "Imported $imported of ${entries.size} subscription(s)"
+                val message = buildString {
+                    append("Imported $imported of ${entries.size} subscription(s)")
+                    if (skipped > 0) {
+                        append(" ($skipped already existed)")
+                    }
+                    if (failed.isNotEmpty()) {
+                        append(". Failed: ${failed.joinToString(", ")}")
+                    }
+                }
+                _importExportMessage.value = message
             } catch (e: Exception) {
                 _importExportMessage.value = "Import failed: ${e.message}"
             }
@@ -219,6 +240,14 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _importExportMessage.value = null
+    }
+
+    companion object {
+        internal fun normalizeFeedUrl(url: String): String {
+            return url.trim()
+                .removeSuffix("/")
+                .let { if (it.startsWith("http://")) it.replaceFirst("http://", "https://") else it }
+        }
     }
 
     private data class PartialState(

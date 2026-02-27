@@ -275,6 +275,168 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `importOpml normalizes http to https for dedup check`() = runTest {
+        val opmlXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline type="rss" text="Pod" title="Pod" xmlUrl="http://existing.com/rss"/>
+              </body>
+            </opml>
+        """.trimIndent()
+
+        // DB has the https version
+        val existing = makePodcast(id = 5L, feedUrl = "https://existing.com/rss")
+        coEvery { podcastDao.getByFeedUrl("https://existing.com/rss") } returns existing
+
+        val viewModel = createViewModel()
+        viewModel.importOpml(opmlXml)
+        advanceUntilIdle()
+
+        // Normalized URL should match, so no fetch or insert
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+        coVerify(exactly = 0) { podcastDao.insert(any()) }
+    }
+
+    @Test
+    fun `importOpml normalizes trailing slash for dedup check`() = runTest {
+        val opmlXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline type="rss" text="Pod" title="Pod" xmlUrl="https://existing.com/rss/"/>
+              </body>
+            </opml>
+        """.trimIndent()
+
+        val existing = makePodcast(id = 5L, feedUrl = "https://existing.com/rss")
+        coEvery { podcastDao.getByFeedUrl("https://existing.com/rss") } returns existing
+
+        val viewModel = createViewModel()
+        viewModel.importOpml(opmlXml)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+        coVerify(exactly = 0) { podcastDao.insert(any()) }
+    }
+
+    @Test
+    fun `importOpml reports failed feed names in message`() = runTest {
+        val opmlXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline type="rss" text="Good Pod" title="Good Pod" xmlUrl="https://good.com/rss"/>
+                <outline type="rss" text="Bad Pod" title="Bad Pod" xmlUrl="https://bad.com/rss"/>
+              </body>
+            </opml>
+        """.trimIndent()
+
+        coEvery { podcastDao.getByFeedUrl(any()) } returns null
+        coEvery { podcastDao.insert(any()) } returns 10L
+
+        val rssFeed = RssFeed(
+            title = "Good", description = "D", author = "A",
+            artworkUrl = "", link = "", episodes = emptyList(),
+        )
+        coEvery { searchRepository.fetchFeed("https://good.com/rss") } returns rssFeed
+        coEvery { searchRepository.fetchFeed("https://bad.com/rss") } throws RuntimeException("Network error")
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            viewModel.importOpml(opmlXml)
+            advanceUntilIdle()
+
+            val states = cancelAndConsumeRemainingEvents()
+            val lastItem = states.filterIsInstance<app.cash.turbine.Event.Item<SettingsUiState>>().lastOrNull()?.value
+
+            if (lastItem != null) {
+                assertTrue(lastItem.importExportMessage?.contains("Imported 1 of 2") == true)
+                assertTrue(lastItem.importExportMessage?.contains("Failed: Bad Pod") == true)
+            }
+        }
+    }
+
+    @Test
+    fun `importOpml rolls back podcast insert if episodes insert fails`() = runTest {
+        val opmlXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline type="rss" text="Pod" title="Pod" xmlUrl="https://feed.com/rss"/>
+              </body>
+            </opml>
+        """.trimIndent()
+
+        coEvery { podcastDao.getByFeedUrl(any()) } returns null
+        coEvery { podcastDao.insert(any()) } returns 10L
+
+        val rssEpisode = RssEpisode(
+            guid = "g1", title = "Ep", description = "D",
+            audioUrl = "https://audio.com/ep.mp3",
+            publishedAt = 100000L, duration = 60000L,
+            artworkUrl = null, fileSize = 5000L,
+        )
+        val rssFeed = RssFeed(
+            title = "Pod", description = "D", author = "A",
+            artworkUrl = "", link = "", episodes = listOf(rssEpisode),
+        )
+        coEvery { searchRepository.fetchFeed(any()) } returns rssFeed
+        coEvery { episodeDao.insertAll(any()) } throws RuntimeException("DB error")
+
+        val viewModel = createViewModel()
+        viewModel.importOpml(opmlXml)
+        advanceUntilIdle()
+
+        // Podcast should be deleted to avoid orphan
+        coVerify { podcastDao.delete(match { it.id == 10L }) }
+    }
+
+    @Test
+    fun `importOpml message includes skipped count`() = runTest {
+        val opmlXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline type="rss" text="New Pod" title="New Pod" xmlUrl="https://new.com/rss"/>
+                <outline type="rss" text="Existing" title="Existing" xmlUrl="https://existing.com/rss"/>
+              </body>
+            </opml>
+        """.trimIndent()
+
+        val existing = makePodcast(id = 5L, feedUrl = "https://existing.com/rss")
+        coEvery { podcastDao.getByFeedUrl("https://existing.com/rss") } returns existing
+        coEvery { podcastDao.getByFeedUrl("https://new.com/rss") } returns null
+        coEvery { podcastDao.insert(any()) } returns 10L
+
+        val rssFeed = RssFeed(
+            title = "New", description = "D", author = "A",
+            artworkUrl = "", link = "", episodes = emptyList(),
+        )
+        coEvery { searchRepository.fetchFeed(any()) } returns rssFeed
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem()
+
+            viewModel.importOpml(opmlXml)
+            advanceUntilIdle()
+
+            val states = cancelAndConsumeRemainingEvents()
+            val lastItem = states.filterIsInstance<app.cash.turbine.Event.Item<SettingsUiState>>().lastOrNull()?.value
+
+            if (lastItem != null) {
+                assertTrue(lastItem.importExportMessage?.contains("Imported 1 of 2") == true)
+                assertTrue(lastItem.importExportMessage?.contains("1 already existed") == true)
+            }
+        }
+    }
+
+    @Test
     fun `importOpml sets import message with count`() = runTest {
         val opmlXml = """
             <?xml version="1.0" encoding="UTF-8"?>
@@ -374,6 +536,26 @@ class SettingsViewModelTest {
             val state = awaitItem()
             assertEquals(null, state.importExportMessage)
         }
+    }
+
+    @Test
+    fun `normalizeFeedUrl strips trailing slash`() {
+        assertEquals("https://feed.com/rss", SettingsViewModel.normalizeFeedUrl("https://feed.com/rss/"))
+    }
+
+    @Test
+    fun `normalizeFeedUrl upgrades http to https`() {
+        assertEquals("https://feed.com/rss", SettingsViewModel.normalizeFeedUrl("http://feed.com/rss"))
+    }
+
+    @Test
+    fun `normalizeFeedUrl trims whitespace`() {
+        assertEquals("https://feed.com/rss", SettingsViewModel.normalizeFeedUrl("  https://feed.com/rss  "))
+    }
+
+    @Test
+    fun `normalizeFeedUrl handles combined normalization`() {
+        assertEquals("https://feed.com/rss", SettingsViewModel.normalizeFeedUrl(" http://feed.com/rss/ "))
     }
 
     @Test
