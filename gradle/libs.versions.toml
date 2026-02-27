@@ -24,6 +24,7 @@ robolectric = "4.14.1"
 google-services = "4.4.4"
 firebase-bom = "34.9.0"
 firebase-appdistribution = "5.1.1"
+firebase-crashlytics-plugin = "3.0.3"
 
 [libraries]
 # AndroidX Core
@@ -113,6 +114,7 @@ firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "fir
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-appdistribution-api = { module = "com.google.firebase:firebase-appdistribution-api", version = "16.0.0-beta14" }
 firebase-appdistribution = { module = "com.google.firebase:firebase-appdistribution", version = "16.0.0-beta14" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -125,3 +127,4 @@ room = { id = "androidx.room", version.ref = "room" }
 paparazzi = { id = "app.cash.paparazzi", version.ref = "paparazzi" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
 firebase-appdistribution = { id = "com.google.firebase.appdistribution", version.ref = "firebase-appdistribution" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase-crashlytics-plugin" }

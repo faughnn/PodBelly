@@ -93,12 +93,20 @@ fun SettingsScreen(
         }
     }
 
-    // Show snackbar when importExportMessage changes
+    // Show snackbar for export/delete messages only
     LaunchedEffect(uiState.importExportMessage) {
         uiState.importExportMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
             viewModel.clearMessage()
         }
+    }
+
+    // Show persistent dialog for import results
+    uiState.importResult?.let { result ->
+        ImportResultDialog(
+            result = result,
+            onDismiss = { viewModel.clearImportResult() },
+        )
     }
 
     Scaffold(
@@ -589,6 +597,55 @@ internal fun DeleteAllDownloadsRow(
             },
         )
     }
+}
+
+// ── Import result dialog ──────────────────────────────────────────────
+
+@Composable
+internal fun ImportResultDialog(
+    result: ImportResult,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import Complete") },
+        text = {
+            Column {
+                Text(
+                    text = "Imported ${result.imported} of ${result.total} subscription(s)",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (result.skipped > 0) {
+                    Text(
+                        text = "(${result.skipped} already existed)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                if (result.failed.isNotEmpty()) {
+                    Text(
+                        text = "Failed to import:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    result.failed.forEach { name ->
+                        Text(
+                            text = "\u2022  $name",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 2.dp, start = 8.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        },
+    )
 }
 
 // ── Playback speed row ────────────────────────────────────────────────

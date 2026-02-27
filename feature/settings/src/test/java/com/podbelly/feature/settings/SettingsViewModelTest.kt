@@ -2,6 +2,7 @@ package com.podbelly.feature.settings
 
 import app.cash.turbine.test
 import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.CrashReporter
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
@@ -43,6 +44,7 @@ class SettingsViewModelTest {
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
     private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
     private val downloadManager = mockk<com.podbelly.core.common.DownloadManager>(relaxed = true)
+    private val crashReporter = mockk<CrashReporter>(relaxed = true)
 
     private val appThemeFlow = MutableStateFlow(AppTheme.SYSTEM)
     private val feedRefreshIntervalFlow = MutableStateFlow(60)
@@ -85,6 +87,7 @@ class SettingsViewModelTest {
             episodeDao = episodeDao,
             searchRepository = searchRepository,
             downloadManager = downloadManager,
+            crashReporter = crashReporter,
         )
     }
 
@@ -321,7 +324,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `importOpml reports failed feed names in message`() = runTest {
+    fun `importOpml reports failed feed names in importResult`() = runTest {
         val opmlXml = """
             <?xml version="1.0" encoding="UTF-8"?>
             <opml version="2.0">
@@ -354,10 +357,73 @@ class SettingsViewModelTest {
             val lastItem = states.filterIsInstance<app.cash.turbine.Event.Item<SettingsUiState>>().lastOrNull()?.value
 
             if (lastItem != null) {
-                assertTrue(lastItem.importExportMessage?.contains("Imported 1 of 2") == true)
-                assertTrue(lastItem.importExportMessage?.contains("Failed: Bad Pod") == true)
+                val result = lastItem.importResult
+                assertEquals(1, result?.imported)
+                assertEquals(2, result?.total)
+                assertEquals(listOf("Bad Pod"), result?.failed)
             }
         }
+    }
+
+    @Test
+    fun `importOpml with failures calls crashReporter recordException`() = runTest {
+        val opmlXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline type="rss" text="Good Pod" title="Good Pod" xmlUrl="https://good.com/rss"/>
+                <outline type="rss" text="Bad Pod" title="Bad Pod" xmlUrl="https://bad.com/rss"/>
+              </body>
+            </opml>
+        """.trimIndent()
+
+        coEvery { podcastDao.getByFeedUrl(any()) } returns null
+        coEvery { podcastDao.insert(any()) } returns 10L
+
+        val rssFeed = RssFeed(
+            title = "Good", description = "D", author = "A",
+            artworkUrl = "", link = "", episodes = emptyList(),
+        )
+        coEvery { searchRepository.fetchFeed("https://good.com/rss") } returns rssFeed
+        coEvery { searchRepository.fetchFeed("https://bad.com/rss") } throws RuntimeException("Network error")
+
+        val viewModel = createViewModel()
+        viewModel.importOpml(opmlXml)
+        advanceUntilIdle()
+
+        coVerify {
+            crashReporter.recordException(
+                match { it.message == "OPML import: 1 feed(s) failed" },
+                match { it["failed_feed_0"] == "Bad Pod" },
+            )
+        }
+    }
+
+    @Test
+    fun `importOpml without failures does not call crashReporter`() = runTest {
+        val opmlXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <body>
+                <outline type="rss" text="Pod1" title="Pod1" xmlUrl="https://feed1.com/rss"/>
+              </body>
+            </opml>
+        """.trimIndent()
+
+        coEvery { podcastDao.getByFeedUrl(any()) } returns null
+        coEvery { podcastDao.insert(any()) } returns 10L
+
+        val rssFeed = RssFeed(
+            title = "Pod", description = "D", author = "A",
+            artworkUrl = "", link = "", episodes = emptyList(),
+        )
+        coEvery { searchRepository.fetchFeed(any()) } returns rssFeed
+
+        val viewModel = createViewModel()
+        viewModel.importOpml(opmlXml)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { crashReporter.recordException(any(), any()) }
     }
 
     @Test
@@ -396,7 +462,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `importOpml message includes skipped count`() = runTest {
+    fun `importOpml result includes skipped count`() = runTest {
         val opmlXml = """
             <?xml version="1.0" encoding="UTF-8"?>
             <opml version="2.0">
@@ -430,14 +496,17 @@ class SettingsViewModelTest {
             val lastItem = states.filterIsInstance<app.cash.turbine.Event.Item<SettingsUiState>>().lastOrNull()?.value
 
             if (lastItem != null) {
-                assertTrue(lastItem.importExportMessage?.contains("Imported 1 of 2") == true)
-                assertTrue(lastItem.importExportMessage?.contains("1 already existed") == true)
+                val result = lastItem.importResult
+                assertEquals(1, result?.imported)
+                assertEquals(2, result?.total)
+                assertEquals(1, result?.skipped)
+                assertTrue(result?.failed?.isEmpty() == true)
             }
         }
     }
 
     @Test
-    fun `importOpml sets import message with count`() = runTest {
+    fun `importOpml sets importResult with count`() = runTest {
         val opmlXml = """
             <?xml version="1.0" encoding="UTF-8"?>
             <opml version="2.0">
@@ -468,7 +537,11 @@ class SettingsViewModelTest {
             val lastItem = states.filterIsInstance<app.cash.turbine.Event.Item<SettingsUiState>>().lastOrNull()?.value
 
             if (lastItem != null) {
-                assertTrue(lastItem.importExportMessage?.contains("Imported 1 of 1") == true)
+                val result = lastItem.importResult
+                assertEquals(1, result?.imported)
+                assertEquals(1, result?.total)
+                assertEquals(0, result?.skipped)
+                assertTrue(result?.failed?.isEmpty() == true)
             }
         }
     }

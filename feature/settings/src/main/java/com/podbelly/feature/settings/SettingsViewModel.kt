@@ -3,6 +3,7 @@ package com.podbelly.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.CrashReporter
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
@@ -22,6 +23,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class ImportResult(
+    val imported: Int,
+    val total: Int,
+    val skipped: Int,
+    val failed: List<String>,
+)
+
 data class SettingsUiState(
     val appTheme: AppTheme = AppTheme.SYSTEM,
     val feedRefreshIntervalMinutes: Int = 60,
@@ -33,6 +41,7 @@ data class SettingsUiState(
     val volumeBoost: Boolean = false,
     val defaultPlaybackSpeed: Float = 1.0f,
     val importExportMessage: String? = null,
+    val importResult: ImportResult? = null,
 )
 
 @HiltViewModel
@@ -42,9 +51,11 @@ class SettingsViewModel @Inject constructor(
     private val episodeDao: EpisodeDao,
     private val searchRepository: PodcastSearchRepository,
     private val downloadManager: DownloadManager,
+    private val crashReporter: CrashReporter,
 ) : ViewModel() {
 
     private val _importExportMessage = MutableStateFlow<String?>(null)
+    private val _importResult = MutableStateFlow<ImportResult?>(null)
 
     val uiState: StateFlow<SettingsUiState> = combine(
         preferencesManager.appTheme,
@@ -89,6 +100,8 @@ class SettingsViewModel @Inject constructor(
             defaultPlaybackSpeed = secondary.defaultPlaybackSpeed,
             importExportMessage = secondary.importExportMessage,
         )
+    }.combine(_importResult) { state, importResult ->
+        state.copy(importResult = importResult)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -211,18 +224,27 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
 
-                val message = buildString {
-                    append("Imported $imported of ${entries.size} subscription(s)")
-                    if (skipped > 0) {
-                        append(" ($skipped already existed)")
-                    }
-                    if (failed.isNotEmpty()) {
-                        append(". Failed: ${failed.joinToString(", ")}")
-                    }
+                val result = ImportResult(
+                    imported = imported,
+                    total = entries.size,
+                    skipped = skipped,
+                    failed = failed,
+                )
+                _importResult.value = result
+
+                if (failed.isNotEmpty()) {
+                    crashReporter.recordException(
+                        throwable = RuntimeException("OPML import: ${failed.size} feed(s) failed"),
+                        keys = failed.withIndex().associate { (i, name) -> "failed_feed_$i" to name },
+                    )
                 }
-                _importExportMessage.value = message
             } catch (e: Exception) {
-                _importExportMessage.value = "Import failed: ${e.message}"
+                _importResult.value = ImportResult(
+                    imported = 0,
+                    total = 0,
+                    skipped = 0,
+                    failed = listOf(e.message ?: "Unknown error"),
+                )
             }
         }
     }
@@ -240,6 +262,10 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _importExportMessage.value = null
+    }
+
+    fun clearImportResult() {
+        _importResult.value = null
     }
 
     companion object {
