@@ -54,7 +54,7 @@ class SettingsViewModelTest {
     private val downloadOnWifiOnlyFlow = MutableStateFlow(true)
     private val skipSilenceFlow = MutableStateFlow(false)
     private val volumeBoostFlow = MutableStateFlow(false)
-    private val playbackSpeedFlow = MutableStateFlow(1.0f)
+
 
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
 
@@ -70,7 +70,7 @@ class SettingsViewModelTest {
         every { preferencesManager.downloadOnWifiOnly } returns downloadOnWifiOnlyFlow
         every { preferencesManager.skipSilence } returns skipSilenceFlow
         every { preferencesManager.volumeBoost } returns volumeBoostFlow
-        every { preferencesManager.playbackSpeed } returns playbackSpeedFlow
+
 
         every { podcastDao.getAll() } returns podcastsFlow
     }
@@ -126,7 +126,6 @@ class SettingsViewModelTest {
             assertTrue(initial.downloadOnWifiOnly)
             assertFalse(initial.skipSilence)
             assertFalse(initial.volumeBoost)
-            assertEquals(1.0f, initial.defaultPlaybackSpeed)
         }
     }
 
@@ -138,7 +137,6 @@ class SettingsViewModelTest {
             awaitItem() // initial
 
             appThemeFlow.value = AppTheme.DARK
-            playbackSpeedFlow.value = 1.5f
 
             // There may be intermediate states; collect until we see the final state
             val states = cancelAndConsumeRemainingEvents()
@@ -146,7 +144,6 @@ class SettingsViewModelTest {
 
             if (lastItem != null) {
                 assertEquals(AppTheme.DARK, lastItem.appTheme)
-                assertEquals(1.5f, lastItem.defaultPlaybackSpeed)
             }
         }
     }
@@ -158,15 +155,6 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { preferencesManager.setAppTheme(AppTheme.DARK) }
-    }
-
-    @Test
-    fun `setDefaultPlaybackSpeed updates preferences`() = runTest {
-        val viewModel = createViewModel()
-        viewModel.setDefaultPlaybackSpeed(2.0f)
-        advanceUntilIdle()
-
-        coVerify { preferencesManager.setPlaybackSpeed(2.0f) }
     }
 
     @Test

@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
@@ -51,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -364,6 +366,7 @@ fun EpisodeCard(
     val isDownloaded = episode.downloadPath.isNotBlank()
     val isDownloading = downloadProgress != null
     val hasProgress = episode.playbackPosition > 0L && !episode.played && episode.durationSeconds > 0
+    val playedAlpha = if (episode.played) 0.5f else 1f
 
     val cardShape = RoundedCornerShape(14.dp)
 
@@ -397,7 +400,8 @@ fun EpisodeCard(
                     fallback = rememberVectorPainter(Icons.Default.Podcasts),
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(8.dp))
+                        .alpha(playedAlpha),
                     contentScale = ContentScale.Crop,
                 )
 
@@ -414,11 +418,7 @@ fun EpisodeCard(
                         fontWeight = FontWeight.Bold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        color = if (episode.played) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = playedAlpha),
                     )
 
                     Spacer(modifier = Modifier.height(2.dp))
@@ -427,7 +427,7 @@ fun EpisodeCard(
                     Text(
                         text = episode.podcastTitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = playedAlpha),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -448,7 +448,7 @@ fun EpisodeCard(
                                     DateUtils.FORMAT_ABBREV_RELATIVE
                                 ).toString(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = playedAlpha),
                             )
                         }
                         if (episode.durationSeconds > 0) {
@@ -463,7 +463,7 @@ fun EpisodeCard(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Single action button: Download → Progress → Play
+                // Single action button: Download → Progress → Play / Played
                 IconButton(
                     onClick = {
                         when {
@@ -475,13 +475,16 @@ fun EpisodeCard(
                     modifier = Modifier
                         .size(40.dp)
                         .align(Alignment.CenterVertically),
-                    colors = if (isDownloaded) {
-                        IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    colors = when {
+                        isDownloaded && episode.played -> IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    } else {
-                        IconButtonDefaults.iconButtonColors()
+                        isDownloaded -> IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        else -> IconButtonDefaults.iconButtonColors()
                     }
                 ) {
                     when {
@@ -493,10 +496,16 @@ fun EpisodeCard(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
+                        isDownloaded && episode.played -> {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircleOutline,
+                                contentDescription = "Played",
+                            )
+                        }
                         isDownloaded -> {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Play episode"
+                                contentDescription = "Play episode",
                             )
                         }
                         else -> {
@@ -504,7 +513,7 @@ fun EpisodeCard(
                                 imageVector = Icons.Outlined.FileDownload,
                                 contentDescription = "Download",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(22.dp),
                             )
                         }
                     }

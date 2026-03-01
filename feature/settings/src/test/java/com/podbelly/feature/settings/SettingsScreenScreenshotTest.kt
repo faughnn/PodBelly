@@ -78,13 +78,6 @@ class SettingsScreenScreenshotTest {
 
                         item {
                             SettingsCard {
-                                PlaybackSpeedRow(
-                                    currentSpeed = 1.0f,
-                                    onSpeedChanged = {},
-                                )
-
-                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
                                 SwitchRow(
                                     title = "Skip silence",
                                     subtitle = "Automatically skip silent sections",
@@ -187,13 +180,6 @@ class SettingsScreenScreenshotTest {
 
                         item {
                             SettingsCard {
-                                PlaybackSpeedRow(
-                                    currentSpeed = 1.5f,
-                                    onSpeedChanged = {},
-                                )
-
-                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
                                 SwitchRow(
                                     title = "Skip silence",
                                     subtitle = "Automatically skip silent sections",

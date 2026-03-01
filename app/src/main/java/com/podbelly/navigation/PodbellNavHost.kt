@@ -68,6 +68,7 @@ import com.podbelly.feature.discover.DiscoverScreen
 import com.podbelly.feature.home.HomeScreen
 import com.podbelly.feature.podcast.EpisodeDetailScreen
 import com.podbelly.feature.podcast.PodcastDetailScreen
+import com.podbelly.feature.settings.PlaybackSpeedScreen
 import com.podbelly.feature.settings.SettingsScreen
 import com.podbelly.feature.settings.StatsScreen
 import com.podbelly.ui.DownloadsScreen
@@ -243,12 +244,23 @@ fun PodbellNavHost(
                 SettingsScreen(
                     onNavigateToStats = {
                         navController.navigate(Screen.Stats.route)
-                    }
+                    },
+                    onNavigateToPlaybackSpeeds = {
+                        navController.navigate(Screen.PlaybackSpeeds.route)
+                    },
                 )
             }
 
             composable(Screen.Stats.route) {
                 StatsScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(Screen.PlaybackSpeeds.route) {
+                PlaybackSpeedScreen(
                     onNavigateBack = {
                         navController.popBackStack()
                     }

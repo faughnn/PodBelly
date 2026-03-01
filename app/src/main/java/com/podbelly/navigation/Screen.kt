@@ -18,4 +18,5 @@ sealed class Screen(val route: String) {
         fun createRoute(episodeId: Long) = "episode/$episodeId"
     }
     data object Stats : Screen("stats")
+    data object PlaybackSpeeds : Screen("playback_speeds")
 }

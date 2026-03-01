@@ -87,17 +87,4 @@ class SettingsScreenInteractionTest {
         composeTestRule.onNodeWithText("Dark").assertIsSelected()
     }
 
-    @Test
-    fun `playback speed shows current speed`() {
-        composeTestRule.setContent {
-            MaterialTheme {
-                PlaybackSpeedRow(
-                    currentSpeed = 1.5f,
-                    onSpeedChanged = {}
-                )
-            }
-        }
-
-        composeTestRule.onNodeWithText("1.5x").assertIsDisplayed()
-    }
 }

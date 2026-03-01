@@ -44,4 +44,13 @@ interface PodcastDao {
 
     @Query("UPDATE podcasts SET playbackSpeed = :speed WHERE id = :id")
     suspend fun updatePlaybackSpeed(id: Long, speed: Float)
+
+    @Query("SELECT * FROM podcasts WHERE subscribed = 1 AND playbackSpeed > 0 ORDER BY title ASC")
+    fun getPodcastsWithCustomSpeed(): Flow<List<PodcastEntity>>
+
+    @Query("UPDATE podcasts SET playbackSpeed = 0.0 WHERE id = :id")
+    suspend fun resetPlaybackSpeed(id: Long)
+
+    @Query("UPDATE podcasts SET playbackSpeed = 0.0 WHERE subscribed = 1 AND playbackSpeed > 0")
+    suspend fun resetAllPlaybackSpeeds()
 }

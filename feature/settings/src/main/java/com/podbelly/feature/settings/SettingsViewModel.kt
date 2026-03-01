@@ -39,7 +39,6 @@ data class SettingsUiState(
     val downloadOnWifiOnly: Boolean = true,
     val skipSilence: Boolean = false,
     val volumeBoost: Boolean = false,
-    val defaultPlaybackSpeed: Float = 1.0f,
     val importExportMessage: String? = null,
     val importResult: ImportResult? = null,
 )
@@ -76,14 +75,12 @@ class SettingsViewModel @Inject constructor(
             preferencesManager.downloadOnWifiOnly,
             preferencesManager.skipSilence,
             preferencesManager.volumeBoost,
-            preferencesManager.playbackSpeed,
             _importExportMessage,
-        ) { wifiOnly, skipSilence, volumeBoost, speed, message ->
+        ) { wifiOnly, skipSilence, volumeBoost, message ->
             SecondaryState(
                 downloadOnWifiOnly = wifiOnly,
                 skipSilence = skipSilence,
                 volumeBoost = volumeBoost,
-                defaultPlaybackSpeed = speed,
                 importExportMessage = message,
             )
         }
@@ -97,7 +94,6 @@ class SettingsViewModel @Inject constructor(
             downloadOnWifiOnly = secondary.downloadOnWifiOnly,
             skipSilence = secondary.skipSilence,
             volumeBoost = secondary.volumeBoost,
-            defaultPlaybackSpeed = secondary.defaultPlaybackSpeed,
             importExportMessage = secondary.importExportMessage,
         )
     }.combine(_importResult) { state, importResult ->
@@ -110,10 +106,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setAppTheme(mode: AppTheme) {
         viewModelScope.launch { preferencesManager.setAppTheme(mode) }
-    }
-
-    fun setDefaultPlaybackSpeed(speed: Float) {
-        viewModelScope.launch { preferencesManager.setPlaybackSpeed(speed) }
     }
 
     fun setSkipSilence(enabled: Boolean) {
@@ -288,7 +280,6 @@ class SettingsViewModel @Inject constructor(
         val downloadOnWifiOnly: Boolean,
         val skipSilence: Boolean,
         val volumeBoost: Boolean,
-        val defaultPlaybackSpeed: Float,
         val importExportMessage: String?,
     )
 }

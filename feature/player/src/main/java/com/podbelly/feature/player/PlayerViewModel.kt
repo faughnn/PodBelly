@@ -14,9 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -75,37 +73,8 @@ class PlayerViewModel @Inject constructor(
     )
 
     init {
-        // Apply per-podcast playback speed when the podcast changes
-        viewModelScope.launch {
-            playbackController.playbackState
-                .map { it.podcastId }
-                .distinctUntilChanged()
-                .collect { podcastId ->
-                    if (podcastId != 0L) {
-                        val podcastSpeed = podcastDao.getPlaybackSpeed(podcastId)
-                        if (podcastSpeed != null && podcastSpeed > 0f) {
-                            playbackController.setPlaybackSpeed(podcastSpeed)
-                        } else {
-                            val globalSpeed = preferencesManager.playbackSpeed.first()
-                            playbackController.setPlaybackSpeed(globalSpeed)
-                        }
-                    }
-                }
-        }
-        // Apply global speed changes only if the current podcast has no override
-        viewModelScope.launch {
-            preferencesManager.playbackSpeed.collect { globalSpeed ->
-                val podcastId = playbackController.playbackState.value.podcastId
-                if (podcastId != 0L) {
-                    val podcastSpeed = podcastDao.getPlaybackSpeed(podcastId)
-                    if (podcastSpeed == null || podcastSpeed <= 0f) {
-                        playbackController.setPlaybackSpeed(globalSpeed)
-                    }
-                } else {
-                    playbackController.setPlaybackSpeed(globalSpeed)
-                }
-            }
-        }
+        // Speed is now applied in PlaybackController.play() so it's correct
+        // from the first moment regardless of which screen started playback.
         viewModelScope.launch {
             preferencesManager.skipSilence.collect { enabled ->
                 playbackController.setSkipSilence(enabled)

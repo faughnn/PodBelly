@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.FileDownload
@@ -351,6 +352,7 @@ internal fun EpisodeCard(
     onDeleteDownload: () -> Unit,
 ) {
     val isDownloading = downloadProgress != null
+    val playedAlpha = if (episode.played) 0.5f else 1f
     var showMenu by remember { mutableStateOf(false) }
 
     val cardShape = RoundedCornerShape(14.dp)
@@ -397,7 +399,8 @@ internal fun EpisodeCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = playedAlpha),
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -411,7 +414,7 @@ internal fun EpisodeCard(
                         Text(
                             text = DateUtils.relativeDate(episode.publicationDate),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = playedAlpha),
                         )
                     }
                     if (episode.durationSeconds > 0) {
@@ -466,7 +469,7 @@ internal fun EpisodeCard(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Single action button: Download → Progress → Play
+                // Single action button: Download → Progress → Play / Played
                 IconButton(
                     onClick = {
                         when {
@@ -486,18 +489,25 @@ internal fun EpisodeCard(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
+                        episode.isDownloaded && episode.played -> {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircleOutline,
+                                contentDescription = "Played",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         episode.isDownloaded -> {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Play episode",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                         else -> {
                             Icon(
                                 imageVector = Icons.Outlined.FileDownload,
                                 contentDescription = "Download episode",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

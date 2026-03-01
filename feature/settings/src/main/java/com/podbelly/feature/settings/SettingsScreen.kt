@@ -34,7 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -46,7 +45,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,13 +60,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.podbelly.core.common.AppTheme
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateToStats: () -> Unit = {},
+    onNavigateToPlaybackSpeeds: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -161,10 +159,26 @@ fun SettingsScreen(
 
             item {
                 SettingsCard {
-                    PlaybackSpeedRow(
-                        currentSpeed = uiState.defaultPlaybackSpeed,
-                        onSpeedChanged = { viewModel.setDefaultPlaybackSpeed(it) },
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToPlaybackSpeeds() }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column {
+                            Text(
+                                text = "Playback speeds",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = "Per-podcast speed settings",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
 
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
@@ -648,77 +662,9 @@ internal fun ImportResultDialog(
     )
 }
 
-// ── Playback speed row ────────────────────────────────────────────────
-
-@Composable
-internal fun PlaybackSpeedRow(
-    currentSpeed: Float,
-    onSpeedChanged: (Float) -> Unit,
-) {
-    // Internal state for the slider so it feels responsive while dragging.
-    var sliderValue by remember(currentSpeed) { mutableFloatStateOf(currentSpeed) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Default playback speed",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = formatSpeed(sliderValue),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Slider(
-            value = sliderValue,
-            onValueChange = { newValue ->
-                // Snap to 0.1 increments.
-                sliderValue = (newValue * 10).roundToInt() / 10f
-            },
-            onValueChangeFinished = { onSpeedChanged(sliderValue) },
-            valueRange = 0.5f..3.0f,
-            steps = 24, // (3.0 - 0.5) / 0.1 - 1 = 24 steps between
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "0.5x",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "3.0x",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
 // =====================================================================
 // Utility functions
 // =====================================================================
-
-private fun formatSpeed(speed: Float): String {
-    return if (speed == speed.toInt().toFloat()) {
-        "${speed.toInt()}.0x"
-    } else {
-        "${"%.1f".format(speed)}x"
-    }
-}
 
 private fun readTextFromUri(context: Context, uri: android.net.Uri): String? {
     return try {

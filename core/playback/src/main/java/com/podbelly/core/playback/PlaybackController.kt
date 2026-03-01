@@ -275,6 +275,18 @@ class PlaybackController @Inject constructor(
         controller.prepare()
         controller.play()
         refreshQueueFlags()
+
+        // Apply per-podcast speed immediately so it's correct from the first moment
+        scope.launch {
+            val speed = if (podcastId != 0L) {
+                val podcastSpeed = podcastDao.getPlaybackSpeed(podcastId)
+                if (podcastSpeed != null && podcastSpeed > 0f) podcastSpeed
+                else preferencesManager.playbackSpeed.first()
+            } else {
+                preferencesManager.playbackSpeed.first()
+            }
+            setPlaybackSpeed(speed)
+        }
     }
 
     /**
