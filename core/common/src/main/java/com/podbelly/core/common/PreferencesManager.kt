@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -89,6 +90,7 @@ class PreferencesManager @Inject constructor(
         val DOWNLOADS_SORT_ORDER = stringPreferencesKey("downloads_sort_order")
         val LIBRARY_VIEW_MODE = stringPreferencesKey("library_view_mode")
         val PAUSED_AT = longPreferencesKey("paused_at")
+        val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
     }
 
     // ── Flows ────────────────────────────────────────────────────────────
@@ -238,6 +240,16 @@ class PreferencesManager @Inject constructor(
     suspend fun setPausedAt(timestamp: Long) {
         dataStore.edit { prefs ->
             prefs[Keys.PAUSED_AT] = timestamp
+        }
+    }
+
+    suspend fun getLastSeenVersionCode(): Int {
+        return dataStore.data.first()[Keys.LAST_SEEN_VERSION_CODE] ?: 0
+    }
+
+    suspend fun setLastSeenVersionCode(code: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LAST_SEEN_VERSION_CODE] = code
         }
     }
 }

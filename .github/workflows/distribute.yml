@@ -39,12 +39,27 @@ jobs:
         id: dist
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            CHANGES=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+          else
+            CHANGES=$(git log --pretty=format:"- %s" --no-merges -20)
+          fi
+
           if [[ "$GITHUB_REF_NAME" == "main" ]]; then
             echo "group=testers,dev" >> "$GITHUB_OUTPUT"
-            echo "notes=[RELEASE] ${GITHUB_REF_NAME}@${SHORT_SHA} — $(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
+            echo "notes<<NOTES_EOF" >> "$GITHUB_OUTPUT"
+            echo "[RELEASE] ${GITHUB_REF_NAME}@${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "$CHANGES" >> "$GITHUB_OUTPUT"
+            echo "NOTES_EOF" >> "$GITHUB_OUTPUT"
           else
             echo "group=dev" >> "$GITHUB_OUTPUT"
-            echo "notes=[DEV] ${GITHUB_REF_NAME}@${SHORT_SHA} — $(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
+            echo "notes<<NOTES_EOF" >> "$GITHUB_OUTPUT"
+            echo "[DEV] ${GITHUB_REF_NAME}@${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "$CHANGES" >> "$GITHUB_OUTPUT"
+            echo "NOTES_EOF" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build debug APK

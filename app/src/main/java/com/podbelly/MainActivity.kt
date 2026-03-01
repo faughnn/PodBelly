@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.podbelly.ui.SplashScreen
+import com.podbelly.ui.WhatsNewDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.PreferencesManager
@@ -59,6 +60,12 @@ class MainActivity : ComponentActivity() {
             val appTheme by preferencesManager.appTheme
                 .collectAsStateWithLifecycle(AppTheme.SYSTEM)
 
+            val versionName = remember {
+                packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+            }
+            val whatsNewChanges by appViewModel.showWhatsNew
+                .collectAsStateWithLifecycle(null)
+
             PodbellTheme(appTheme = appTheme) {
                 var showSplash by remember { mutableStateOf(true) }
                 Crossfade(targetState = showSplash, label = "splash") { isSplash ->
@@ -67,6 +74,14 @@ class MainActivity : ComponentActivity() {
                     } else {
                         PodbellNavHost(playbackController = playbackController)
                     }
+                }
+
+                whatsNewChanges?.let { changes ->
+                    WhatsNewDialog(
+                        versionName = versionName,
+                        changes = changes,
+                        onDismiss = { appViewModel.dismissWhatsNew() },
+                    )
                 }
             }
         }

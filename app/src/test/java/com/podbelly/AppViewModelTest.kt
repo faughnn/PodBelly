@@ -1,6 +1,10 @@
 package com.podbelly
 
+import android.app.Application
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import app.cash.turbine.test
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.PodcastEntity
@@ -30,9 +34,11 @@ class AppViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
+    private val application = mockk<Application>()
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
+    private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
 
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
 
@@ -40,6 +46,19 @@ class AppViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { podcastDao.getAll() } returns podcastsFlow
+
+        val packageInfo = PackageInfo().apply {
+            @Suppress("DEPRECATION")
+            versionCode = 9
+            versionName = "1.0.8"
+        }
+        val packageManager = mockk<PackageManager>()
+        every { packageManager.getPackageInfo("com.podbelly", 0) } returns packageInfo
+        every { application.packageManager } returns packageManager
+        every { application.packageName } returns "com.podbelly"
+
+        // Default: fresh install (versionCode = 0 means first time)
+        coEvery { preferencesManager.getLastSeenVersionCode() } returns 0
     }
 
     @After
@@ -86,9 +105,11 @@ class AppViewModelTest {
 
     private fun createViewModel(): AppViewModel {
         return AppViewModel(
+            application = application,
             episodeDao = episodeDao,
             podcastDao = podcastDao,
             searchRepository = searchRepository,
+            preferencesManager = preferencesManager,
         )
     }
 
