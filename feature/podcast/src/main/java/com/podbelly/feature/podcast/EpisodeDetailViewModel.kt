@@ -4,8 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.DownloadManager
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.dao.QueueDao
+import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +43,8 @@ class EpisodeDetailViewModel @Inject constructor(
     private val podcastDao: PodcastDao,
     private val playbackController: PlaybackController,
     private val downloadManager: DownloadManager,
+    private val queueDao: QueueDao,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     private val episodeId: Long = checkNotNull(savedStateHandle["episodeId"])
@@ -48,6 +53,12 @@ class EpisodeDetailViewModel @Inject constructor(
 
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
+
+    val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val isInQueue: StateFlow<Boolean> = queueDao.isInQueueFlow(episodeId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val uiState: StateFlow<EpisodeDetailUiState> = episodeDao.getById(episodeId)
         .map { episode ->
@@ -113,6 +124,30 @@ class EpisodeDetailViewModel @Inject constructor(
     fun deleteDownload() {
         viewModelScope.launch {
             downloadManager.deleteDownload(episodeId)
+        }
+    }
+
+    fun addToQueueNext() {
+        viewModelScope.launch {
+            if (queueDao.isInQueue(episodeId)) return@launch
+            val items = queueDao.getQueueOnce()
+            val shifted = items.map { it.queueItem.copy(position = it.queueItem.position + 1) }
+            queueDao.updatePositions(shifted)
+            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = 0, addedAt = System.currentTimeMillis()))
+        }
+    }
+
+    fun addToQueueLast() {
+        viewModelScope.launch {
+            if (queueDao.isInQueue(episodeId)) return@launch
+            val maxPos = queueDao.getMaxPosition() ?: -1
+            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = maxPos + 1, addedAt = System.currentTimeMillis()))
+        }
+    }
+
+    fun removeFromQueue() {
+        viewModelScope.launch {
+            queueDao.removeFromQueue(episodeId)
         }
     }
 }

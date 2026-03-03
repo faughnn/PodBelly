@@ -18,8 +18,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -71,6 +75,8 @@ fun EpisodeDetailScreen(
     val episodeProgress = downloadProgress[uiState.episodeId]
     val context = LocalContext.current
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
+    val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
+    val isInQueue by viewModel.isInQueue.collectAsStateWithLifecycle()
 
     if (showMobileDataWarning) {
         MobileDataWarningDialog(onDismiss = { viewModel.dismissMobileDataWarning() })
@@ -300,6 +306,63 @@ fun EpisodeDetailScreen(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Share")
+            }
+
+            // Add to Queue / Remove from Queue (only when queue is enabled)
+            if (queueEnabled) {
+                if (isInQueue) {
+                    FilledTonalButton(
+                        onClick = { viewModel.removeFromQueue() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RemoveCircleOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Remove from Queue")
+                    }
+                } else {
+                    var showQueueMenu by remember { mutableStateOf(false) }
+                    Box {
+                        FilledTonalButton(
+                            onClick = { showQueueMenu = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add to Queue")
+                        }
+                        DropdownMenu(
+                            expanded = showQueueMenu,
+                            onDismissRequest = { showQueueMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Play Next") },
+                                onClick = {
+                                    showQueueMenu = false
+                                    viewModel.addToQueueNext()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Play Last") },
+                                onClick = {
+                                    showQueueMenu = false
+                                    viewModel.addToQueueLast()
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
