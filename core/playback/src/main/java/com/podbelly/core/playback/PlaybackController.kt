@@ -448,6 +448,10 @@ class PlaybackController @Inject constructor(
      * since queue items may come from different podcasts.
      */
     private suspend fun advanceQueue() {
+        // Only auto-advance if queue feature is enabled
+        val queueEnabled = preferencesManager.queueEnabled.first()
+        if (!queueEnabled) return
+
         try {
             // Remove the episode that just finished from the queue
             if (currentEpisodeId != 0L) {

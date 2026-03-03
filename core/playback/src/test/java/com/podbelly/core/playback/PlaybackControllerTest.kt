@@ -12,8 +12,10 @@ import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.database.entity.QueueItemEntity
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -63,6 +65,7 @@ class PlaybackControllerTest {
         podcastDao = mockk(relaxed = true)
         episodeDao = mockk(relaxed = true)
         preferencesManager = mockk(relaxed = true)
+        every { preferencesManager.queueEnabled } returns flowOf(true)
         listeningSessionDao = mockk(relaxed = true)
         controller = PlaybackController(queueDao, podcastDao, episodeDao, preferencesManager, listeningSessionDao)
     }

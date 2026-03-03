@@ -3,8 +3,10 @@ package com.podbelly.feature.podcast
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.podbelly.core.common.DownloadManager
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.playback.PlaybackController
@@ -37,6 +39,8 @@ class EpisodeDetailViewModelTest {
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val playbackController = mockk<PlaybackController>(relaxed = true)
     private val downloadManager = mockk<DownloadManager>(relaxed = true)
+    private val queueDao = mockk<QueueDao>(relaxed = true)
+    private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
 
     private val episodeFlow = MutableStateFlow<EpisodeEntity?>(null)
 
@@ -89,6 +93,8 @@ class EpisodeDetailViewModelTest {
             podcastDao = podcastDao,
             playbackController = playbackController,
             downloadManager = downloadManager,
+            queueDao = queueDao,
+            preferencesManager = preferencesManager,
         )
     }
 
