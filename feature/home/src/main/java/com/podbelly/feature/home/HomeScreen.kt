@@ -6,9 +6,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +37,8 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +54,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -80,6 +87,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
+    val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
 
     if (showMobileDataWarning) {
         MobileDataWarningDialog(onDismiss = { viewModel.dismissMobileDataWarning() })
@@ -146,6 +154,9 @@ fun HomeScreen(
                     onEpisodeClick = onEpisodeClick,
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
                     onDownloadClick = { episodeId -> viewModel.downloadEpisode(episodeId) },
+                    queueEnabled = queueEnabled,
+                    onPlayNext = { episodeId -> viewModel.addToQueueNext(episodeId) },
+                    onPlayLast = { episodeId -> viewModel.addToQueueLast(episodeId) },
                 )
             }
         }
@@ -202,6 +213,9 @@ internal fun EpisodeList(
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
     onDownloadClick: (Long) -> Unit,
+    queueEnabled: Boolean = false,
+    onPlayNext: (Long) -> Unit = {},
+    onPlayLast: (Long) -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -257,6 +271,9 @@ internal fun EpisodeList(
                 onClick = { onEpisodeClick(episode.episodeId) },
                 onPlay = { onPlayClick(episode.episodeId) },
                 onDownload = { onDownloadClick(episode.episodeId) },
+                queueEnabled = queueEnabled,
+                onPlayNext = { onPlayNext(episode.episodeId) },
+                onPlayLast = { onPlayLast(episode.episodeId) },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -354,6 +371,7 @@ private fun CarouselCard(
 // Episode card — Jukebox styling with color-coded duration tags
 // ------------------------------------------------------------------
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EpisodeCard(
     episode: HomeEpisodeItem,
@@ -361,12 +379,16 @@ fun EpisodeCard(
     onClick: () -> Unit,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
+    queueEnabled: Boolean = false,
+    onPlayNext: () -> Unit = {},
+    onPlayLast: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isDownloaded = episode.downloadPath.isNotBlank()
     val isDownloading = downloadProgress != null
     val hasProgress = episode.playbackPosition > 0L && !episode.played && episode.durationSeconds > 0
     val playedAlpha = if (episode.played) 0.5f else 1f
+    var showQueueMenu by remember { mutableStateOf(false) }
 
     val cardShape = RoundedCornerShape(14.dp)
 
@@ -378,7 +400,10 @@ fun EpisodeCard(
                 color = Color.White.copy(alpha = 0.024f),
                 shape = cardShape,
             )
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { if (queueEnabled) showQueueMenu = true }
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
@@ -546,6 +571,22 @@ fun EpisodeCard(
                                     )
                                 )
                             )
+                    )
+                }
+            }
+
+            if (showQueueMenu) {
+                DropdownMenu(
+                    expanded = showQueueMenu,
+                    onDismissRequest = { showQueueMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Play Next") },
+                        onClick = { showQueueMenu = false; onPlayNext() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Play Last") },
+                        onClick = { showQueueMenu = false; onPlayLast() }
                     )
                 }
             }

@@ -75,6 +75,7 @@ fun PodcastDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
+    val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
 
     if (showMobileDataWarning) {
         MobileDataWarningDialog(onDismiss = { viewModel.dismissMobileDataWarning() })
@@ -132,6 +133,9 @@ fun PodcastDetailScreen(
                         onPlay = { viewModel.playEpisode(episode.id) },
                         onDownload = { viewModel.downloadEpisode(episode.id) },
                         onDeleteDownload = { viewModel.deleteDownload(episode.id) },
+                        queueEnabled = queueEnabled,
+                        onPlayNext = { viewModel.addToQueueNext(episode.id) },
+                        onPlayLast = { viewModel.addToQueueLast(episode.id) },
                     )
                 }
             }
@@ -350,6 +354,9 @@ internal fun EpisodeCard(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onDeleteDownload: () -> Unit,
+    queueEnabled: Boolean = false,
+    onPlayNext: () -> Unit = {},
+    onPlayLast: () -> Unit = {},
 ) {
     val isDownloading = downloadProgress != null
     val playedAlpha = if (episode.played) 0.5f else 1f
@@ -513,8 +520,8 @@ internal fun EpisodeCard(
                     }
                 }
 
-                // Overflow menu (only when downloaded, for delete option)
-                if (episode.isDownloaded) {
+                // Overflow menu (when downloaded or queue enabled)
+                if (episode.isDownloaded || queueEnabled) {
                     Box {
                         IconButton(
                             onClick = { showMenu = true },
@@ -531,13 +538,31 @@ internal fun EpisodeCard(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Delete download") },
-                                onClick = {
-                                    showMenu = false
-                                    onDeleteDownload()
-                                }
-                            )
+                            if (queueEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text("Play Next") },
+                                    onClick = {
+                                        showMenu = false
+                                        onPlayNext()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Play Last") },
+                                    onClick = {
+                                        showMenu = false
+                                        onPlayLast()
+                                    }
+                                )
+                            }
+                            if (episode.isDownloaded) {
+                                DropdownMenuItem(
+                                    text = { Text("Delete download") },
+                                    onClick = {
+                                        showMenu = false
+                                        onDeleteDownload()
+                                    }
+                                )
+                            }
                         }
                     }
                 }

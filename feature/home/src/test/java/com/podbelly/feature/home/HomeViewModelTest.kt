@@ -3,9 +3,11 @@ package com.podbelly.feature.home
 import app.cash.turbine.test
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.DownloadManager
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.playback.PlaybackController
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -36,6 +38,8 @@ class HomeViewModelTest {
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val playbackController = mockk<PlaybackController>(relaxed = true)
     private val downloadManager = mockk<DownloadManager>(relaxed = true)
+    private val queueDao = mockk<QueueDao>(relaxed = true)
+    private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
 
     private val episodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
@@ -58,6 +62,8 @@ class HomeViewModelTest {
             podcastDao = podcastDao,
             playbackController = playbackController,
             downloadManager = downloadManager,
+            queueDao = queueDao,
+            preferencesManager = preferencesManager,
         )
     }
 
