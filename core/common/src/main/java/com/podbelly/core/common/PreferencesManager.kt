@@ -90,6 +90,7 @@ class PreferencesManager @Inject constructor(
         val DOWNLOADS_SORT_ORDER = stringPreferencesKey("downloads_sort_order")
         val LIBRARY_VIEW_MODE = stringPreferencesKey("library_view_mode")
         val PAUSED_AT = longPreferencesKey("paused_at")
+        val QUEUE_ENABLED = booleanPreferencesKey("queue_enabled")
         val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
     }
 
@@ -152,6 +153,10 @@ class PreferencesManager @Inject constructor(
 
     val pausedAt: Flow<Long> = dataStore.data.map { prefs ->
         prefs[Keys.PAUSED_AT] ?: 0L
+    }
+
+    val queueEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.QUEUE_ENABLED] ?: false
     }
 
     // ── Setters ──────────────────────────────────────────────────────────
@@ -240,6 +245,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setPausedAt(timestamp: Long) {
         dataStore.edit { prefs ->
             prefs[Keys.PAUSED_AT] = timestamp
+        }
+    }
+
+    suspend fun setQueueEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.QUEUE_ENABLED] = enabled
         }
     }
 
