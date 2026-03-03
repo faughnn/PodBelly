@@ -14,11 +14,13 @@ import com.podbelly.ui.WhatsNew
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -32,6 +34,9 @@ class AppViewModel @Inject constructor(
     private val searchRepository: PodcastSearchRepository,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
+
+    val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private var lastRefreshTime = 0L
 
