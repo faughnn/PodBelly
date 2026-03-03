@@ -39,6 +39,7 @@ data class SettingsUiState(
     val downloadOnWifiOnly: Boolean = true,
     val skipSilence: Boolean = false,
     val volumeBoost: Boolean = false,
+    val queueEnabled: Boolean = false,
     val importExportMessage: String? = null,
     val importResult: ImportResult? = null,
 )
@@ -76,12 +77,15 @@ class SettingsViewModel @Inject constructor(
             preferencesManager.skipSilence,
             preferencesManager.volumeBoost,
             _importExportMessage,
-        ) { wifiOnly, skipSilence, volumeBoost, message ->
+            preferencesManager.queueEnabled,
+        ) { values ->
+            @Suppress("UNCHECKED_CAST")
             SecondaryState(
-                downloadOnWifiOnly = wifiOnly,
-                skipSilence = skipSilence,
-                volumeBoost = volumeBoost,
-                importExportMessage = message,
+                downloadOnWifiOnly = values[0] as Boolean,
+                skipSilence = values[1] as Boolean,
+                volumeBoost = values[2] as Boolean,
+                importExportMessage = values[3] as? String,
+                queueEnabled = values[4] as Boolean,
             )
         }
     ) { partial, secondary ->
@@ -94,6 +98,7 @@ class SettingsViewModel @Inject constructor(
             downloadOnWifiOnly = secondary.downloadOnWifiOnly,
             skipSilence = secondary.skipSilence,
             volumeBoost = secondary.volumeBoost,
+            queueEnabled = secondary.queueEnabled,
             importExportMessage = secondary.importExportMessage,
         )
     }.combine(_importResult) { state, importResult ->
@@ -130,6 +135,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoDeletePlayed(enabled: Boolean) {
         viewModelScope.launch { preferencesManager.setAutoDeletePlayed(enabled) }
+    }
+
+    fun setQueueEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setQueueEnabled(enabled) }
     }
 
     fun setFeedRefreshInterval(minutes: Int) {
@@ -281,5 +290,6 @@ class SettingsViewModel @Inject constructor(
         val skipSilence: Boolean,
         val volumeBoost: Boolean,
         val importExportMessage: String?,
+        val queueEnabled: Boolean,
     )
 }

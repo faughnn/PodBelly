@@ -200,6 +200,21 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Queue ──────────────────────────────────────────────────
+
+            item { SectionHeader(title = "Queue") }
+
+            item {
+                SettingsCard {
+                    SwitchRow(
+                        title = "Show queue",
+                        subtitle = "Enable Up Next queue for continuous playback",
+                        checked = uiState.queueEnabled,
+                        onCheckedChange = { viewModel.setQueueEnabled(it) },
+                    )
+                }
+            }
+
             // ── Downloads ─────────────────────────────────────────────
 
             item { SectionHeader(title = "Downloads") }
