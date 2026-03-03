@@ -37,6 +37,9 @@ interface QueueDao {
     @Query("SELECT EXISTS(SELECT 1 FROM queue_items WHERE episodeId = :episodeId)")
     suspend fun isInQueue(episodeId: Long): Boolean
 
+    @Query("SELECT EXISTS(SELECT 1 FROM queue_items WHERE episodeId = :episodeId)")
+    fun isInQueueFlow(episodeId: Long): Flow<Boolean>
+
     @Query("SELECT MAX(position) FROM queue_items")
     suspend fun getMaxPosition(): Int?
 
