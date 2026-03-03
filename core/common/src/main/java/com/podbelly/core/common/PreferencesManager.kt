@@ -156,7 +156,7 @@ class PreferencesManager @Inject constructor(
     }
 
     val queueEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.QUEUE_ENABLED] ?: false
+        prefs[Keys.QUEUE_ENABLED] ?: true
     }
 
     // ── Setters ──────────────────────────────────────────────────────────
