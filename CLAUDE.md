@@ -39,6 +39,15 @@ The app version **must be incremented with every commit**. Update **both** of th
 
 The Settings screen reads the version dynamically at runtime via `PackageManager`, so it does **not** need manual updates.
 
+## What's New / Patch Notes
+
+When bumping the version, also update `app/src/main/java/com/podbelly/ui/WhatsNew.kt`:
+
+1. Add a new entry to `changelog` keyed by the new `versionCode`
+2. Update `LATEST_VERSION_CODE` to match
+3. Write **user-facing** descriptions — no commit messages, branch names, or technical jargon. Describe what the user will notice (e.g. "Queue: long-press episodes to Play Next or Play Last"), not implementation details (e.g. "gate advanceQueue on queueEnabled preference")
+4. Skip purely internal changes (refactors, test fixes, docs) — only list things the user can see or interact with
+
 ## Key Principle
 
 Always prefer using a known working feature pattern from an established open-source podcast app over designing from scratch. The reference apps have been battle-tested on millions of devices. When in doubt, look at how Pocket Casts does it.
