@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 15
+    const val LATEST_VERSION_CODE = 16
 
     val changelog: Map<Int, List<String>> = mapOf(
+        16 to listOf(
+            "Test: verifying What's New dialog appears on update",
+        ),
         15 to listOf(
             "Settings moved to the top bar for easier access",
         ),
