@@ -98,7 +98,6 @@ private val bottomNavItems = listOf(
     BottomNavItem.Discover,
     BottomNavItem.Library,
     BottomNavItem.Downloads,
-    BottomNavItem.Settings,
 )
 
 @Composable
@@ -137,7 +136,6 @@ fun PodbellNavHost(
             add(BottomNavItem.Discover)
             add(BottomNavItem.Library)
             add(BottomNavItem.Downloads)
-            add(BottomNavItem.Settings)
         }
     }
 
@@ -227,6 +225,11 @@ fun PodbellNavHost(
                     },
                     onPodcastClick = { podcastId ->
                         navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
+                    },
+                    onSettingsClick = {
+                        navController.navigate(Screen.Settings.route) {
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
