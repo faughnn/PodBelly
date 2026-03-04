@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.PlayArrow
@@ -82,7 +83,8 @@ fun HomeScreen(
     bannerMessage: String? = null,
     viewModel: HomeViewModel = hiltViewModel(),
     onEpisodeClick: (Long) -> Unit,
-    onPodcastClick: (Long) -> Unit
+    onPodcastClick: (Long) -> Unit,
+    onSettingsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
@@ -128,6 +130,14 @@ fun HomeScreen(
                                 )
                             }
                         }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
