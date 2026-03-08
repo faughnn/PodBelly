@@ -130,6 +130,18 @@ class PlaybackController @Inject constructor(
                     // button events while we decide what to do next.
                     controller.playWhenReady = false
 
+                    // Mark the finished episode as played before clearing state
+                    val finishedEpisodeId = currentEpisodeId
+                    if (finishedEpisodeId != 0L) {
+                        scope.launch {
+                            try {
+                                episodeDao.markAsPlayed(finishedEpisodeId)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to mark episode as played", e)
+                            }
+                        }
+                    }
+
                     _playbackState.update {
                         it.copy(
                             isPlaying = false,

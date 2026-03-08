@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 16
+    const val LATEST_VERSION_CODE = 17
 
     val changelog: Map<Int, List<String>> = mapOf(
+        17 to listOf(
+            "Continue Listening now reliably shows all in-progress episodes",
+            "Episodes are marked as played when they finish",
+        ),
         16 to listOf(
             "Test: verifying What's New dialog appears on update",
         ),

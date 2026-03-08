@@ -187,7 +187,7 @@ class PlayerViewModel @Inject constructor(
     fun savePosition() {
         viewModelScope.launch {
             val state = playbackController.playbackState.value
-            if (state.episodeId != 0L) {
+            if (state.episodeId != 0L && state.currentPosition > 0L) {
                 episodeDao.updatePlaybackPosition(state.episodeId, state.currentPosition)
             }
         }
