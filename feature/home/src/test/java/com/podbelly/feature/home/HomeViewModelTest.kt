@@ -42,12 +42,14 @@ class HomeViewModelTest {
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
 
     private val episodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
+    private val inProgressFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { episodeDao.getRecentEpisodes(50) } returns episodesFlow
+        every { episodeDao.getInProgressEpisodes() } returns inProgressFlow
         every { podcastDao.getAll() } returns podcastsFlow
     }
 
@@ -177,10 +179,9 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `inProgressEpisodes contains only episodes with playbackPosition greater than 0 and not played`() = runTest {
+    fun `inProgressEpisodes comes from dedicated in-progress query`() = runTest {
         val podcast = makePodcast(id = 1L)
         val episodeWithProgress = makeEpisode(id = 1L, playbackPosition = 60_000L, played = false)
-        val episodeWithProgressPlayed = makeEpisode(id = 2L, playbackPosition = 120_000L, played = true)
         val episodeNoProgress = makeEpisode(id = 3L, playbackPosition = 0L, played = false)
 
         val viewModel = createViewModel()
@@ -189,10 +190,12 @@ class HomeViewModelTest {
             awaitItem() // initial
 
             podcastsFlow.value = listOf(podcast)
-            episodesFlow.value = listOf(episodeWithProgress, episodeWithProgressPlayed, episodeNoProgress)
+            episodesFlow.value = listOf(episodeWithProgress, episodeNoProgress)
+            // Only the in-progress episode appears in the dedicated flow
+            inProgressFlow.value = listOf(episodeWithProgress)
 
             val state = awaitItem()
-            assertEquals(3, state.recentEpisodes.size)
+            assertEquals(2, state.recentEpisodes.size)
             assertEquals(1, state.inProgressEpisodes.size)
             assertEquals(1L, state.inProgressEpisodes[0].episodeId)
         }
@@ -211,6 +214,7 @@ class HomeViewModelTest {
 
             podcastsFlow.value = listOf(podcast)
             episodesFlow.value = listOf(episode1, episode2)
+            inProgressFlow.value = emptyList()
 
             val state = awaitItem()
             assertEquals(2, state.recentEpisodes.size)
