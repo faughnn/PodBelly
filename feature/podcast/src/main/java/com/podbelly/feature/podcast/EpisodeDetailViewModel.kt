@@ -3,6 +3,7 @@ package com.podbelly.feature.podcast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.podbelly.core.common.DownloadErrorEvent
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
@@ -12,6 +13,7 @@ import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,6 +52,7 @@ class EpisodeDetailViewModel @Inject constructor(
     private val episodeId: Long = checkNotNull(savedStateHandle["episodeId"])
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
+    val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
 
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()

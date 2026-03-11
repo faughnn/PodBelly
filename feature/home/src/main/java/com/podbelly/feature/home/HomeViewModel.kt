@@ -8,11 +8,13 @@ import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.database.entity.QueueItemEntity
+import com.podbelly.core.common.DownloadErrorEvent
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,6 +52,7 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
+    val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
 
     val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)

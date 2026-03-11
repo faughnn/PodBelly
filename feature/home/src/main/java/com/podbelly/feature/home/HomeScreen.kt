@@ -48,12 +48,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,12 +93,20 @@ fun HomeScreen(
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.downloadErrors.collect { error ->
+            snackbarHostState.showSnackbar("Download failed: ${error.message}")
+        }
+    }
 
     if (showMobileDataWarning) {
         MobileDataWarningDialog(onDismiss = { viewModel.dismissMobileDataWarning() })
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

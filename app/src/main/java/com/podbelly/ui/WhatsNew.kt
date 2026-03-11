@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 17
+    const val LATEST_VERSION_CODE = 18
 
     val changelog: Map<Int, List<String>> = mapOf(
+        18 to listOf(
+            "Download errors now show a message on screen so you can see what went wrong",
+        ),
         17 to listOf(
             "Continue Listening now reliably shows all in-progress episodes",
             "Episodes are marked as played when they finish",
