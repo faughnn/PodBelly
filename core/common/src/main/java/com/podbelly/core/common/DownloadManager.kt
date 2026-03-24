@@ -11,8 +11,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -44,6 +47,11 @@ class DownloadManager @Inject constructor(
     /** Observable map of episodeId to download progress (0.0 - 1.0). */
     val downloadProgress: StateFlow<Map<Long, Float>> = _downloadProgress.asStateFlow()
 
+    private val _downloadErrors = MutableSharedFlow<DownloadErrorEvent>(extraBufferCapacity = 5)
+
+    /** Emits a one-shot event every time a download fails, so screens can show a Snackbar. */
+    val downloadErrors: SharedFlow<DownloadErrorEvent> = _downloadErrors.asSharedFlow()
+
     /** Active download jobs, keyed by episode ID. */
     private val activeDownloads = mutableMapOf<Long, Job>()
 
@@ -72,6 +80,9 @@ class DownloadManager @Inject constructor(
 
         if (episode.audioUrl.isBlank()) {
             Log.w(TAG, "Episode $episodeId has no audio URL, skipping download")
+            _downloadErrors.tryEmit(
+                DownloadErrorEvent(episodeId, episode.title, "No audio URL available")
+            )
             return@withContext
         }
 
@@ -79,14 +90,16 @@ class DownloadManager @Inject constructor(
         val wifiOnly = preferencesManager.downloadOnWifiOnly.first()
         if (wifiOnly && !isOnWifi()) {
             Log.w(TAG, "WiFi-only download enabled but not on WiFi, skipping episode $episodeId")
+            val msg = "WiFi required – connect to WiFi or disable in Settings"
             downloadErrorDao.insert(
                 DownloadErrorEntity(
                     episodeId = episodeId,
-                    errorMessage = "WiFi required – connect to WiFi or disable in Settings",
+                    errorMessage = msg,
                     errorCode = 0,
                     timestamp = System.currentTimeMillis(),
                 )
             )
+            _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
             return@withContext
         }
 
@@ -103,14 +116,16 @@ class DownloadManager @Inject constructor(
 
             if (!response.isSuccessful) {
                 Log.e(TAG, "Download failed with code ${response.code} for episode $episodeId")
+                val msg = "HTTP ${response.code}"
                 downloadErrorDao.insert(
                     DownloadErrorEntity(
                         episodeId = episodeId,
-                        errorMessage = "HTTP ${response.code}",
+                        errorMessage = msg,
                         errorCode = response.code,
                         timestamp = System.currentTimeMillis(),
                     )
                 )
+                _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
                 response.close()
                 _downloadProgress.update { it - episodeId }
                 return@withContext
@@ -118,6 +133,9 @@ class DownloadManager @Inject constructor(
 
             val body = response.body ?: run {
                 Log.e(TAG, "Empty response body for episode $episodeId")
+                _downloadErrors.tryEmit(
+                    DownloadErrorEvent(episodeId, episode.title, "Server returned empty response")
+                )
                 response.close()
                 _downloadProgress.update { it - episodeId }
                 return@withContext
@@ -184,14 +202,16 @@ class DownloadManager @Inject constructor(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error downloading episode $episodeId", e)
+            val msg = e.message ?: "Unknown error"
             downloadErrorDao.insert(
                 DownloadErrorEntity(
                     episodeId = episodeId,
-                    errorMessage = e.message ?: "Unknown error",
+                    errorMessage = msg,
                     errorCode = 0,
                     timestamp = System.currentTimeMillis(),
                 )
             )
+            _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
             _downloadProgress.update { it - episodeId }
         }
     }
@@ -291,3 +311,9 @@ class DownloadManager @Inject constructor(
         private const val BUFFER_SIZE = 8 * 1024 // 8 KB buffer
     }
 }
+
+data class DownloadErrorEvent(
+    val episodeId: Long,
+    val episodeTitle: String,
+    val message: String,
+)
