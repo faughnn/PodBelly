@@ -86,6 +86,9 @@ class PlaybackController @Inject constructor(
     private var sessionInsertPending: Boolean = false
     private var lastSessionSaveTime: Long = 0L
 
+    /** Timestamp of last periodic position save to the database */
+    private var lastPositionSaveTime: Long = 0L
+
     // -------------------------------------------------------------------------
     // Player.Listener -- keeps PlaybackState in sync with the actual player
     // -------------------------------------------------------------------------
@@ -538,6 +541,27 @@ class PlaybackController @Inject constructor(
         }
     }
 
+    /**
+     * Periodically saves the playback position to the database during active
+     * playback. This ensures the Continue Listening carousel shows an accurate
+     * resume point even if the app is killed without an explicit pause.
+     * Saves at most once every 10 seconds to avoid excessive DB writes.
+     */
+    private fun periodicSavePosition() {
+        val state = _playbackState.value
+        if (state.episodeId == 0L || state.currentPosition <= 0L) return
+        val now = System.currentTimeMillis()
+        if (now - lastPositionSaveTime < 10_000L) return
+        lastPositionSaveTime = now
+        scope.launch {
+            try {
+                episodeDao.updatePlaybackPosition(state.episodeId, state.currentPosition)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to periodically save position", e)
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Listening session tracking
     // -------------------------------------------------------------------------
@@ -702,6 +726,7 @@ class PlaybackController @Inject constructor(
                         )
                     }
                     saveSessionProgress()
+                    periodicSavePosition()
                 }
                 delay(250L)
             }
