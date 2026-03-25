@@ -2,6 +2,8 @@ package com.podbelly.feature.home
 
 import android.text.format.DateUtils
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -251,6 +253,7 @@ internal fun EpisodeList(
             item(key = "carousel_header") {
                 Row(
                     modifier = Modifier
+                        .animateItem()
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -265,6 +268,7 @@ internal fun EpisodeList(
 
             item(key = "carousel") {
                 LazyRow(
+                    modifier = Modifier.animateItem(),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -295,7 +299,16 @@ internal fun EpisodeList(
                 queueEnabled = queueEnabled,
                 onPlayNext = { onPlayNext(episode.episodeId) },
                 onPlayLast = { onPlayLast(episode.episodeId) },
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .animateItem(
+                        fadeInSpec = spring(stiffness = Spring.StiffnessLow),
+                        fadeOutSpec = spring(stiffness = Spring.StiffnessLow),
+                        placementSpec = spring(
+                            stiffness = Spring.StiffnessLow,
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                        ),
+                    )
+                    .padding(horizontal = 16.dp),
             )
         }
     }
