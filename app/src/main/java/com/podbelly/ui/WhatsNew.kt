@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 19
+    const val LATEST_VERSION_CODE = 20
 
     val changelog: Map<Int, List<String>> = mapOf(
+        20 to listOf(
+            "New episodes now slide in smoothly when you refresh instead of popping in",
+        ),
         19 to listOf(
             "Continue Listening now tracks your position more accurately, even if the app closes unexpectedly",
         ),
