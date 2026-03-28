@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 20
+    const val LATEST_VERSION_CODE = 21
 
     val changelog: Map<Int, List<String>> = mapOf(
+        21 to listOf(
+            "Fast forward 30 seconds from the playback notification",
+        ),
         20 to listOf(
             "New episodes now slide in smoothly when you refresh instead of popping in",
         ),
