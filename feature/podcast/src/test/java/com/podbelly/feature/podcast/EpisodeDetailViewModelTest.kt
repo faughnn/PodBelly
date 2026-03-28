@@ -210,7 +210,7 @@ class EpisodeDetailViewModelTest {
         viewModel.downloadEpisode()
         advanceUntilIdle()
 
-        coVerify { downloadManager.downloadEpisode(5L) }
+        verify { downloadManager.enqueueDownload(5L) }
     }
 
     @Test

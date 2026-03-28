@@ -366,7 +366,7 @@ class DownloadsViewModelTest {
         viewModel.retryDownload(10L)
         advanceUntilIdle()
 
-        coVerify { downloadManager.retryDownload(10L) }
+        verify { downloadManager.enqueueDownload(10L) }
     }
 
     @Test
