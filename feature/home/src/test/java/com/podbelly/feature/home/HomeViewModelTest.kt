@@ -259,8 +259,7 @@ class HomeViewModelTest {
         viewModel.downloadEpisode(5L)
         advanceUntilIdle()
 
-        coVerify { downloadManager.downloadEpisode(5L) }
-        verify { downloadManager.registerDownloadJob(5L, any()) }
+        verify { downloadManager.enqueueDownload(5L) }
     }
 
     @Test

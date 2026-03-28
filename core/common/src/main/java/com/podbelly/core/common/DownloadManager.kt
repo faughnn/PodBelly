@@ -4,6 +4,12 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.podbelly.core.database.dao.DownloadErrorDao
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.entity.DownloadErrorEntity
@@ -217,6 +223,33 @@ class DownloadManager @Inject constructor(
     }
 
     /**
+     * Enqueues an episode download via WorkManager so it survives app switches.
+     *
+     * The download runs as a foreground worker with a persistent notification.
+     * Uses [ExistingWorkPolicy.KEEP] so duplicate requests for the same episode are ignored.
+     */
+    fun enqueueDownload(episodeId: Long) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = OneTimeWorkRequestBuilder<DownloadWorker>()
+            .setInputData(workDataOf(DownloadWorker.KEY_EPISODE_ID to episodeId))
+            .setConstraints(constraints)
+            .addTag(DOWNLOAD_WORK_TAG)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "$DOWNLOAD_WORK_TAG:$episodeId",
+            ExistingWorkPolicy.KEEP,
+            request,
+        )
+
+        // Show immediate progress in UI while WorkManager starts up
+        _downloadProgress.update { it + (episodeId to 0f) }
+    }
+
+    /**
      * Cancels an in-progress download for the given episode.
      *
      * @param episodeId The database primary key of the episode whose download to cancel.
@@ -224,6 +257,7 @@ class DownloadManager @Inject constructor(
     fun cancelDownload(episodeId: Long) {
         activeDownloads[episodeId]?.cancel()
         activeDownloads.remove(episodeId)
+        WorkManager.getInstance(context).cancelUniqueWork("$DOWNLOAD_WORK_TAG:$episodeId")
         _downloadProgress.update { it - episodeId }
 
         // Clean up any partial file
@@ -309,6 +343,7 @@ class DownloadManager @Inject constructor(
     companion object {
         private const val TAG = "DownloadManager"
         private const val BUFFER_SIZE = 8 * 1024 // 8 KB buffer
+        private const val DOWNLOAD_WORK_TAG = "episode_download"
     }
 }
 

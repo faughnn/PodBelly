@@ -90,6 +90,7 @@ datastore-preferences = { module = "androidx.datastore:datastore-preferences", v
 # WorkManager
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 hilt-work = { module = "androidx.hilt:hilt-work", version = "1.2.0" }
+hilt-work-compiler = { module = "androidx.hilt:hilt-compiler", version = "1.2.0" }
 
 # Coroutines
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }

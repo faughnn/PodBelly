@@ -113,10 +113,7 @@ class EpisodeDetailViewModel @Inject constructor(
                 _showMobileDataWarning.value = true
                 return@launch
             }
-            val job = launch {
-                downloadManager.downloadEpisode(episodeId)
-            }
-            downloadManager.registerDownloadJob(episodeId, job)
+            downloadManager.enqueueDownload(episodeId)
         }
     }
 

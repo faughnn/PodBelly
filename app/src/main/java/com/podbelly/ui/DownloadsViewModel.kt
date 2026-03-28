@@ -133,7 +133,7 @@ class DownloadsViewModel @Inject constructor(
                 _showMobileDataWarning.value = true
                 return@launch
             }
-            downloadManager.retryDownload(episodeId)
+            downloadManager.enqueueDownload(episodeId)
         }
     }
 

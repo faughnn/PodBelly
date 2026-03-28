@@ -371,7 +371,7 @@ class PodcastDetailViewModelTest {
         viewModel.downloadEpisode(10L)
         advanceUntilIdle()
 
-        coVerify { downloadManager.downloadEpisode(10L) }
+        verify { downloadManager.enqueueDownload(10L) }
     }
 
     // -- deleteDownload tests --
