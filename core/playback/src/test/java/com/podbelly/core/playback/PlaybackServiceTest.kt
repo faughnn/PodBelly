@@ -35,14 +35,23 @@ class PlaybackServiceTest {
     }
 
     @Test
+    fun `CUSTOM_COMMAND_FAST_FORWARD has expected value`() {
+        assertEquals(
+            "FAST_FORWARD_30S",
+            PlaybackService.CUSTOM_COMMAND_FAST_FORWARD
+        )
+    }
+
+    @Test
     fun `custom command constants are distinct`() {
         val commands = setOf(
             PlaybackService.CUSTOM_COMMAND_SET_SKIP_SILENCE,
             PlaybackService.CUSTOM_COMMAND_SET_VOLUME_BOOST,
+            PlaybackService.CUSTOM_COMMAND_FAST_FORWARD,
         )
         assertEquals(
             "All custom command constants must be unique",
-            2,
+            3,
             commands.size
         )
     }
@@ -54,6 +63,9 @@ class PlaybackServiceTest {
         }
         assert(PlaybackService.CUSTOM_COMMAND_SET_VOLUME_BOOST.isNotBlank()) {
             "CUSTOM_COMMAND_SET_VOLUME_BOOST must not be blank"
+        }
+        assert(PlaybackService.CUSTOM_COMMAND_FAST_FORWARD.isNotBlank()) {
+            "CUSTOM_COMMAND_FAST_FORWARD must not be blank"
         }
     }
 
@@ -93,7 +105,7 @@ class PlaybackServiceTest {
     @Test
     fun `skip silence command uses UPPER_SNAKE_CASE format`() {
         val command = PlaybackService.CUSTOM_COMMAND_SET_SKIP_SILENCE
-        assert(command.matches(Regex("^[A-Z_]+$"))) {
+        assert(command.matches(Regex("^[A-Z_0-9]+$"))) {
             "CUSTOM_COMMAND_SET_SKIP_SILENCE should be UPPER_SNAKE_CASE, was: $command"
         }
     }
@@ -101,8 +113,16 @@ class PlaybackServiceTest {
     @Test
     fun `volume boost command uses UPPER_SNAKE_CASE format`() {
         val command = PlaybackService.CUSTOM_COMMAND_SET_VOLUME_BOOST
-        assert(command.matches(Regex("^[A-Z_]+$"))) {
+        assert(command.matches(Regex("^[A-Z_0-9]+$"))) {
             "CUSTOM_COMMAND_SET_VOLUME_BOOST should be UPPER_SNAKE_CASE, was: $command"
+        }
+    }
+
+    @Test
+    fun `fast forward command uses UPPER_SNAKE_CASE format`() {
+        val command = PlaybackService.CUSTOM_COMMAND_FAST_FORWARD
+        assert(command.matches(Regex("^[A-Z_0-9]+$"))) {
+            "CUSTOM_COMMAND_FAST_FORWARD should be UPPER_SNAKE_CASE, was: $command"
         }
     }
 }
