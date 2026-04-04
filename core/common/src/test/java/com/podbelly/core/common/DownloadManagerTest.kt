@@ -30,6 +30,7 @@ class DownloadManagerTest {
     private val downloadErrorDao = mockk<DownloadErrorDao>(relaxed = true)
     private val preferencesManager = mockk<PreferencesManager>()
     private val context = mockk<Context>()
+    private val workManager = mockk<WorkManager>(relaxed = true)
 
     private val connectivityManager = mockk<ConnectivityManager>()
     private val mockNetwork = mockk<Network>()
@@ -55,9 +56,6 @@ class DownloadManagerTest {
         every { Log.e(any(), any<String>(), any()) } returns 0
         every { Log.i(any(), any<String>()) } returns 0
 
-        mockkStatic(WorkManager::class)
-        every { WorkManager.getInstance(any()) } returns mockk(relaxed = true)
-
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
         every { connectivityManager.activeNetwork } returns mockNetwork
         every { connectivityManager.getNetworkCapabilities(mockNetwork) } returns mockCapabilities
@@ -71,6 +69,7 @@ class DownloadManagerTest {
             downloadErrorDao = downloadErrorDao,
             preferencesManager = preferencesManager,
             context = context,
+            workManager = workManager,
         )
     }
 

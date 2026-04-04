@@ -46,6 +46,7 @@ class DownloadManager @Inject constructor(
     private val downloadErrorDao: DownloadErrorDao,
     private val preferencesManager: PreferencesManager,
     @ApplicationContext private val context: Context,
+    private val workManager: WorkManager,
 ) {
 
     private val _downloadProgress = MutableStateFlow<Map<Long, Float>>(emptyMap())
@@ -239,7 +240,7 @@ class DownloadManager @Inject constructor(
             .addTag(DOWNLOAD_WORK_TAG)
             .build()
 
-        WorkManager.getInstance(context).enqueueUniqueWork(
+        workManager.enqueueUniqueWork(
             "$DOWNLOAD_WORK_TAG:$episodeId",
             ExistingWorkPolicy.KEEP,
             request,
@@ -257,7 +258,7 @@ class DownloadManager @Inject constructor(
     fun cancelDownload(episodeId: Long) {
         activeDownloads[episodeId]?.cancel()
         activeDownloads.remove(episodeId)
-        WorkManager.getInstance(context).cancelUniqueWork("$DOWNLOAD_WORK_TAG:$episodeId")
+        workManager.cancelUniqueWork("$DOWNLOAD_WORK_TAG:$episodeId")
         _downloadProgress.update { it - episodeId }
 
         // Clean up any partial file
