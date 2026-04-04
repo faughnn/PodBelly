@@ -1,6 +1,7 @@
 package com.podbelly.core.common
 
 import android.content.Context
+import androidx.work.WorkManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -53,6 +54,9 @@ class DownloadManagerTest {
         every { Log.e(any(), any<String>()) } returns 0
         every { Log.e(any(), any<String>(), any()) } returns 0
         every { Log.i(any(), any<String>()) } returns 0
+
+        mockkStatic(WorkManager::class)
+        every { WorkManager.getInstance(any()) } returns mockk(relaxed = true)
 
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
         every { connectivityManager.activeNetwork } returns mockNetwork
