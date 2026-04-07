@@ -35,6 +35,16 @@
         <!-- PlaybackService is declared in core:playback's manifest and merged automatically -->
 
         <!--
+            WorkManager's SystemForegroundService must declare foregroundServiceType
+            so that DownloadWorker can run as a DATA_SYNC foreground service on API 34+.
+            Without this the OS throws a MissingForegroundServiceTypeException.
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
+        <!--
             Disable the default WorkManagerInitializer so that our custom
             Configuration.Provider (PodbellApp) with HiltWorkerFactory is used.
             Without this, WorkManager initialises before Hilt and DownloadWorker

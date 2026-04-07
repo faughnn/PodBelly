@@ -34,8 +34,14 @@ class DownloadWorker @AssistedInject constructor(
             return Result.failure()
         }
 
-        // Promote to foreground so the OS keeps us alive while downloading
-        setForeground(createForegroundInfo(episodeId))
+        // Promote to foreground so the OS keeps us alive while downloading.
+        // Wrapped in try/catch following Pocket Casts' pattern — on some devices
+        // (e.g. Android 12+ background start restrictions) this can fail.
+        try {
+            setForeground(createForegroundInfo(episodeId))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to start foreground for episode $episodeId", e)
+        }
 
         return try {
             downloadManager.downloadEpisode(episodeId)

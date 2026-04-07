@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 23
+    const val LATEST_VERSION_CODE = 24
 
     val changelog: Map<Int, List<String>> = mapOf(
+        24 to listOf(
+            "Fixed crash when starting a download on Android 14+",
+        ),
         23 to listOf(
             "Fixed downloads not completing after tapping the download button",
             "Tap the progress circle while downloading to cancel the download",
