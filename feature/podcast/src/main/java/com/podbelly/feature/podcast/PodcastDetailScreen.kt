@@ -143,6 +143,7 @@ fun PodcastDetailScreen(
                         onClick = { onEpisodeClick(episode.id) },
                         onPlay = { viewModel.playEpisode(episode.id) },
                         onDownload = { viewModel.downloadEpisode(episode.id) },
+                        onCancelDownload = { viewModel.cancelDownload(episode.id) },
                         onDeleteDownload = { viewModel.deleteDownload(episode.id) },
                         queueEnabled = queueEnabled,
                         onPlayNext = { viewModel.addToQueueNext(episode.id) },
@@ -364,6 +365,7 @@ internal fun EpisodeCard(
     onClick: () -> Unit = {},
     onPlay: () -> Unit,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit = {},
     onDeleteDownload: () -> Unit,
     queueEnabled: Boolean = false,
     onPlayNext: () -> Unit = {},
@@ -492,7 +494,7 @@ internal fun EpisodeCard(
                     onClick = {
                         when {
                             episode.isDownloaded -> onPlay()
-                            isDownloading -> { /* downloading, do nothing */ }
+                            isDownloading -> onCancelDownload()
                             else -> onDownload()
                         }
                     },

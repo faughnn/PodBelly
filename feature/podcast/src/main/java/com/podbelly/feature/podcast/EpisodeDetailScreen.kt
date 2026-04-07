@@ -251,7 +251,7 @@ fun EpisodeDetailScreen(
                 onClick = {
                     when {
                         uiState.isDownloaded -> viewModel.playEpisode()
-                        episodeProgress != null -> { /* downloading, do nothing */ }
+                        episodeProgress != null -> viewModel.cancelDownload()
                         else -> viewModel.downloadEpisode()
                     }
                 },

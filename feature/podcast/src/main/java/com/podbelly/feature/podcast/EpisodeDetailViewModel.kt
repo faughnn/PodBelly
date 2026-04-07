@@ -121,6 +121,10 @@ class EpisodeDetailViewModel @Inject constructor(
         _showMobileDataWarning.value = false
     }
 
+    fun cancelDownload() {
+        downloadManager.cancelDownload(episodeId)
+    }
+
     fun deleteDownload() {
         viewModelScope.launch {
             downloadManager.deleteDownload(episodeId)

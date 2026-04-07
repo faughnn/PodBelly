@@ -177,6 +177,7 @@ fun HomeScreen(
                     onEpisodeClick = onEpisodeClick,
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
                     onDownloadClick = { episodeId -> viewModel.downloadEpisode(episodeId) },
+                    onCancelDownloadClick = { episodeId -> viewModel.cancelDownload(episodeId) },
                     queueEnabled = queueEnabled,
                     onPlayNext = { episodeId -> viewModel.addToQueueNext(episodeId) },
                     onPlayLast = { episodeId -> viewModel.addToQueueLast(episodeId) },
@@ -236,6 +237,7 @@ internal fun EpisodeList(
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
     onDownloadClick: (Long) -> Unit,
+    onCancelDownloadClick: (Long) -> Unit = {},
     queueEnabled: Boolean = false,
     onPlayNext: (Long) -> Unit = {},
     onPlayLast: (Long) -> Unit = {},
@@ -296,6 +298,7 @@ internal fun EpisodeList(
                 onClick = { onEpisodeClick(episode.episodeId) },
                 onPlay = { onPlayClick(episode.episodeId) },
                 onDownload = { onDownloadClick(episode.episodeId) },
+                onCancelDownload = { onCancelDownloadClick(episode.episodeId) },
                 queueEnabled = queueEnabled,
                 onPlayNext = { onPlayNext(episode.episodeId) },
                 onPlayLast = { onPlayLast(episode.episodeId) },
@@ -413,6 +416,7 @@ fun EpisodeCard(
     onClick: () -> Unit,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit = {},
     queueEnabled: Boolean = false,
     onPlayNext: () -> Unit = {},
     onPlayLast: () -> Unit = {},
@@ -527,7 +531,7 @@ fun EpisodeCard(
                     onClick = {
                         when {
                             isDownloaded -> onPlay()
-                            isDownloading -> { /* downloading, do nothing */ }
+                            isDownloading -> onCancelDownload()
                             else -> onDownload()
                         }
                     },
