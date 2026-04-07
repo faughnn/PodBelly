@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 22
+    const val LATEST_VERSION_CODE = 23
 
     val changelog: Map<Int, List<String>> = mapOf(
+        23 to listOf(
+            "Fixed downloads not completing after tapping the download button",
+            "Tap the progress circle while downloading to cancel the download",
+        ),
         22 to listOf(
             "Fast forward 30 seconds from the notification playback controls",
         ),
