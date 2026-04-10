@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 24
+    const val LATEST_VERSION_CODE = 25
 
     val changelog: Map<Int, List<String>> = mapOf(
+        25 to listOf(
+            "Fixed crash when searching for podcasts in Discover",
+        ),
         24 to listOf(
             "Fixed crash when starting a download on Android 14+",
         ),
