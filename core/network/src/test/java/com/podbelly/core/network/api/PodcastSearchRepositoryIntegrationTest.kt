@@ -256,6 +256,50 @@ class PodcastSearchRepositoryIntegrationTest {
         repository.search("malformed")
     }
 
+    @Test
+    fun `search deduplicates results with the same feedUrl`() = runTest {
+        val json = """
+            {
+              "resultCount": 3,
+              "results": [
+                {
+                  "trackName": "Clearer Thinking",
+                  "artistName": "Spencer Greenberg",
+                  "feedUrl": "https://feeds.example.com/clearer-thinking",
+                  "artworkUrl600": "https://img.example.com/clearer.jpg",
+                  "collectionName": "Clearer Thinking Podcast"
+                },
+                {
+                  "trackName": "Clearer Thinking Podcast",
+                  "artistName": "Spencer Greenberg",
+                  "feedUrl": "https://feeds.example.com/clearer-thinking",
+                  "artworkUrl600": "https://img.example.com/clearer2.jpg",
+                  "collectionName": "Clearer Thinking Podcast"
+                },
+                {
+                  "trackName": "Clear+Vivid",
+                  "artistName": "Alan Alda",
+                  "feedUrl": "https://feeds.example.com/clear-vivid",
+                  "artworkUrl600": "https://img.example.com/vivid.jpg",
+                  "collectionName": "Clear+Vivid with Alan Alda"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody(json)
+                .setHeader("Content-Type", "application/json")
+        )
+
+        val results = repository.search("clear")
+
+        assertEquals(2, results.size)
+        assertEquals("Clearer Thinking", results[0].title)
+        assertEquals("Clear+Vivid", results[1].title)
+    }
+
     @Test(expected = Exception::class)
     fun `search throws exception on HTTP 500 server error`() = runTest {
         mockWebServer.enqueue(
