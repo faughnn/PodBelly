@@ -82,6 +82,20 @@ interface EpisodeDao {
     )
     fun getInProgressEpisodes(): Flow<List<EpisodeEntity>>
 
+    @Query(
+        """
+        SELECT episodes.* FROM episodes
+        INNER JOIN podcasts ON episodes.podcastId = podcasts.id
+        WHERE podcasts.subscribed = 1
+          AND episodes.playbackPosition > 0
+          AND episodes.played = 0
+          AND episodes.downloadPath != ''
+        ORDER BY episodes.publicationDate DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLastInProgressEpisode(): EpisodeEntity?
+
     @Query("SELECT podcastId, MAX(publicationDate) AS latestPublicationDate FROM episodes GROUP BY podcastId")
     fun getLatestEpisodeDateByPodcast(): Flow<List<PodcastLatestEpisode>>
 }
