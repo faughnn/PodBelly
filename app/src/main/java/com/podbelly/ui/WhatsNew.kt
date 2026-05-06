@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 25
+    const val LATEST_VERSION_CODE = 26
 
     val changelog: Map<Int, List<String>> = mapOf(
+        26 to listOf(
+            "Fixed the player showing blank after returning to the app following a long pause",
+        ),
         25 to listOf(
             "Fixed crash when searching for podcasts in Discover",
         ),

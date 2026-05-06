@@ -118,14 +118,21 @@ class PlaybackController @Inject constructor(
                     _playbackState.update { it.copy(isLoading = true) }
                 }
                 Player.STATE_READY -> {
-                    _playbackState.update {
-                        it.copy(
-                            isLoading = false,
-                            duration = controller.duration.coerceAtLeast(0L),
-                            currentPosition = controller.currentPosition.coerceAtLeast(0L),
-                        )
+                    // If we connected before the service finished restoring its state,
+                    // the initial sync was skipped (STATE_IDLE at connection time). Do a
+                    // full sync now so episode metadata isn't left blank.
+                    if (_playbackState.value.episodeId == 0L && controller.currentMediaItem != null) {
+                        syncStateFromController(controller)
+                    } else {
+                        _playbackState.update {
+                            it.copy(
+                                isLoading = false,
+                                duration = controller.duration.coerceAtLeast(0L),
+                                currentPosition = controller.currentPosition.coerceAtLeast(0L),
+                            )
+                        }
+                        refreshQueueFlags()
                     }
-                    refreshQueueFlags()
                 }
                 Player.STATE_ENDED -> {
                     // Explicitly clear playWhenReady so the player cannot be
@@ -211,6 +218,11 @@ class PlaybackController @Inject constructor(
                         if (controller.isPlaying) {
                             startPositionUpdates()
                         }
+                    } else if (controller.currentMediaItem == null) {
+                        // Service was killed and restarted with no media loaded — restore
+                        // the last in-progress episode from the database so the player
+                        // UI isn't blank when the user returns after a long pause.
+                        restoreStateFromDatabase()
                     }
                 }
 
@@ -316,10 +328,26 @@ class PlaybackController @Inject constructor(
 
     /**
      * Resumes playback if paused. Sets the resuming flag so auto-rewind is applied.
+     * If the service was killed and restarted (no media item loaded), re-sets up the
+     * media item from the restored state before playing.
      */
     fun resume() {
-        isResuming = true
-        mediaController?.play()
+        val controller = mediaController ?: return
+        if (controller.currentMediaItem != null) {
+            isResuming = true
+            controller.play()
+        } else if (currentEpisodeId != 0L) {
+            // Service was reset but we restored episode info from DB — re-setup the media
+            play(
+                episodeId = currentEpisodeId,
+                audioUrl = currentAudioUrl,
+                title = currentEpisodeTitle,
+                podcastTitle = currentPodcastTitle,
+                artworkUrl = currentArtworkUrl,
+                startPosition = _playbackState.value.currentPosition,
+                podcastId = currentPodcastId,
+            )
+        }
     }
 
     /**
@@ -741,6 +769,71 @@ class PlaybackController @Inject constructor(
     // -------------------------------------------------------------------------
     // Internal state sync
     // -------------------------------------------------------------------------
+
+    /**
+     * Restores the last in-progress episode from the database into [playbackState].
+     * Called when the service was killed and restarted with no media loaded, so the
+     * player UI shows the last episode (paused) rather than a blank screen.
+     * The media item is also prepared in the controller so that [resume] works
+     * immediately when the user taps Play.
+     */
+    private fun restoreStateFromDatabase() {
+        scope.launch {
+            try {
+                val episode = episodeDao.getLastInProgressEpisode() ?: return@launch
+                val podcast = podcastDao.getByIdOnce(episode.podcastId)
+                val podcastTitle = podcast?.title ?: ""
+                val effectiveUrl = if (episode.downloadPath.isNotBlank()) episode.downloadPath
+                                   else episode.audioUrl
+
+                currentEpisodeId = episode.id
+                currentPodcastId = episode.podcastId
+                currentEpisodeTitle = episode.title
+                currentPodcastTitle = podcastTitle
+                currentArtworkUrl = episode.artworkUrl
+                currentAudioUrl = effectiveUrl
+
+                _playbackState.update {
+                    it.copy(
+                        episodeId = episode.id,
+                        podcastId = episode.podcastId,
+                        episodeTitle = episode.title,
+                        podcastTitle = podcastTitle,
+                        artworkUrl = episode.artworkUrl,
+                        audioUrl = effectiveUrl,
+                        currentPosition = episode.playbackPosition,
+                        duration = (episode.durationSeconds * 1000L).coerceAtLeast(0L),
+                        isPlaying = false,
+                        isLoading = false,
+                    )
+                }
+
+                // Prepare the media item in the controller (not playing) so that the
+                // user can tap Play and have it resume without navigating away.
+                val controller = mediaController ?: return@launch
+                val metadata = MediaMetadata.Builder()
+                    .setTitle(episode.title)
+                    .setArtist(podcastTitle)
+                    .setArtworkUri(
+                        if (episode.artworkUrl.isNotBlank()) Uri.parse(episode.artworkUrl)
+                        else null
+                    )
+                    .build()
+                val mediaItem = MediaItem.Builder()
+                    .setMediaId(episode.id.toString())
+                    .setUri(effectiveUrl)
+                    .setMediaMetadata(metadata)
+                    .build()
+                controller.setMediaItem(mediaItem, episode.playbackPosition)
+                controller.prepare()
+                // playWhenReady remains false — user must explicitly tap Play.
+
+                refreshQueueFlags()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to restore state from database", e)
+            }
+        }
+    }
 
     /**
      * Synchronises [PlaybackState] from the current [MediaController] state.
