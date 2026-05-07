@@ -1,9 +1,18 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 24
+    const val LATEST_VERSION_CODE = 27
 
     val changelog: Map<Int, List<String>> = mapOf(
+        27 to listOf(
+            "Fixed playback speed reverting to 1x when returning to the app after a long pause",
+        ),
+        26 to listOf(
+            "Fixed the player showing blank after returning to the app following a long pause",
+        ),
+        25 to listOf(
+            "Fixed crash when searching for podcasts in Discover",
+        ),
         24 to listOf(
             "Fixed crash when starting a download on Android 14+",
         ),
