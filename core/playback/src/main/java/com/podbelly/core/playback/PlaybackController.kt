@@ -786,6 +786,10 @@ class PlaybackController @Inject constructor(
                 val effectiveUrl = if (episode.downloadPath.isNotBlank()) episode.downloadPath
                                    else episode.audioUrl
 
+                val podcastSpeed = podcastDao.getPlaybackSpeed(episode.podcastId)
+                val speed = if (podcastSpeed != null && podcastSpeed > 0f) podcastSpeed
+                            else preferencesManager.playbackSpeed.first()
+
                 currentEpisodeId = episode.id
                 currentPodcastId = episode.podcastId
                 currentEpisodeTitle = episode.title
@@ -805,6 +809,7 @@ class PlaybackController @Inject constructor(
                         duration = (episode.durationSeconds * 1000L).coerceAtLeast(0L),
                         isPlaying = false,
                         isLoading = false,
+                        playbackSpeed = speed,
                     )
                 }
 
@@ -826,6 +831,7 @@ class PlaybackController @Inject constructor(
                     .build()
                 controller.setMediaItem(mediaItem, episode.playbackPosition)
                 controller.prepare()
+                controller.setPlaybackParameters(PlaybackParameters(speed))
                 // playWhenReady remains false — user must explicitly tap Play.
 
                 refreshQueueFlags()
