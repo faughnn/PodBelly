@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 27
+    const val LATEST_VERSION_CODE = 28
 
     val changelog: Map<Int, List<String>> = mapOf(
+        28 to listOf(
+            "Podcast artwork now loads faster and fades in smoothly while scrolling",
+        ),
         27 to listOf(
             "Fixed playback speed reverting to 1x when returning to the app after a long pause",
         ),

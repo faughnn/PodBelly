@@ -97,7 +97,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
-import coil.ImageLoader
+import coil.imageLoader
 import coil.request.ImageRequest
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
@@ -1102,7 +1102,7 @@ private fun rememberDominantColor(imageUrl: String, defaultColor: Color): Color 
             return@LaunchedEffect
         }
         try {
-            val loader = ImageLoader(context)
+            val loader = context.imageLoader
             val request = ImageRequest.Builder(context)
                 .data(imageUrl)
                 .allowHardware(false)
