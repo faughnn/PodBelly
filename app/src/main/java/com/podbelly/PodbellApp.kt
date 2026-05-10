@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import coil.Coil
+import coil.ImageLoader
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -15,6 +17,9 @@ class PodbellApp : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject
+    lateinit var imageLoader: ImageLoader
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -22,6 +27,7 @@ class PodbellApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        Coil.setImageLoader(imageLoader)
         createNotificationChannels()
     }
 
