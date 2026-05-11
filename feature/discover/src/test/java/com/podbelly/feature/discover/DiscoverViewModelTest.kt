@@ -1,6 +1,8 @@
 package com.podbelly.feature.discover
 
+import android.content.Context
 import app.cash.turbine.test
+import coil.ImageLoader
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.PodcastEntity
@@ -31,6 +33,8 @@ class DiscoverViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
+    private val context = mockk<Context>(relaxed = true)
+    private val imageLoader = mockk<ImageLoader>(relaxed = true)
     private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
@@ -49,6 +53,8 @@ class DiscoverViewModelTest {
 
     private fun createViewModel(): DiscoverViewModel {
         return DiscoverViewModel(
+            context = context,
+            imageLoader = imageLoader,
             searchRepository = searchRepository,
             podcastDao = podcastDao,
             episodeDao = episodeDao,
