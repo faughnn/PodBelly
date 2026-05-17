@@ -40,6 +40,7 @@ data class SettingsUiState(
     val skipSilence: Boolean = false,
     val volumeBoost: Boolean = false,
     val queueEnabled: Boolean = false,
+    val totalDownloadedBytes: Long = 0L,
     val importExportMessage: String? = null,
     val importResult: ImportResult? = null,
 )
@@ -103,6 +104,8 @@ class SettingsViewModel @Inject constructor(
         )
     }.combine(_importResult) { state, importResult ->
         state.copy(importResult = importResult)
+    }.combine(episodeDao.getTotalDownloadedBytes()) { state, totalBytes ->
+        state.copy(totalDownloadedBytes = totalBytes)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

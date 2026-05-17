@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 28
+    const val LATEST_VERSION_CODE = 29
 
     val changelog: Map<Int, List<String>> = mapOf(
+        29 to listOf(
+            "Continue Listening is now sorted by most recently played, so the episode you were just listening to is always first",
+            "Settings now shows how much space your downloaded episodes are using next to the Delete all downloads button",
+        ),
         28 to listOf(
             "Podcast artwork now loads faster and fades in smoothly while scrolling",
         ),
