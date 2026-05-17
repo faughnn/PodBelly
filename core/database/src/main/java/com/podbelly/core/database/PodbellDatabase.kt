@@ -23,7 +23,7 @@ import com.podbelly.core.database.entity.QueueItemEntity
         ListeningSessionEntity::class,
         DownloadErrorEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class PodbellDatabase : RoomDatabase() {
@@ -34,6 +34,19 @@ abstract class PodbellDatabase : RoomDatabase() {
     abstract fun downloadErrorDao(): DownloadErrorDao
 
     companion object {
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Seed lastPlayedAt with publicationDate so existing in-progress
+                // episodes retain a sensible relative order on first launch.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN lastPlayedAt INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "UPDATE episodes SET lastPlayedAt = publicationDate WHERE playbackPosition > 0"
+                )
+            }
+        }
+
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

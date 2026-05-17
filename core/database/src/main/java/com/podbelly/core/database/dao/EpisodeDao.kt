@@ -43,13 +43,16 @@ interface EpisodeDao {
     @Query("SELECT * FROM episodes WHERE downloadPath != ''")
     suspend fun getDownloadedEpisodesOnce(): List<EpisodeEntity>
 
+    @Query("SELECT COALESCE(SUM(fileSize), 0) FROM episodes WHERE downloadPath != ''")
+    fun getTotalDownloadedBytes(): Flow<Long>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(episodes: List<EpisodeEntity>): List<Long>
 
     @Update
     suspend fun update(episode: EpisodeEntity)
 
-    @Query("UPDATE episodes SET playbackPosition = :position WHERE id = :id")
+    @Query("UPDATE episodes SET playbackPosition = :position, lastPlayedAt = (strftime('%s','now') * 1000) WHERE id = :id")
     suspend fun updatePlaybackPosition(id: Long, position: Long)
 
     @Query("UPDATE episodes SET played = 1 WHERE id = :id")
@@ -77,7 +80,7 @@ interface EpisodeDao {
         WHERE podcasts.subscribed = 1
           AND episodes.playbackPosition > 0
           AND episodes.played = 0
-        ORDER BY episodes.publicationDate DESC
+        ORDER BY episodes.lastPlayedAt DESC, episodes.publicationDate DESC
         """
     )
     fun getInProgressEpisodes(): Flow<List<EpisodeEntity>>
@@ -90,7 +93,7 @@ interface EpisodeDao {
           AND episodes.playbackPosition > 0
           AND episodes.played = 0
           AND episodes.downloadPath != ''
-        ORDER BY episodes.publicationDate DESC
+        ORDER BY episodes.lastPlayedAt DESC, episodes.publicationDate DESC
         LIMIT 1
         """
     )
