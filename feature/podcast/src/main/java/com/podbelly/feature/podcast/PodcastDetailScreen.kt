@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.FileDownload
@@ -77,6 +78,7 @@ fun PodcastDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -140,8 +142,10 @@ fun PodcastDetailScreen(
                     EpisodeCard(
                         episode = episode,
                         downloadProgress = downloadProgress[episode.id],
+                        isCurrentlyPlaying = playbackState.episodeId == episode.id &&
+                            playbackState.isPlaying,
                         onClick = { onEpisodeClick(episode.id) },
-                        onPlay = { viewModel.playEpisode(episode.id) },
+                        onPlay = { viewModel.togglePlayPause(episode.id) },
                         onDownload = { viewModel.downloadEpisode(episode.id) },
                         onCancelDownload = { viewModel.cancelDownload(episode.id) },
                         onDeleteDownload = { viewModel.deleteDownload(episode.id) },
@@ -370,6 +374,7 @@ internal fun EpisodeCard(
     queueEnabled: Boolean = false,
     onPlayNext: () -> Unit = {},
     onPlayLast: () -> Unit = {},
+    isCurrentlyPlaying: Boolean = false,
 ) {
     val isDownloading = downloadProgress != null
     val playedAlpha = if (episode.played) 0.5f else 1f
@@ -507,6 +512,13 @@ internal fun EpisodeCard(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        episode.isDownloaded && isCurrentlyPlaying -> {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "Pause episode",
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                         episode.isDownloaded && episode.played -> {

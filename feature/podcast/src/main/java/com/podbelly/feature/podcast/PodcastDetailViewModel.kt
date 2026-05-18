@@ -13,6 +13,7 @@ import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.playback.PlaybackController
+import com.podbelly.core.playback.PlaybackState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -72,6 +73,7 @@ class PodcastDetailViewModel @Inject constructor(
     /** Download progress map exposed for the UI (episodeId -> 0.0..1.0). */
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
     val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
+    val playbackState: StateFlow<PlaybackState> = playbackController.playbackState
 
     val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -190,6 +192,22 @@ class PodcastDetailViewModel @Inject constructor(
                 startPosition = episode.playbackPosition,
                 podcastId = podcast.id,
             )
+        }
+    }
+
+    /**
+     * Tap-handler for an episode card's play/pause icon. Pauses if this episode
+     * is the one currently playing, resumes if it is loaded but paused, and
+     * otherwise starts fresh playback. Without this, tapping the icon on the
+     * currently-playing episode would re-trigger play() and seek back to the
+     * saved DB position — looking like a broken pause.
+     */
+    fun togglePlayPause(episodeId: Long) {
+        val state = playbackController.playbackState.value
+        when {
+            state.episodeId == episodeId && state.isPlaying -> playbackController.pause()
+            state.episodeId == episodeId -> playbackController.resume()
+            else -> playEpisode(episodeId)
         }
     }
 

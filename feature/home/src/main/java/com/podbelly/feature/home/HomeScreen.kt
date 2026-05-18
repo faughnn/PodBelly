@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
@@ -93,6 +94,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -174,8 +176,10 @@ fun HomeScreen(
                     episodes = uiState.recentEpisodes,
                     inProgressEpisodes = uiState.inProgressEpisodes,
                     downloadProgress = downloadProgress,
+                    currentlyPlayingEpisodeId = playbackState.episodeId,
+                    isPlayerPlaying = playbackState.isPlaying,
                     onEpisodeClick = onEpisodeClick,
-                    onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
+                    onPlayClick = { episodeId -> viewModel.togglePlayPause(episodeId) },
                     onDownloadClick = { episodeId -> viewModel.downloadEpisode(episodeId) },
                     onCancelDownloadClick = { episodeId -> viewModel.cancelDownload(episodeId) },
                     queueEnabled = queueEnabled,
@@ -234,6 +238,8 @@ internal fun EpisodeList(
     episodes: List<HomeEpisodeItem>,
     inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
     downloadProgress: Map<Long, Float>,
+    currentlyPlayingEpisodeId: Long = 0L,
+    isPlayerPlaying: Boolean = false,
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
     onDownloadClick: (Long) -> Unit,
@@ -295,6 +301,8 @@ internal fun EpisodeList(
             EpisodeCard(
                 episode = episode,
                 downloadProgress = downloadProgress[episode.episodeId],
+                isCurrentlyPlaying = currentlyPlayingEpisodeId == episode.episodeId &&
+                    isPlayerPlaying,
                 onClick = { onEpisodeClick(episode.episodeId) },
                 onPlay = { onPlayClick(episode.episodeId) },
                 onDownload = { onDownloadClick(episode.episodeId) },
@@ -420,6 +428,7 @@ fun EpisodeCard(
     queueEnabled: Boolean = false,
     onPlayNext: () -> Unit = {},
     onPlayLast: () -> Unit = {},
+    isCurrentlyPlaying: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val isDownloaded = episode.downloadPath.isNotBlank()
@@ -526,7 +535,7 @@ fun EpisodeCard(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Single action button: Download → Progress → Play / Played
+                // Single action button: Download → Progress → Play / Pause / Played
                 IconButton(
                     onClick = {
                         when {
@@ -557,6 +566,12 @@ fun EpisodeCard(
                                 modifier = Modifier.size(22.dp),
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        isDownloaded && isCurrentlyPlaying -> {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "Pause episode",
                             )
                         }
                         isDownloaded && episode.played -> {

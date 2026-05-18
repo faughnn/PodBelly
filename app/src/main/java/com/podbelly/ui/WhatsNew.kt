@@ -1,11 +1,14 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 30
+    const val LATEST_VERSION_CODE = 31
 
     val changelog: Map<Int, List<String>> = mapOf(
+        31 to listOf(
+            "Play buttons on Home, Podcast, and Episode pages now turn into Pause while the episode is playing — tapping them actually pauses instead of restarting the episode",
+        ),
         30 to listOf(
-            "Episode page Play button now turns into a Pause button while the episode is playing, so tapping it actually pauses instead of restarting the episode",
+            "Episode page Play button turns into Pause while the episode is playing",
         ),
         29 to listOf(
             "Continue Listening is now sorted by most recently played, so the episode you were just listening to is always first",
