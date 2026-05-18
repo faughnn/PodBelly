@@ -11,6 +11,7 @@ import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
+import com.podbelly.core.playback.PlaybackState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -53,6 +54,7 @@ class EpisodeDetailViewModel @Inject constructor(
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
     val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
+    val playbackState: StateFlow<PlaybackState> = playbackController.playbackState
 
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
@@ -104,6 +106,22 @@ class EpisodeDetailViewModel @Inject constructor(
                 startPosition = episode.playbackPosition,
                 podcastId = episode.podcastId,
             )
+        }
+    }
+
+    /**
+     * Routes a tap on the main action button to play, pause, or resume based on
+     * whether this episode is the one currently loaded in the player. Without
+     * this, tapping "Play" again on the already-playing episode would re-trigger
+     * [PlaybackController.play], causing the player to seek back to the saved
+     * position and briefly re-buffer — which looks like a broken pause button.
+     */
+    fun togglePlayPause() {
+        val state = playbackController.playbackState.value
+        when {
+            state.episodeId == episodeId && state.isPlaying -> playbackController.pause()
+            state.episodeId == episodeId -> playbackController.resume()
+            else -> playEpisode()
         }
     }
 

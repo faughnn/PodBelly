@@ -10,6 +10,7 @@ import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.playback.PlaybackController
+import com.podbelly.core.playback.PlaybackState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -43,6 +44,7 @@ class EpisodeDetailViewModelTest {
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
 
     private val episodeFlow = MutableStateFlow<EpisodeEntity?>(null)
+    private val playbackStateFlow = MutableStateFlow(PlaybackState())
 
     private val testEpisode = EpisodeEntity(
         id = 5L,
@@ -78,6 +80,7 @@ class EpisodeDetailViewModelTest {
         every { episodeDao.getById(5L) } returns episodeFlow
         coEvery { podcastDao.getByIdOnce(1L) } returns testPodcast
         every { downloadManager.downloadProgress } returns MutableStateFlow(emptyMap())
+        every { playbackController.playbackState } returns playbackStateFlow
     }
 
     @After
@@ -195,6 +198,50 @@ class EpisodeDetailViewModelTest {
             playbackController.play(
                 episodeId = 5L,
                 audioUrl = "/local/episode5.mp3",
+                title = "Test Episode Title",
+                podcastTitle = "Test Podcast",
+                artworkUrl = "https://example.com/episode_art.jpg",
+                startPosition = 30000L,
+                podcastId = 1L,
+            )
+        }
+    }
+
+    @Test
+    fun `togglePlayPause pauses when this episode is currently playing`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = true)
+
+        val viewModel = createViewModel()
+        viewModel.togglePlayPause()
+        advanceUntilIdle()
+
+        verify { playbackController.pause() }
+    }
+
+    @Test
+    fun `togglePlayPause resumes when this episode is loaded but paused`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = false)
+
+        val viewModel = createViewModel()
+        viewModel.togglePlayPause()
+        advanceUntilIdle()
+
+        verify { playbackController.resume() }
+    }
+
+    @Test
+    fun `togglePlayPause starts fresh play when a different episode is loaded`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 99L, isPlaying = true)
+        coEvery { episodeDao.getByIdOnce(5L) } returns testEpisode
+
+        val viewModel = createViewModel()
+        viewModel.togglePlayPause()
+        advanceUntilIdle()
+
+        verify {
+            playbackController.play(
+                episodeId = 5L,
+                audioUrl = "https://example.com/episode5.mp3",
                 title = "Test Episode Title",
                 podcastTitle = "Test Podcast",
                 artworkUrl = "https://example.com/episode_art.jpg",

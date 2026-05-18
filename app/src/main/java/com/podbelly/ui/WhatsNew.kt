@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 29
+    const val LATEST_VERSION_CODE = 30
 
     val changelog: Map<Int, List<String>> = mapOf(
+        30 to listOf(
+            "Episode page Play button now turns into a Pause button while the episode is playing, so tapping it actually pauses instead of restarting the episode",
+        ),
         29 to listOf(
             "Continue Listening is now sorted by most recently played, so the episode you were just listening to is always first",
             "Settings now shows how much space your downloaded episodes are using next to the Delete all downloads button",

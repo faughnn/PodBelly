@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Share
@@ -76,6 +77,10 @@ fun EpisodeDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val episodeProgress = downloadProgress[uiState.episodeId]
+    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
+    val isCurrentlyPlaying = uiState.episodeId != 0L &&
+        playbackState.episodeId == uiState.episodeId &&
+        playbackState.isPlaying
     val context = LocalContext.current
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
@@ -246,11 +251,11 @@ fun EpisodeDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Download / Play button — download-first pattern
+            // Download / Play / Pause button — download-first pattern, toggles to Pause while playing
             FilledTonalButton(
                 onClick = {
                     when {
-                        uiState.isDownloaded -> viewModel.playEpisode()
+                        uiState.isDownloaded -> viewModel.togglePlayPause()
                         episodeProgress != null -> viewModel.cancelDownload()
                         else -> viewModel.downloadEpisode()
                     }
@@ -266,6 +271,15 @@ fun EpisodeDetailScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Downloading")
+                    }
+                    uiState.isDownloaded && isCurrentlyPlaying -> {
+                        Icon(
+                            imageVector = Icons.Default.Pause,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Pause")
                     }
                     uiState.isDownloaded -> {
                         Icon(
