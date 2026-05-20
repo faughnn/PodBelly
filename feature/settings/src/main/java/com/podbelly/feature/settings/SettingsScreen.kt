@@ -343,6 +343,60 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Diagnostics ───────────────────────────────────────────
+
+            item { SectionHeader(title = "Diagnostics") }
+
+            item {
+                SettingsCard {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = "If the app crashes, the stack trace is saved locally. Share it to help diagnose the problem.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.clearCrashLogs() },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(text = "Clear logs")
+                            }
+
+                            Button(
+                                onClick = {
+                                    viewModel.shareCrashLogs { content ->
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, content)
+                                            putExtra(
+                                                Intent.EXTRA_SUBJECT,
+                                                "Podbelly crash logs (v$versionName)",
+                                            )
+                                        }
+                                        context.startActivity(
+                                            Intent.createChooser(shareIntent, "Share crash logs")
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(text = "Share crash logs")
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Statistics ─────────────────────────────────────────────
 
             item { SectionHeader(title = "Statistics") }
