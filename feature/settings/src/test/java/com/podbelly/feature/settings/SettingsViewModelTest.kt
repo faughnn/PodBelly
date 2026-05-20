@@ -2,6 +2,7 @@ package com.podbelly.feature.settings
 
 import app.cash.turbine.test
 import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.CrashLogStore
 import com.podbelly.core.common.CrashReporter
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
@@ -45,6 +46,7 @@ class SettingsViewModelTest {
     private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
     private val downloadManager = mockk<com.podbelly.core.common.DownloadManager>(relaxed = true)
     private val crashReporter = mockk<CrashReporter>(relaxed = true)
+    private val crashLogStore = mockk<CrashLogStore>(relaxed = true)
 
     private val appThemeFlow = MutableStateFlow(AppTheme.SYSTEM)
     private val feedRefreshIntervalFlow = MutableStateFlow(60)
@@ -88,6 +90,7 @@ class SettingsViewModelTest {
             searchRepository = searchRepository,
             downloadManager = downloadManager,
             crashReporter = crashReporter,
+            crashLogStore = crashLogStore,
         )
     }
 
