@@ -16,6 +16,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
@@ -63,6 +64,7 @@ class PlaybackController @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var mediaController: MediaController? = null
+    private var controllerFuture: ListenableFuture<MediaController>? = null
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -193,20 +195,30 @@ class PlaybackController @Inject constructor(
      * Must be called once (typically from Application.onCreate or an Activity) before
      * any playback operations are invoked.
      *
-     * Safe to call multiple times -- subsequent calls are no-ops if already connected.
+     * Safe to call multiple times -- subsequent calls are no-ops if already connecting
+     * or connected.
      */
     fun connectToService(context: Context) {
-        if (mediaController != null) return
+        if (mediaController != null || controllerFuture != null) return
+
+        // Always use the application context: this PlaybackController is a Singleton
+        // that outlives any individual Activity. If we bind the MediaController to an
+        // Activity context, Android tears down that context's service-connection
+        // dispatchers when the Activity is destroyed; a later release() (including
+        // Media3's internal release on service disconnect) then crashes with
+        // "Service not registered" inside LoadedApk.forgetServiceDispatcher.
+        val appContext = context.applicationContext
 
         val sessionToken = SessionToken(
-            context,
-            ComponentName(context, PlaybackService::class.java)
+            appContext,
+            ComponentName(appContext, PlaybackService::class.java)
         )
 
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        val future = MediaController.Builder(appContext, sessionToken).buildAsync()
+        controllerFuture = future
 
         Futures.addCallback(
-            controllerFuture,
+            future,
             object : FutureCallback<MediaController> {
                 override fun onSuccess(controller: MediaController) {
                     mediaController = controller
@@ -229,6 +241,7 @@ class PlaybackController @Inject constructor(
                 override fun onFailure(t: Throwable) {
                     Log.e(TAG, "Failed to connect to PlaybackService", t)
                     mediaController = null
+                    controllerFuture = null
                 }
             },
             MoreExecutors.directExecutor()
@@ -461,11 +474,23 @@ class PlaybackController @Inject constructor(
     fun release() {
         stopPositionUpdates()
 
-        mediaController?.run {
-            removeListener(playerListener)
-            release()
-        }
+        mediaController?.removeListener(playerListener)
         mediaController = null
+
+        // Use releaseFuture so that an in-flight buildAsync is cancelled cleanly
+        // rather than leaking a half-built controller. Wrap in try/catch because
+        // Media3 can throw IllegalArgumentException("Service not registered") if
+        // the underlying service binding was already torn down (a known race —
+        // see androidx/media issue #239).
+        controllerFuture?.let { future ->
+            try {
+                MediaController.releaseFuture(future)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing MediaController", e)
+            }
+        }
+        controllerFuture = null
+
         scope.cancel()
     }
 
