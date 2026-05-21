@@ -3,6 +3,7 @@ package com.podbelly.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.CrashLogStore
 import com.podbelly.core.common.CrashReporter
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
@@ -40,6 +41,7 @@ data class SettingsUiState(
     val skipSilence: Boolean = false,
     val volumeBoost: Boolean = false,
     val queueEnabled: Boolean = false,
+    val totalDownloadedBytes: Long = 0L,
     val importExportMessage: String? = null,
     val importResult: ImportResult? = null,
 )
@@ -52,6 +54,7 @@ class SettingsViewModel @Inject constructor(
     private val searchRepository: PodcastSearchRepository,
     private val downloadManager: DownloadManager,
     private val crashReporter: CrashReporter,
+    private val crashLogStore: CrashLogStore,
 ) : ViewModel() {
 
     private val _importExportMessage = MutableStateFlow<String?>(null)
@@ -103,6 +106,8 @@ class SettingsViewModel @Inject constructor(
         )
     }.combine(_importResult) { state, importResult ->
         state.copy(importResult = importResult)
+    }.combine(episodeDao.getTotalDownloadedBytes()) { state, totalBytes ->
+        state.copy(totalDownloadedBytes = totalBytes)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -257,6 +262,29 @@ class SettingsViewModel @Inject constructor(
                 _importExportMessage.value = "Deleted $count download(s)"
             } catch (e: Exception) {
                 _importExportMessage.value = "Failed to delete downloads: ${e.message}"
+            }
+        }
+    }
+
+    fun shareCrashLogs(onContent: (String) -> Unit) {
+        viewModelScope.launch {
+            val content = crashLogStore.read()
+            if (content.isNullOrBlank()) {
+                _importExportMessage.value = "No crash logs recorded yet"
+            } else {
+                onContent(content)
+            }
+        }
+    }
+
+    fun clearCrashLogs() {
+        viewModelScope.launch {
+            val hadLogs = crashLogStore.hasLogs()
+            crashLogStore.clear()
+            _importExportMessage.value = if (hadLogs) {
+                "Crash logs cleared"
+            } else {
+                "No crash logs to clear"
             }
         }
     }
