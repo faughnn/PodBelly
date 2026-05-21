@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 30
+    const val LATEST_VERSION_CODE = 31
 
     val changelog: Map<Int, List<String>> = mapOf(
+        31 to listOf(
+            "Fixed a rare crash that could happen when playback was unexpectedly interrupted",
+        ),
         30 to listOf(
             "Settings now has a Diagnostics section — share crash logs from your phone when something goes wrong",
         ),
