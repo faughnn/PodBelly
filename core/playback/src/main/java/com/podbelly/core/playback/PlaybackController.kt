@@ -518,7 +518,10 @@ class PlaybackController @Inject constructor(
     private suspend fun advanceQueue() {
         // Only auto-advance if queue feature is enabled
         val queueEnabled = preferencesManager.queueEnabled.first()
-        if (!queueEnabled) return
+        if (!queueEnabled) {
+            stopPlayerAfterEnded()
+            return
+        }
 
         try {
             // Remove the episode that just finished from the queue
@@ -546,10 +549,21 @@ class PlaybackController @Inject constructor(
                 _playbackState.update {
                     it.copy(hasNext = false, hasPrevious = false)
                 }
+                stopPlayerAfterEnded()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to advance queue", e)
         }
+    }
+
+    // A STATE_ENDED player still has the finished media item loaded, so any
+    // play() from a Bluetooth headset, car head unit, or system notification
+    // seeks back to 0 and restarts the same episode. Dropping to IDLE prevents
+    // that.
+    private fun stopPlayerAfterEnded() {
+        val controller = mediaController ?: return
+        controller.clearMediaItems()
+        controller.stop()
     }
 
     /**
