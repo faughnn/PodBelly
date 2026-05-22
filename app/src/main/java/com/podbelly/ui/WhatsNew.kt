@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 31
+    const val LATEST_VERSION_CODE = 32
 
     val changelog: Map<Int, List<String>> = mapOf(
+        32 to listOf(
+            "Fixed episodes restarting from the beginning after they finished instead of stopping",
+        ),
         31 to listOf(
             "Fixed a rare crash that could happen when playback was unexpectedly interrupted",
         ),
