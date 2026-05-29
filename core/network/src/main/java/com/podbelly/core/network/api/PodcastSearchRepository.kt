@@ -46,16 +46,19 @@ class PodcastSearchRepository @Inject constructor(
             .get()
             .build()
 
-        val response = okHttpClient.newCall(request).execute()
+        // Use `response.use { }` so the body/connection is always returned to the
+        // pool, including the error and empty-body paths. Without this, every feed
+        // that returns an HTTP error leaked a connection on each periodic refresh.
+        okHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IOException("Failed to fetch feed: HTTP ${response.code} for $feedUrl")
+            }
 
-        if (!response.isSuccessful) {
-            throw IOException("Failed to fetch feed: HTTP ${response.code} for $feedUrl")
+            val body = response.body?.string()
+                ?: throw IOException("Empty response body for $feedUrl")
+
+            rssParser.parse(feedUrl, body)
         }
-
-        val body = response.body?.string()
-            ?: throw IOException("Empty response body for $feedUrl")
-
-        rssParser.parse(feedUrl, body)
     }
 
     companion object {

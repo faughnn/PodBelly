@@ -10,7 +10,10 @@ import androidx.room.PrimaryKey
     tableName = "episodes",
     indices = [
         Index(value = ["podcastId"]),
-        Index(value = ["guid"], unique = true)
+        // GUIDs are only unique *within* a feed, so scope uniqueness to the podcast.
+        // A global unique index caused episodes to be silently dropped when two
+        // feeds happened to share a GUID (e.g. plain integer ids).
+        Index(value = ["podcastId", "guid"], unique = true)
     ],
     foreignKeys = [
         ForeignKey(

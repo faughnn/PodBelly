@@ -141,7 +141,7 @@ class PodcastDetailViewModel @Inject constructor(
                 val rssFeed = searchRepository.fetchFeed(podcastEntity.feedUrl)
 
                 val newEpisodes = rssFeed.episodes.mapNotNull { rssEpisode ->
-                    val existing = episodeDao.getByGuid(rssEpisode.guid)
+                    val existing = episodeDao.getByPodcastAndGuid(podcastId, rssEpisode.guid)
                     if (existing == null) {
                         EpisodeEntity(
                             podcastId = podcastId,

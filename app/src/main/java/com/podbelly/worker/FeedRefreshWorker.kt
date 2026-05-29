@@ -50,7 +50,7 @@ class FeedRefreshWorker @AssistedInject constructor(
 
                     // Check existing GUIDs to find truly new episodes
                     val newEpisodes = feed.episodes.mapNotNull { rssEpisode ->
-                        val existing = episodeDao.getByGuid(rssEpisode.guid)
+                        val existing = episodeDao.getByPodcastAndGuid(podcast.id, rssEpisode.guid)
                         if (existing == null) {
                             EpisodeEntity(
                                 podcastId = podcast.id,

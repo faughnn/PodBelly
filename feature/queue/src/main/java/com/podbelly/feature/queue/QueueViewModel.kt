@@ -84,6 +84,7 @@ class QueueViewModel @Inject constructor(
                 podcastTitle = podcast?.title.orEmpty(),
                 artworkUrl = episode.artworkUrl.ifBlank { podcast?.artworkUrl.orEmpty() },
                 startPosition = episode.playbackPosition,
+                podcastId = episode.podcastId,
             )
         }
     }
@@ -100,11 +101,23 @@ class QueueViewModel @Inject constructor(
         }
     }
 
-    fun moveItem(fromIndex: Int, toIndex: Int) {
+    fun moveUp(queueId: Long) = reorder(queueId, -1)
+
+    fun moveDown(queueId: Long) = reorder(queueId, +1)
+
+    /**
+     * Moves the queue item identified by [queueId] by [delta] positions. Resolving the
+     * item by its stable id (rather than a UI list index) means a queue mutation between
+     * render and tap — e.g. the head episode finishing and being auto-removed — can no
+     * longer cause the wrong row to be moved.
+     */
+    private fun reorder(queueId: Long, delta: Int) {
         viewModelScope.launch {
-            // Snapshot the current queue items ordered by position
             val currentItems = queueDao.getQueueWithEpisodes().first()
-            if (fromIndex !in currentItems.indices || toIndex !in currentItems.indices) return@launch
+            val fromIndex = currentItems.indexOfFirst { it.queueItem.id == queueId }
+            if (fromIndex < 0) return@launch
+            val toIndex = fromIndex + delta
+            if (toIndex !in currentItems.indices) return@launch
 
             val mutableList = currentItems.toMutableList()
             val movedItem = mutableList.removeAt(fromIndex)

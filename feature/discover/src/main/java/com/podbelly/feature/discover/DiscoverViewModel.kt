@@ -9,14 +9,15 @@ import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -54,17 +55,24 @@ class DiscoverViewModel @Inject constructor(
     val navigateToPodcast = _navigateToPodcast.receiveAsFlow()
 
     private val searchQueryFlow = MutableStateFlow("")
-    private var searchJob: Job? = null
+
+    /** Explicit (e.g. IME "Search" action) queries that should run without the debounce. */
+    private val immediateSearch = Channel<String>(Channel.CONFLATED)
 
     init {
         viewModelScope.launch {
-            searchQueryFlow
-                .debounce(400L)
-                .distinctUntilChanged()
-                .filter { it.isNotBlank() }
-                .collect { query ->
-                    performSearch(query)
-                }
+            // A single pipeline runs every search. collectLatest cancels any in-flight
+            // search when a newer query arrives, so two concurrent requests can no longer
+            // race to overwrite the results (last-writer-wins).
+            merge(
+                searchQueryFlow
+                    .debounce(400L)
+                    .distinctUntilChanged()
+                    .filter { it.isNotBlank() },
+                immediateSearch.receiveAsFlow(),
+            ).collectLatest { query ->
+                performSearch(query)
+            }
         }
     }
 
@@ -84,10 +92,9 @@ class DiscoverViewModel @Inject constructor(
     fun search(query: String) {
         updateSearchQuery(query)
         if (query.isNotBlank()) {
-            searchJob?.cancel()
-            searchJob = viewModelScope.launch {
-                performSearch(query)
-            }
+            // Bypass the debounce for an explicit search; the shared pipeline still
+            // serializes it via collectLatest.
+            immediateSearch.trySend(query)
         }
     }
 

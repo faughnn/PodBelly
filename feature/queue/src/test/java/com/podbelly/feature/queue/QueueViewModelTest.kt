@@ -212,6 +212,7 @@ class QueueViewModelTest {
                 podcastTitle = "Show",
                 artworkUrl = "https://art.com/ep.jpg",
                 startPosition = 0L,
+                podcastId = 1L,
             )
         }
     }
@@ -236,6 +237,7 @@ class QueueViewModelTest {
                 podcastTitle = podcast.title,
                 artworkUrl = episode.artworkUrl,
                 startPosition = 45000L,
+                podcastId = 1L,
             )
         }
         // seekTo should NOT be called separately -- startPosition is passed directly
@@ -275,7 +277,7 @@ class QueueViewModelTest {
     }
 
     @Test
-    fun `moveItem reorders items and calls updatePositions`() = runTest {
+    fun `moveDown reorders items and calls updatePositions`() = runTest {
         val episode1 = makeEpisode(id = 1L, podcastId = 1L, title = "First")
         val episode2 = makeEpisode(id = 2L, podcastId = 1L, title = "Second")
         val queueItem1 = makeQueueItem(id = 1L, episodeId = 1L, position = 0)
@@ -286,11 +288,11 @@ class QueueViewModelTest {
             QueueEpisode(queueItem = queueItem2, episode = episode2),
         )
 
-        // getQueueWithEpisodes is called as Flow for uiState and as first() in moveItem
+        // getQueueWithEpisodes is called as Flow for uiState and as first() in reorder
         every { queueDao.getQueueWithEpisodes() } returns MutableStateFlow(queueEpisodes)
 
         val viewModel = createViewModel()
-        viewModel.moveItem(0, 1) // move first item to second position
+        viewModel.moveDown(queueId = 1L) // move first item (queueId 1) down one
         advanceUntilIdle()
 
         coVerify {
@@ -303,7 +305,7 @@ class QueueViewModelTest {
     }
 
     @Test
-    fun `moveItem with invalid indices does not call updatePositions`() = runTest {
+    fun `moveUp on the first item does not call updatePositions`() = runTest {
         val episode = makeEpisode(id = 1L, podcastId = 1L)
         val queueItem = makeQueueItem(id = 1L, episodeId = 1L, position = 0)
 
@@ -312,7 +314,7 @@ class QueueViewModelTest {
         )
 
         val viewModel = createViewModel()
-        viewModel.moveItem(0, 5) // toIndex out of bounds
+        viewModel.moveUp(queueId = 1L) // already first — target index -1 is out of bounds
         advanceUntilIdle()
 
         coVerify(exactly = 0) { queueDao.updatePositions(any()) }

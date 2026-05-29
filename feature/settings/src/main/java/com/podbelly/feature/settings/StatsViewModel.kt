@@ -13,6 +13,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -40,8 +42,6 @@ class StatsViewModel @Inject constructor(
     listeningSessionDao: ListeningSessionDao,
 ) : ViewModel() {
 
-    private val now = System.currentTimeMillis()
-
     val uiState: StateFlow<StatsUiState> = combine(
         listeningSessionDao.getTotalListenedMs(),
         listeningSessionDao.getTimeSavedBySpeed(),
@@ -55,8 +55,11 @@ class StatsViewModel @Inject constructor(
     ) { base, mostDownloaded ->
         base to mostDownloaded
     }.combine(combine(
-        listeningSessionDao.getListenedMsSince(now - 7 * 86400000L),
-        listeningSessionDao.getListenedMsSince(now - 30 * 86400000L),
+        // Capture the rolling-window cutoff when collection starts rather than at
+        // construction, so the "this week"/"this month" windows don't go stale if the
+        // screen is observed across a day/week boundary.
+        flow { emitAll(listeningSessionDao.getListenedMsSince(System.currentTimeMillis() - 7 * 86400000L)) },
+        flow { emitAll(listeningSessionDao.getListenedMsSince(System.currentTimeMillis() - 30 * 86400000L)) },
         listeningSessionDao.getListeningDays(),
         listeningSessionDao.getAverageSessionLengthMs(),
         listeningSessionDao.getListeningMsByDayOfWeek(),

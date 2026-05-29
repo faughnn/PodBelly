@@ -92,10 +92,16 @@ class AppViewModel @Inject constructor(
     }
 
     fun refreshIfStale() {
-        val elapsed = System.currentTimeMillis() - lastRefreshTime
-        val fifteenMinutes = 15 * 60 * 1000L
-        if (elapsed >= fifteenMinutes) {
-            refreshFeeds()
+        viewModelScope.launch {
+            // Honor the user's configured refresh interval. 0 means "Manual only",
+            // in which case the foreground refresh should not fire automatically.
+            val intervalMinutes = preferencesManager.feedRefreshIntervalMinutes.first()
+            if (intervalMinutes <= 0) return@launch
+
+            val elapsed = System.currentTimeMillis() - lastRefreshTime
+            if (elapsed >= intervalMinutes * 60_000L) {
+                refreshFeeds()
+            }
         }
     }
 

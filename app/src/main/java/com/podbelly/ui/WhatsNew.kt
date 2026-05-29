@@ -1,9 +1,17 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 24
+    const val LATEST_VERSION_CODE = 25
 
     val changelog: Map<Int, List<String>> = mapOf(
+        25 to listOf(
+            "Sleep timer's \"end of episode\" now reliably pauses when the episode finishes",
+            "Playing an episode from the queue now continues to the correct next episode",
+            "Queue playback now uses each podcast's custom speed",
+            "Downloads automatically retry after a temporary network drop",
+            "Feed refresh now respects the interval you set in Settings",
+            "Fixed some episodes not showing up when subscribed to multiple shows",
+        ),
         24 to listOf(
             "Fixed crash when starting a download on Android 14+",
         ),

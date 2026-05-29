@@ -89,29 +89,31 @@ class SleepTimer @Inject constructor(
         cancel()
 
         endOfEpisode = true
+        // Tell the controller to stop at the end of the episode instead of
+        // auto-advancing the queue.
+        playbackController.setPauseAtEpisodeEnd(true)
         // Set remaining to a sentinel value so isActive reads as true.
         _remainingMillis.value = Long.MAX_VALUE
 
         endOfEpisodeJob = scope.launch {
-            playbackController.playbackState.collect { state ->
-                if (!endOfEpisode) return@collect
-
-                // If the episode reached the end and is no longer playing, trigger pause.
-                val reachedEnd = state.duration > 0L &&
-                        state.currentPosition >= state.duration - 500L &&
-                        !state.isPlaying
-
-                if (reachedEnd) {
-                    playbackController.pause()
+            // Trigger: react to the actual end-of-episode event from the controller.
+            // We can't infer the end from currentPosition because it is reset to 0 on
+            // STATE_ENDED before any near-duration position is ever observed.
+            launch {
+                playbackController.episodeEnded.collect {
+                    if (!endOfEpisode) return@collect
                     endOfEpisode = false
                     _remainingMillis.value = 0L
-                    return@collect
                 }
+            }
 
-                // Update remaining millis based on distance to end of episode.
-                if (state.duration > 0L && state.isPlaying) {
-                    val left = (state.duration - state.currentPosition).coerceAtLeast(0L)
-                    _remainingMillis.value = left
+            // Display: keep the remaining-time readout updated as the episode plays.
+            launch {
+                playbackController.playbackState.collect { state ->
+                    if (endOfEpisode && state.duration > 0L && state.isPlaying) {
+                        _remainingMillis.value =
+                            (state.duration - state.currentPosition).coerceAtLeast(0L)
+                    }
                 }
             }
         }
@@ -126,6 +128,8 @@ class SleepTimer @Inject constructor(
         endOfEpisodeJob?.cancel()
         endOfEpisodeJob = null
         endOfEpisode = false
+        // Re-enable queue auto-advance when the end-of-episode timer is cleared.
+        playbackController.setPauseAtEpisodeEnd(false)
         _remainingMillis.value = 0L
     }
 }

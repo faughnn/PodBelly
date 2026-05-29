@@ -8,7 +8,7 @@ import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
 import java.security.MessageDigest
-import java.text.ParseException
+import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -45,8 +45,11 @@ class RssParser @Inject constructor() {
             "EEE, d MMM yyyy HH:mm:ss z",
             "yyyy-MM-dd'T'HH:mm:ss'Z'",
             "yyyy-MM-dd'T'HH:mm:ssZ",
+            // RFC 3339 colon-separated offsets (e.g. +02:00) emitted by iTunes/Atom feeds.
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
             "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
             "yyyy-MM-dd"
         )
     }
@@ -349,39 +352,34 @@ class RssParser @Inject constructor() {
         val cleaned = cleanDateString(trimmed)
 
         for (format in RFC822_FORMATS) {
-            try {
-                val sdf = SimpleDateFormat(format, Locale.US).apply {
-                    timeZone = TimeZone.getTimeZone("UTC")
-                    isLenient = true
-                }
-                val date = sdf.parse(cleaned)
-                if (date != null) {
-                    return date.time
-                }
-            } catch (_: ParseException) {
-                // Try next format
-            }
+            tryParseDate(format, cleaned)?.let { return it }
         }
 
         // Last resort: try the original untouched string
         if (cleaned != trimmed) {
             for (format in RFC822_FORMATS) {
-                try {
-                    val sdf = SimpleDateFormat(format, Locale.US).apply {
-                        timeZone = TimeZone.getTimeZone("UTC")
-                        isLenient = true
-                    }
-                    val date = sdf.parse(trimmed)
-                    if (date != null) {
-                        return date.time
-                    }
-                } catch (_: ParseException) {
-                    // Try next format
-                }
+                tryParseDate(format, trimmed)?.let { return it }
             }
         }
 
         return 0L
+    }
+
+    /**
+     * Attempts to parse [input] with the given [format], returning epoch millis only
+     * when the entire string is consumed. Uses non-lenient parsing so out-of-range
+     * fields (e.g. month 13) are rejected instead of silently rolling over, and the
+     * full-consumption check prevents a short pattern like "yyyy-MM-dd" from matching
+     * only the date prefix of a full timestamp (which dropped the time-of-day).
+     */
+    private fun tryParseDate(format: String, input: String): Long? {
+        val sdf = SimpleDateFormat(format, Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false
+        }
+        val position = ParsePosition(0)
+        val date = sdf.parse(input, position)
+        return if (date != null && position.index == input.length) date.time else null
     }
 
     /**

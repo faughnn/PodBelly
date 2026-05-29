@@ -23,6 +23,9 @@ interface EpisodeDao {
     @Query("SELECT * FROM episodes WHERE guid = :guid LIMIT 1")
     suspend fun getByGuid(guid: String): EpisodeEntity?
 
+    @Query("SELECT * FROM episodes WHERE podcastId = :podcastId AND guid = :guid LIMIT 1")
+    suspend fun getByPodcastAndGuid(podcastId: Long, guid: String): EpisodeEntity?
+
     @Query(
         """
         SELECT episodes.* FROM episodes

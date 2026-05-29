@@ -97,14 +97,8 @@ fun QueueScreen(
                     onNavigateToPlayer()
                 },
                 onRemoveItem = { episodeId -> viewModel.removeItem(episodeId) },
-                onMoveUp = { index ->
-                    if (index > 0) viewModel.moveItem(index, index - 1)
-                },
-                onMoveDown = { index ->
-                    if (index < uiState.queueItems.lastIndex) {
-                        viewModel.moveItem(index, index + 1)
-                    }
-                },
+                onMoveUp = { queueId -> viewModel.moveUp(queueId) },
+                onMoveDown = { queueId -> viewModel.moveDown(queueId) },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
@@ -152,8 +146,8 @@ internal fun QueueContent(
     nowPlayingEpisodeId: Long?,
     onPlayItem: (Long) -> Unit,
     onRemoveItem: (Long) -> Unit,
-    onMoveUp: (index: Int) -> Unit,
-    onMoveDown: (index: Int) -> Unit,
+    onMoveUp: (queueId: Long) -> Unit,
+    onMoveDown: (queueId: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -166,7 +160,9 @@ internal fun QueueContent(
         ) { index, item ->
             val isNowPlaying = item.episodeId == nowPlayingEpisodeId
 
-            if (isNowPlaying && index == 0) {
+            // Show the label whenever this item is playing, not only at index 0 —
+            // a queued item can be played from any position.
+            if (isNowPlaying) {
                 NowPlayingLabel()
             }
 
@@ -177,8 +173,8 @@ internal fun QueueContent(
                 isNowPlaying = isNowPlaying,
                 onPlay = { onPlayItem(item.episodeId) },
                 onRemove = { onRemoveItem(item.episodeId) },
-                onMoveUp = { onMoveUp(index) },
-                onMoveDown = { onMoveDown(index) }
+                onMoveUp = { onMoveUp(item.queueId) },
+                onMoveDown = { onMoveDown(item.queueId) }
             )
         }
     }

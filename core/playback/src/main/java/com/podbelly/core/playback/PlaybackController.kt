@@ -29,8 +29,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -67,6 +70,17 @@ class PlaybackController @Inject constructor(
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
+    /** Emitted once each time the current episode reaches its natural end (STATE_ENDED). */
+    private val _episodeEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val episodeEnded: SharedFlow<Unit> = _episodeEnded.asSharedFlow()
+
+    /**
+     * When true, the player pauses at the end of the current episode instead of
+     * auto-advancing the queue. Set by the sleep timer's "end of episode" mode.
+     */
+    @Volatile
+    private var pauseAtEpisodeEnd: Boolean = false
+
     private var positionUpdateJob: Job? = null
 
     /** Flag indicating that resume() was called and we should apply auto-rewind on next isPlaying=true. */
@@ -85,6 +99,14 @@ class PlaybackController @Inject constructor(
     private var sessionStartTime: Long = 0L
     private var sessionInsertPending: Boolean = false
     private var lastSessionSaveTime: Long = 0L
+
+    /**
+     * If the session is ended while its insert is still in flight, the end time and
+     * accumulated listened-ms are stashed here so the insert continuation can finalize
+     * the row once it has a real id. Avoids orphaned sessions with no endedAt/listenedMs.
+     */
+    private var pendingSessionEndTime: Long = 0L
+    private var pendingSessionListenedMs: Long = 0L
 
     /** Timestamp of last periodic position save to the database */
     private var lastPositionSaveTime: Long = 0L
@@ -153,8 +175,20 @@ class PlaybackController @Inject constructor(
                         )
                     }
                     stopPositionUpdates()
-                    // Automatically advance to the next queued episode
-                    onEpisodeEnded()
+
+                    // Notify observers (e.g. the end-of-episode sleep timer) that the
+                    // episode actually finished. This is a real signal rather than
+                    // inferring from currentPosition, which is reset to 0 above.
+                    _episodeEnded.tryEmit(Unit)
+
+                    if (pauseAtEpisodeEnd) {
+                        // End-of-episode sleep timer is armed: stop here instead of
+                        // auto-advancing to the next queued episode.
+                        pauseAtEpisodeEnd = false
+                    } else {
+                        // Automatically advance to the next queued episode
+                        onEpisodeEnded()
+                    }
                 }
                 Player.STATE_IDLE -> {
                     _playbackState.update { it.copy(isLoading = false) }
@@ -417,6 +451,15 @@ class PlaybackController @Inject constructor(
     }
 
     /**
+     * Arms or disarms "pause at end of episode" mode. When armed, the player stops
+     * at the end of the current episode instead of auto-advancing the queue.
+     * Used by the sleep timer's end-of-episode mode.
+     */
+    fun setPauseAtEpisodeEnd(enabled: Boolean) {
+        pauseAtEpisodeEnd = enabled
+    }
+
+    /**
      * Advances to the next episode in the playback queue.
      * If the queue is empty, playback stops.
      */
@@ -468,13 +511,31 @@ class PlaybackController @Inject constructor(
         if (!queueEnabled) return
 
         try {
-            // Remove the episode that just finished from the queue
-            if (currentEpisodeId != 0L) {
-                queueDao.removeFromQueue(currentEpisodeId)
+            val finishedEpisodeId = currentEpisodeId
+
+            // Determine the next episode based on the finished episode's *position*
+            // in the queue, not simply the lowest-position item. The finished episode
+            // may not be the queue head (e.g. the user tapped a later item to play it),
+            // so blindly taking the head would replay an earlier episode and skip the
+            // correct next one.
+            val queue = queueDao.getQueueOnce()
+            val currentIndex = queue.indexOfFirst { it.episode.id == finishedEpisodeId }
+            val next = when {
+                // Finished episode is in the queue: take the item after it.
+                currentIndex in 0 until queue.size - 1 -> queue[currentIndex + 1]
+                // Finished episode is the last item: nothing to advance to.
+                currentIndex == queue.size - 1 -> null
+                // Finished episode isn't in the queue (played from outside it):
+                // fall back to starting the queue from its head.
+                else -> queue.firstOrNull()
             }
 
-            val next = queueDao.getNextInQueue()
-            if (next != null) {
+            // Remove the episode that just finished from the queue.
+            if (finishedEpisodeId != 0L) {
+                queueDao.removeFromQueue(finishedEpisodeId)
+            }
+
+            if (next != null && next.episode.id != finishedEpisodeId) {
                 val episode = next.episode
 
                 // Look up the actual podcast title from the database
@@ -487,6 +548,7 @@ class PlaybackController @Inject constructor(
                     podcastTitle = podcastTitle,
                     artworkUrl = episode.artworkUrl,
                     startPosition = episode.playbackPosition,
+                    podcastId = episode.podcastId,
                 )
             } else {
                 // Nothing left in queue
@@ -568,24 +630,43 @@ class PlaybackController @Inject constructor(
 
     private fun startListeningSession() {
         if (currentEpisodeId == 0L) return
-        sessionStartTime = System.currentTimeMillis()
-        lastSessionSaveTime = sessionStartTime
+        val startTime = System.currentTimeMillis()
+        sessionStartTime = startTime
+        lastSessionSaveTime = startTime
         sessionInsertPending = true
+        pendingSessionEndTime = 0L
+        pendingSessionListenedMs = 0L
+        val episodeId = currentEpisodeId
         scope.launch {
             try {
                 // Look up podcastId if we don't have it
                 val podcastId = if (currentPodcastId != 0L) currentPodcastId else {
-                    episodeDao.getByIdOnce(currentEpisodeId)?.podcastId ?: 0L
+                    episodeDao.getByIdOnce(episodeId)?.podcastId ?: 0L
                 }
                 currentPodcastId = podcastId
                 val session = ListeningSessionEntity(
-                    episodeId = currentEpisodeId,
+                    episodeId = episodeId,
                     podcastId = podcastId,
-                    startedAt = sessionStartTime,
+                    startedAt = startTime,
                     playbackSpeed = _playbackState.value.playbackSpeed,
                 )
-                currentSessionId = listeningSessionDao.insert(session)
+                val insertedId = listeningSessionDao.insert(session)
                 sessionInsertPending = false
+
+                if (pendingSessionEndTime != 0L) {
+                    // The session was ended before this insert completed. Finalize the
+                    // row now so endedAt/listenedMs are not lost (previously this left
+                    // an orphaned, never-updated session).
+                    listeningSessionDao.updateSession(
+                        insertedId,
+                        pendingSessionEndTime,
+                        pendingSessionListenedMs,
+                    )
+                    pendingSessionEndTime = 0L
+                    pendingSessionListenedMs = 0L
+                } else {
+                    currentSessionId = insertedId
+                }
             } catch (e: Exception) {
                 sessionInsertPending = false
                 Log.w(TAG, "Failed to start listening session", e)
@@ -599,10 +680,10 @@ class PlaybackController @Inject constructor(
         val endTime = System.currentTimeMillis()
         val listenedMs = endTime - sessionStartTime
         val sessionId = currentSessionId
-        currentSessionId = 0L
         sessionStartTime = 0L
         lastSessionSaveTime = 0L
         if (sessionId != 0L) {
+            currentSessionId = 0L
             scope.launch {
                 try {
                     listeningSessionDao.updateSession(sessionId, endTime, listenedMs)
@@ -610,9 +691,12 @@ class PlaybackController @Inject constructor(
                     Log.w(TAG, "Failed to end listening session", e)
                 }
             }
+        } else {
+            // Insert still in flight: stash the end values so the insert continuation
+            // finalizes the row once it has a real id.
+            pendingSessionEndTime = endTime
+            pendingSessionListenedMs = listenedMs
         }
-        // If the insert was still pending, the session will be saved with the
-        // accumulated listenedMs from periodic updates once the insert completes.
     }
 
     /**

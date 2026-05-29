@@ -4,11 +4,13 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import androidx.work.workDataOf
 import com.podbelly.core.database.dao.DownloadErrorDao
 import com.podbelly.core.database.dao.EpisodeDao
@@ -17,6 +19,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,6 +33,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -165,6 +171,10 @@ class DownloadManager @Inject constructor(
                     var bytesRead: Int
 
                     while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        // Cancellation checkpoint: blocking reads aren't suspension
+                        // points, so without this a cancelled download would keep
+                        // writing until the stream ends.
+                        coroutineContext.ensureActive()
                         outputStream.write(buffer, 0, bytesRead)
                         totalBytesRead += bytesRead
 
@@ -181,6 +191,11 @@ class DownloadManager @Inject constructor(
             }
 
             response.close()
+
+            // Final cancellation checkpoint before persisting: if the download was
+            // cancelled just as it finished, do not record a downloadPath in the DB
+            // (the CancellationException handler removes the partial/complete file).
+            coroutineContext.ensureActive()
 
             // Update database with download info
             episodeDao.setDownloadPath(
@@ -205,6 +220,22 @@ class DownloadManager @Inject constructor(
             if (partialFile.exists()) {
                 partialFile.delete()
             }
+            _downloadProgress.update { it - episodeId }
+            throw e
+        } catch (e: IOException) {
+            // Transient network/transfer failure (timeout, connection drop, etc.).
+            // Record it and rethrow so the WorkManager worker can retry with backoff.
+            Log.e(TAG, "Network error downloading episode $episodeId", e)
+            val msg = e.message ?: "Network error"
+            downloadErrorDao.insert(
+                DownloadErrorEntity(
+                    episodeId = episodeId,
+                    errorMessage = msg,
+                    errorCode = 0,
+                    timestamp = System.currentTimeMillis(),
+                )
+            )
+            _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
             _downloadProgress.update { it - episodeId }
             throw e
         } catch (e: Exception) {
@@ -237,6 +268,11 @@ class DownloadManager @Inject constructor(
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(workDataOf(DownloadWorker.KEY_EPISODE_ID to episodeId))
             .setConstraints(constraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                WorkRequest.MIN_BACKOFF_MILLIS,
+                TimeUnit.MILLISECONDS,
+            )
             .addTag(DOWNLOAD_WORK_TAG)
             .build()
 
@@ -261,12 +297,10 @@ class DownloadManager @Inject constructor(
         workManager.cancelUniqueWork("$DOWNLOAD_WORK_TAG:$episodeId")
         _downloadProgress.update { it - episodeId }
 
-        // Clean up any partial file
-        val podcastsDir = context.getExternalFilesDir("podcasts")
-        val partialFile = File(podcastsDir, "$episodeId.mp3")
-        if (partialFile.exists()) {
-            partialFile.delete()
-        }
+        // Do NOT delete the file here. WorkManager cancellation is asynchronous, so a
+        // synchronous delete could race the still-writing worker and remove a file it
+        // is about to record as "downloaded" — leaving a broken entry. The worker's own
+        // CancellationException handler removes the partial file after it actually stops.
     }
 
     /**
@@ -276,7 +310,13 @@ class DownloadManager @Inject constructor(
      */
     suspend fun retryDownload(episodeId: Long) {
         downloadErrorDao.incrementRetryCount(episodeId)
-        downloadEpisode(episodeId)
+        try {
+            downloadEpisode(episodeId)
+        } catch (e: IOException) {
+            // Network failure already recorded by downloadEpisode; swallow here so a
+            // manual retry from the UI doesn't crash the calling coroutine.
+            Log.w(TAG, "Manual retry failed for episode $episodeId", e)
+        }
     }
 
     /**
