@@ -1,9 +1,18 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 33
+    const val LATEST_VERSION_CODE = 34
 
     val changelog: Map<Int, List<String>> = mapOf(
+        34 to listOf(
+            "Volume boost no longer changes your device's media volume",
+            "Skipping forward or scrubbing no longer jumps to the start while an episode is buffering",
+            "Scrubbing the player progress bar is now smooth",
+            "Switching tabs keeps your place (scroll position and search) instead of resetting",
+            "Listening stats and streaks now use your local time zone",
+            "Subscribe buttons no longer all disable while one subscription is in progress",
+            "Episode details now stay up to date when a podcast updates them",
+        ),
         33 to listOf(
             "Sleep timer's \"end of episode\" now reliably pauses when the episode finishes",
             "Playing an episode from the queue now continues to the correct next episode",

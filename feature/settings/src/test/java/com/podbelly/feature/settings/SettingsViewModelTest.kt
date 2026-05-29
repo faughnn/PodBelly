@@ -91,6 +91,7 @@ class SettingsViewModelTest {
             downloadManager = downloadManager,
             crashReporter = crashReporter,
             crashLogStore = crashLogStore,
+            ioDispatcher = testDispatcher,
         )
     }
 

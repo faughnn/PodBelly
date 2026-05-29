@@ -53,10 +53,10 @@ class StatsViewModelTest {
         every { listeningSessionDao.getMostListenedEpisodes(10) } returns mostListenedEpisodesFlow
         every { listeningSessionDao.getMostDownloadedPodcasts(10) } returns mostDownloadedPodcastsFlow
         every { listeningSessionDao.getListenedMsSince(any()) } returns listenedSinceFlow
-        every { listeningSessionDao.getListeningDays() } returns listeningDaysFlow
+        every { listeningSessionDao.getListeningDays(any()) } returns listeningDaysFlow
         every { listeningSessionDao.getAverageSessionLengthMs() } returns averageSessionFlow
-        every { listeningSessionDao.getListeningMsByDayOfWeek() } returns dayOfWeekFlow
-        every { listeningSessionDao.getListeningMsByHourOfDay() } returns hourOfDayFlow
+        every { listeningSessionDao.getListeningMsByDayOfWeek(any()) } returns dayOfWeekFlow
+        every { listeningSessionDao.getListeningMsByHourOfDay(any()) } returns hourOfDayFlow
         every { listeningSessionDao.getEpisodeCompletionStats() } returns completionStatsFlow
     }
 

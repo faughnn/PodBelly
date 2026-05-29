@@ -18,7 +18,6 @@ import com.podbelly.core.database.entity.DownloadErrorEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,8 +64,6 @@ class DownloadManager @Inject constructor(
     /** Emits a one-shot event every time a download fails, so screens can show a Snackbar. */
     val downloadErrors: SharedFlow<DownloadErrorEvent> = _downloadErrors.asSharedFlow()
 
-    /** Active download jobs, keyed by episode ID. */
-    private val activeDownloads = mutableMapOf<Long, Job>()
 
     /**
      * Returns `true` when the user has enabled WiFi-only downloads and the device is not
@@ -128,30 +125,35 @@ class DownloadManager @Inject constructor(
             val response = okHttpClient.newCall(request).execute()
 
             if (!response.isSuccessful) {
-                Log.e(TAG, "Download failed with code ${response.code} for episode $episodeId")
-                val msg = "HTTP ${response.code}"
+                val code = response.code
+                val msg = "HTTP $code"
+                response.close()
+                _downloadProgress.update { it - episodeId }
+                // Transient server / rate-limit errors: throw so the IOException handler
+                // records it and the WorkManager worker retries with backoff.
+                if (code >= 500 || code == 408 || code == 429) {
+                    throw IOException(msg)
+                }
+                // Permanent (4xx) failure: record and give up.
+                Log.e(TAG, "Download failed with code $code for episode $episodeId")
                 downloadErrorDao.insert(
                     DownloadErrorEntity(
                         episodeId = episodeId,
                         errorMessage = msg,
-                        errorCode = response.code,
+                        errorCode = code,
                         timestamp = System.currentTimeMillis(),
                     )
                 )
                 _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
-                response.close()
-                _downloadProgress.update { it - episodeId }
                 return@withContext
             }
 
             val body = response.body ?: run {
                 Log.e(TAG, "Empty response body for episode $episodeId")
-                _downloadErrors.tryEmit(
-                    DownloadErrorEvent(episodeId, episode.title, "Server returned empty response")
-                )
                 response.close()
                 _downloadProgress.update { it - episodeId }
-                return@withContext
+                // Treat as transient so the worker retries.
+                throw IOException("Server returned empty response")
             }
 
             val podcastsDir = context.getExternalFilesDir("podcasts")
@@ -164,6 +166,7 @@ class DownloadManager @Inject constructor(
             val outputFile = File(podcastsDir, "$episodeId.mp3")
             val contentLength = body.contentLength()
             var totalBytesRead = 0L
+            var lastPercent = -1
 
             body.byteStream().use { inputStream ->
                 FileOutputStream(outputFile).use { outputStream ->
@@ -178,11 +181,14 @@ class DownloadManager @Inject constructor(
                         outputStream.write(buffer, 0, bytesRead)
                         totalBytesRead += bytesRead
 
-                        // Update progress if content length is known
+                        // Emit progress only when the whole-number percentage changes,
+                        // not on every 8KB chunk (~thousands of Map allocations / file).
                         if (contentLength > 0) {
-                            val progress = (totalBytesRead.toFloat() / contentLength.toFloat())
-                                .coerceIn(0f, 1f)
-                            _downloadProgress.update { it + (episodeId to progress) }
+                            val percent = (totalBytesRead * 100 / contentLength).toInt().coerceIn(0, 100)
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                _downloadProgress.update { it + (episodeId to percent / 100f) }
+                            }
                         }
                     }
 
@@ -292,8 +298,6 @@ class DownloadManager @Inject constructor(
      * @param episodeId The database primary key of the episode whose download to cancel.
      */
     fun cancelDownload(episodeId: Long) {
-        activeDownloads[episodeId]?.cancel()
-        activeDownloads.remove(episodeId)
         workManager.cancelUniqueWork("$DOWNLOAD_WORK_TAG:$episodeId")
         _downloadProgress.update { it - episodeId }
 
@@ -301,22 +305,6 @@ class DownloadManager @Inject constructor(
         // synchronous delete could race the still-writing worker and remove a file it
         // is about to record as "downloaded" — leaving a broken entry. The worker's own
         // CancellationException handler removes the partial file after it actually stops.
-    }
-
-    /**
-     * Retries a failed download, incrementing the retry count before attempting the download again.
-     *
-     * @param episodeId The database primary key of the episode to retry.
-     */
-    suspend fun retryDownload(episodeId: Long) {
-        downloadErrorDao.incrementRetryCount(episodeId)
-        try {
-            downloadEpisode(episodeId)
-        } catch (e: IOException) {
-            // Network failure already recorded by downloadEpisode; swallow here so a
-            // manual retry from the UI doesn't crash the calling coroutine.
-            Log.w(TAG, "Manual retry failed for episode $episodeId", e)
-        }
     }
 
     /**
@@ -338,6 +326,9 @@ class DownloadManager @Inject constructor(
         }
 
         episodeDao.clearDownload(episodeId)
+        // Clear any recorded download errors so a stale failure doesn't linger in the
+        // Downloads error list for an episode that no longer has a download.
+        downloadErrorDao.deleteByEpisodeId(episodeId)
         Log.i(TAG, "Deleted download for episode $episodeId")
     }
 
@@ -358,19 +349,12 @@ class DownloadManager @Inject constructor(
                 }
             }
             episodeDao.clearDownload(episode.id)
+            downloadErrorDao.deleteByEpisodeId(episode.id)
             count++
         }
 
         Log.i(TAG, "Deleted all downloads ($count episodes)")
         count
-    }
-
-    /**
-     * Registers an active download job so it can be cancelled later.
-     * Call this when launching the download coroutine.
-     */
-    fun registerDownloadJob(episodeId: Long, job: Job) {
-        activeDownloads[episodeId] = job
     }
 
     private fun isOnWifi(): Boolean {

@@ -84,6 +84,7 @@ class PlaybackController @Inject constructor(
     private var pauseAtEpisodeEnd: Boolean = false
 
     private var positionUpdateJob: Job? = null
+    private var speedLoadJob: Job? = null
 
     /** Flag indicating that resume() was called and we should apply auto-rewind on next isPlaying=true. */
     private var isResuming = false
@@ -353,8 +354,12 @@ class PlaybackController @Inject constructor(
         controller.play()
         refreshQueueFlags()
 
-        // Apply per-podcast speed immediately so it's correct from the first moment
-        scope.launch {
+        // Apply per-podcast speed immediately so it's correct from the first moment.
+        // Cancel any prior speed-load and bail if the episode changed while loading,
+        // so a rapid play()/auto-advance can't apply an earlier episode's speed and
+        // can't clobber a user speed change made in the gap.
+        speedLoadJob?.cancel()
+        speedLoadJob = scope.launch {
             val speed = if (podcastId != 0L) {
                 val podcastSpeed = podcastDao.getPlaybackSpeed(podcastId)
                 if (podcastSpeed != null && podcastSpeed > 0f) podcastSpeed
@@ -362,7 +367,9 @@ class PlaybackController @Inject constructor(
             } else {
                 preferencesManager.playbackSpeed.first()
             }
-            setPlaybackSpeed(speed)
+            if (currentEpisodeId == episodeId) {
+                setPlaybackSpeed(speed)
+            }
         }
     }
 
@@ -405,7 +412,11 @@ class PlaybackController @Inject constructor(
      */
     fun seekTo(position: Long) {
         val controller = mediaController ?: return
-        val clamped = position.coerceIn(0L, controller.duration.coerceAtLeast(0L))
+        // duration is C.TIME_UNSET (negative) while buffering or for streams with no
+        // known length. Only clamp to the upper bound when the duration is known;
+        // otherwise clamping to 0 would jump the user to the very start.
+        val duration = controller.duration
+        val clamped = if (duration > 0L) position.coerceIn(0L, duration) else position.coerceAtLeast(0L)
         controller.seekTo(clamped)
         _playbackState.update { it.copy(currentPosition = clamped) }
     }
@@ -415,8 +426,11 @@ class PlaybackController @Inject constructor(
      */
     fun skipForward(seconds: Int = 30) {
         val controller = mediaController ?: return
-        val newPos = (controller.currentPosition + seconds * 1000L)
-            .coerceAtMost(controller.duration.coerceAtLeast(0L))
+        val duration = controller.duration
+        val target = controller.currentPosition + seconds * 1000L
+        // When duration is unknown (C.TIME_UNSET), don't clamp to it (it would be 0);
+        // let the player clamp to the real end once it's known.
+        val newPos = if (duration > 0L) target.coerceAtMost(duration) else target
         controller.seekTo(newPos)
         _playbackState.update { it.copy(currentPosition = newPos) }
     }

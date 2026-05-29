@@ -165,19 +165,14 @@ class DownloadManagerTest {
     }
 
     @Test
-    fun `cancelDownload removes from progress and cleans up`() = runTest {
-        every { context.getExternalFilesDir("podcasts") } returns null
-
+    fun `cancelDownload cancels the work and removes from progress`() = runTest {
         val downloadManager = createDownloadManager()
-
-        // Register a mock job
-        val mockJob = mockk<kotlinx.coroutines.Job>(relaxed = true)
-        downloadManager.registerDownloadJob(1L, mockJob)
 
         downloadManager.cancelDownload(1L)
 
-        verify { mockJob.cancel() }
-        // Progress should not contain the episode
+        // Cancellation is delegated to WorkManager (the worker cleans up its own
+        // partial file on cancellation); no synchronous file delete here.
+        verify { workManager.cancelUniqueWork("episode_download:1") }
         org.junit.Assert.assertFalse(downloadManager.downloadProgress.value.containsKey(1L))
     }
 

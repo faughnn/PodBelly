@@ -6,9 +6,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -35,19 +37,21 @@ class SleepTimer @Inject constructor(
     /** Milliseconds remaining on the sleep timer. 0 means the timer is inactive. */
     val remainingMillis: StateFlow<Long> = _remainingMillis.asStateFlow()
 
-    /** Whether the sleep timer is currently counting down. */
-    val isActive: StateFlow<Boolean> = MutableStateFlow(false).also { active ->
-        // Mirror the remainingMillis state into a boolean for convenience.
-        scope.launch {
-            _remainingMillis.collect { remaining ->
-                (active as MutableStateFlow<Boolean>).value = remaining > 0L || endOfEpisode
-            }
-        }
-    }
+    /**
+     * Whether the sleep timer is currently counting down. Derived directly from
+     * [remainingMillis] (which is set to a non-zero sentinel in end-of-episode mode),
+     * giving a single source of truth without an unchecked cast.
+     */
+    val isActive: StateFlow<Boolean> = _remainingMillis
+        .map { it > 0L }
+        .stateIn(scope, SharingStarted.Eagerly, false)
 
     /** When true, playback will be paused at the end of the current episode. */
     @Volatile
     private var endOfEpisode: Boolean = false
+
+    /** The episode that was playing when end-of-episode mode was armed. */
+    private var armedEpisodeId: Long = 0L
 
     private var endOfEpisodeJob: Job? = null
 
@@ -89,6 +93,7 @@ class SleepTimer @Inject constructor(
         cancel()
 
         endOfEpisode = true
+        armedEpisodeId = 0L
         // Tell the controller to stop at the end of the episode instead of
         // auto-advancing the queue.
         playbackController.setPauseAtEpisodeEnd(true)
@@ -108,9 +113,21 @@ class SleepTimer @Inject constructor(
             }
 
             // Display: keep the remaining-time readout updated as the episode plays.
+            // Also disarm if the user starts a *different* episode — the timer was
+            // armed for the episode that was playing when it was set.
             launch {
                 playbackController.playbackState.collect { state ->
-                    if (endOfEpisode && state.duration > 0L && state.isPlaying) {
+                    if (!endOfEpisode) return@collect
+                    val episodeId = state.episodeId
+                    if (episodeId != 0L) {
+                        if (armedEpisodeId == 0L) {
+                            armedEpisodeId = episodeId
+                        } else if (episodeId != armedEpisodeId) {
+                            cancel()
+                            return@collect
+                        }
+                    }
+                    if (state.duration > 0L && state.isPlaying) {
                         _remainingMillis.value =
                             (state.duration - state.currentPosition).coerceAtLeast(0L)
                     }
@@ -128,6 +145,7 @@ class SleepTimer @Inject constructor(
         endOfEpisodeJob?.cancel()
         endOfEpisodeJob = null
         endOfEpisode = false
+        armedEpisodeId = 0L
         // Re-enable queue auto-advance when the end-of-episode timer is cleared.
         playbackController.setPauseAtEpisodeEnd(false)
         _remainingMillis.value = 0L

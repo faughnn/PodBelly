@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import java.util.TimeZone
 import javax.inject.Inject
 
 data class StatsUiState(
@@ -42,6 +43,9 @@ class StatsViewModel @Inject constructor(
     listeningSessionDao: ListeningSessionDao,
 ) : ViewModel() {
 
+    // Bucket day/hour/streak stats in the device's local time, not UTC.
+    private val tzOffsetMs = TimeZone.getDefault().getOffset(System.currentTimeMillis()).toLong()
+
     val uiState: StateFlow<StatsUiState> = combine(
         listeningSessionDao.getTotalListenedMs(),
         listeningSessionDao.getTimeSavedBySpeed(),
@@ -60,19 +64,22 @@ class StatsViewModel @Inject constructor(
         // screen is observed across a day/week boundary.
         flow { emitAll(listeningSessionDao.getListenedMsSince(System.currentTimeMillis() - 7 * 86400000L)) },
         flow { emitAll(listeningSessionDao.getListenedMsSince(System.currentTimeMillis() - 30 * 86400000L)) },
-        listeningSessionDao.getListeningDays(),
+        listeningSessionDao.getListeningDays(tzOffsetMs),
         listeningSessionDao.getAverageSessionLengthMs(),
-        listeningSessionDao.getListeningMsByDayOfWeek(),
+        listeningSessionDao.getListeningMsByDayOfWeek(tzOffsetMs),
     ) { week, month, days, avgSession, dayOfWeek ->
         PartialNew(week, month, days, avgSession, dayOfWeek)
     }) { (base, mostDownloaded), newStats ->
         Triple(base, mostDownloaded, newStats)
     }.combine(combine(
-        listeningSessionDao.getListeningMsByHourOfDay(),
+        listeningSessionDao.getListeningMsByHourOfDay(tzOffsetMs),
         listeningSessionDao.getEpisodeCompletionStats(),
     ) { hours, completion -> hours to completion }
     ) { (base, mostDownloaded, newStats), (hours, completion) ->
-        val (currentStreak, longestStreak) = calculateStreaks(newStats.listeningDays)
+        val (currentStreak, longestStreak) = calculateStreaks(
+            newStats.listeningDays,
+            (System.currentTimeMillis() + tzOffsetMs) / 86400000L,
+        )
         val (avgCompletion, finished, abandoned) = calculateCompletion(completion)
         val mostActiveDay = newStats.dayOfWeekStats.firstOrNull()?.let { dayName(it.dayOfWeek) } ?: ""
         val mostActiveHour = hours.firstOrNull()?.let { hourName(it.hour) } ?: ""
@@ -118,10 +125,12 @@ class StatsViewModel @Inject constructor(
     )
 
     companion object {
-        fun calculateStreaks(sortedDays: List<Long>): Pair<Int, Int> {
+        fun calculateStreaks(
+            sortedDays: List<Long>,
+            today: Long = System.currentTimeMillis() / 86400000L,
+        ): Pair<Int, Int> {
             if (sortedDays.isEmpty()) return 0 to 0
 
-            val today = System.currentTimeMillis() / 86400000L
             var longestStreak = 1
             var streak = 1
 

@@ -27,6 +27,8 @@ import com.podbelly.core.playback.PlaybackController
 import com.podbelly.navigation.PodbellNavHost
 import com.podbelly.ui.theme.PodbellTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -56,9 +58,12 @@ class MainActivity : ComponentActivity() {
         lifecycle.addObserver(lifecycleObserver)
         requestNotificationPermissionIfNeeded()
         playbackController.connectToService(this)
+        // Resolve the persisted theme once, synchronously, before the first frame so
+        // LIGHT/OLED_DARK/HIGH_CONTRAST users don't see a SYSTEM-theme flash at launch.
+        val initialTheme = runBlocking { preferencesManager.appTheme.first() }
         setContent {
             val appTheme by preferencesManager.appTheme
-                .collectAsStateWithLifecycle(AppTheme.SYSTEM)
+                .collectAsStateWithLifecycle(initialTheme)
 
             val versionName = remember {
                 packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()

@@ -20,11 +20,51 @@ interface EpisodeDao {
     @Query("SELECT * FROM episodes WHERE id = :id LIMIT 1")
     suspend fun getByIdOnce(id: Long): EpisodeEntity?
 
+    /**
+     * Looks up an episode by GUID alone, ignoring which feed it belongs to. GUIDs are
+     * only unique *within* a feed (see the composite unique index), so this can return
+     * an arbitrary row when two feeds share a GUID. Production code must use
+     * [getByPodcastAndGuid]; this remains only for tests operating on a single feed.
+     */
     @Query("SELECT * FROM episodes WHERE guid = :guid LIMIT 1")
     suspend fun getByGuid(guid: String): EpisodeEntity?
 
     @Query("SELECT * FROM episodes WHERE podcastId = :podcastId AND guid = :guid LIMIT 1")
     suspend fun getByPodcastAndGuid(podcastId: Long, guid: String): EpisodeEntity?
+
+    @Query("SELECT COUNT(*) FROM episodes WHERE podcastId = :podcastId")
+    suspend fun countByPodcastId(podcastId: Long): Int
+
+    /**
+     * Refreshes the feed-derived fields of an existing episode (identified by its feed
+     * and GUID) while preserving user state (played / playbackPosition / download* /
+     * lastPlayedAt). Lets publisher corrections (e.g. a changed audioUrl) propagate,
+     * which a plain IGNORE insert never would.
+     */
+    @Query(
+        """
+        UPDATE episodes
+        SET title = :title,
+            description = :description,
+            audioUrl = :audioUrl,
+            publicationDate = :publicationDate,
+            durationSeconds = :durationSeconds,
+            artworkUrl = :artworkUrl,
+            fileSize = :fileSize
+        WHERE podcastId = :podcastId AND guid = :guid
+        """
+    )
+    suspend fun updateFeedFields(
+        podcastId: Long,
+        guid: String,
+        title: String,
+        description: String,
+        audioUrl: String,
+        publicationDate: Long,
+        durationSeconds: Int,
+        artworkUrl: String,
+        fileSize: Long,
+    )
 
     @Query(
         """
@@ -83,10 +123,14 @@ interface EpisodeDao {
         WHERE podcasts.subscribed = 1
           AND episodes.playbackPosition > 0
           AND episodes.played = 0
+          AND episodes.downloadPath != ''
         ORDER BY episodes.lastPlayedAt DESC, episodes.publicationDate DESC
         """
     )
     fun getInProgressEpisodes(): Flow<List<EpisodeEntity>>
+
+    @Query("SELECT podcastId, COUNT(*) AS unplayedCount FROM episodes WHERE played = 0 GROUP BY podcastId")
+    fun getUnplayedCountsByPodcast(): Flow<List<PodcastUnplayedCount>>
 
     @Query(
         """
@@ -109,4 +153,9 @@ interface EpisodeDao {
 data class PodcastLatestEpisode(
     val podcastId: Long,
     val latestPublicationDate: Long,
+)
+
+data class PodcastUnplayedCount(
+    val podcastId: Long,
+    val unplayedCount: Int,
 )

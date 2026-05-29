@@ -55,15 +55,26 @@ class PodcastSearchRepository @Inject constructor(
                 throw IOException("Failed to fetch feed: HTTP ${response.code} for $feedUrl")
             }
 
-            val body = response.body?.string()
+            val source = response.body?.source()
                 ?: throw IOException("Empty response body for $feedUrl")
 
-            rssParser.parse(feedUrl, body)
+            // Cap how much of an (untrusted) feed we buffer into memory so a hostile or
+            // misconfigured server can't OOM the app. request() tries to buffer one byte
+            // past the limit; if it succeeds the feed is over budget.
+            source.request(MAX_FEED_BYTES + 1)
+            if (source.buffer.size > MAX_FEED_BYTES) {
+                throw IOException("Feed exceeds ${MAX_FEED_BYTES / (1024 * 1024)}MB limit: $feedUrl")
+            }
+
+            rssParser.parse(feedUrl, source.readUtf8())
         }
     }
 
     companion object {
         private const val USER_AGENT =
             "Podbelly/1.0 (Android; Podcast App) OkHttp"
+
+        /** Maximum feed size we will buffer into memory (10 MB). */
+        private const val MAX_FEED_BYTES = 10L * 1024 * 1024
     }
 }

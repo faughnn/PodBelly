@@ -59,6 +59,10 @@ class AppViewModelTest {
 
         // Default: fresh install (versionCode = 0 means first time)
         coEvery { preferencesManager.getLastSeenVersionCode() } returns 0
+
+        // Default: no episode exists yet, so feed episodes are treated as new.
+        // (A relaxed mock would otherwise fabricate a non-null "existing" episode.)
+        coEvery { episodeDao.getByPodcastAndGuid(any(), any()) } returns null
     }
 
     @After
@@ -166,8 +170,9 @@ class AppViewModelTest {
         podcastsFlow.value = listOf(podcast)
 
         coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
-        // -1 means duplicate/ignored by Room
-        coEvery { episodeDao.insertAll(any()) } returns listOf(-1L)
+        // Episode already exists for this feed -> refreshed in place, not counted as new.
+        coEvery { episodeDao.getByPodcastAndGuid(any(), any()) } returns
+            mockk<com.podbelly.core.database.entity.EpisodeEntity>(relaxed = true)
 
         val viewModel = createViewModel()
 

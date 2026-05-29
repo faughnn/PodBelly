@@ -27,6 +27,10 @@ interface PodcastDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(podcast: PodcastEntity): Long
 
+    /** Inserts only if no row with the same unique feedUrl exists; returns -1 if it did. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(podcast: PodcastEntity): Long
+
     @Update
     suspend fun update(podcast: PodcastEntity)
 

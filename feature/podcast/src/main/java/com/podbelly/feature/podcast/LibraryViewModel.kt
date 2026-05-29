@@ -32,13 +32,11 @@ class LibraryViewModel @Inject constructor(
 
     val uiState: StateFlow<LibraryUiState> = combine(
         podcastDao.getAll(),
-        episodeDao.getRecentEpisodes(Int.MAX_VALUE)
-    ) { podcasts, allEpisodes ->
-        // Group episodes by podcastId to compute unplayed counts
-        val unplayedCountsByPodcast = allEpisodes
-            .filter { !it.played }
-            .groupBy { it.podcastId }
-            .mapValues { (_, episodes) -> episodes.size }
+        // Aggregate counts in SQL rather than materializing every episode row just to
+        // count unplayed ones (the old getRecentEpisodes(Int.MAX_VALUE) approach).
+        episodeDao.getUnplayedCountsByPodcast()
+    ) { podcasts, unplayedCounts ->
+        val unplayedCountsByPodcast = unplayedCounts.associate { it.podcastId to it.unplayedCount }
 
         val podcastItems = podcasts.map { entity ->
             LibraryPodcastItem(

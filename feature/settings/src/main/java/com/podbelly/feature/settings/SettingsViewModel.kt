@@ -7,6 +7,7 @@ import com.podbelly.core.common.CrashLogStore
 import com.podbelly.core.common.CrashReporter
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.di.IoDispatcher
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
@@ -15,6 +16,7 @@ import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.network.opml.OpmlFeed
 import com.podbelly.core.network.opml.OpmlHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class ImportResult(
@@ -40,7 +43,9 @@ data class SettingsUiState(
     val downloadOnWifiOnly: Boolean = true,
     val skipSilence: Boolean = false,
     val volumeBoost: Boolean = false,
-    val queueEnabled: Boolean = false,
+    // Matches PreferencesManager.queueEnabled's persisted default (true), so the
+    // switch doesn't render OFF then snap ON for never-configured users.
+    val queueEnabled: Boolean = true,
     val totalDownloadedBytes: Long = 0L,
     val importExportMessage: String? = null,
     val importResult: ImportResult? = null,
@@ -55,6 +60,7 @@ class SettingsViewModel @Inject constructor(
     private val downloadManager: DownloadManager,
     private val crashReporter: CrashReporter,
     private val crashLogStore: CrashLogStore,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _importExportMessage = MutableStateFlow<String?>(null)
@@ -160,7 +166,7 @@ class SettingsViewModel @Inject constructor(
                         feedUrl = podcast.feedUrl,
                     )
                 }
-                val xml = OpmlHandler.generateOpml(feeds)
+                val xml = withContext(ioDispatcher) { OpmlHandler.generateOpml(feeds) }
                 onResult(xml)
                 _importExportMessage.value = "Exported ${feeds.size} subscription(s)"
             } catch (e: Exception) {
@@ -172,7 +178,7 @@ class SettingsViewModel @Inject constructor(
     fun importOpml(xml: String) {
         viewModelScope.launch {
             try {
-                val entries = OpmlHandler.parseOpml(xml)
+                val entries = withContext(ioDispatcher) { OpmlHandler.parseOpml(xml) }
                 var imported = 0
                 var skipped = 0
                 val failed = mutableListOf<String>()
@@ -187,7 +193,9 @@ class SettingsViewModel @Inject constructor(
                             continue
                         }
 
-                        val rssFeed = searchRepository.fetchFeed(entry.feedUrl)
+                        // Fetch the same URL we persist, so a feed reachable only over
+                        // the normalized (https) scheme doesn't import then fail to refresh.
+                        val rssFeed = searchRepository.fetchFeed(normalizedUrl)
                         val now = System.currentTimeMillis()
 
                         val podcast = PodcastEntity(

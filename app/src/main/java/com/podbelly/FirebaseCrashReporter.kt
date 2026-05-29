@@ -1,5 +1,6 @@
 package com.podbelly
 
+import com.google.firebase.crashlytics.CustomKeysAndValues
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.podbelly.core.common.CrashReporter
 import javax.inject.Inject
@@ -16,8 +17,10 @@ class FirebaseCrashReporter @Inject constructor() : CrashReporter {
     }
 
     override fun recordException(throwable: Throwable, keys: Map<String, String>) {
-        val instance = crashlytics
-        keys.forEach { (key, value) -> instance.setCustomKey(key, value) }
-        instance.recordException(throwable)
+        // Attach keys to *this* report only. setCustomKey() sets process-global keys
+        // that would otherwise leak into every later report (and any fatal crash).
+        val builder = CustomKeysAndValues.Builder()
+        keys.forEach { (key, value) -> builder.putString(key, value) }
+        crashlytics.recordException(throwable, builder.build())
     }
 }

@@ -140,10 +140,25 @@ class PodcastDetailViewModel @Inject constructor(
                 val podcastEntity = podcastDao.getById(podcastId).first() ?: return@launch
                 val rssFeed = searchRepository.fetchFeed(podcastEntity.feedUrl)
 
-                val newEpisodes = rssFeed.episodes.mapNotNull { rssEpisode ->
+                val newEpisodes = mutableListOf<EpisodeEntity>()
+                for (rssEpisode in rssFeed.episodes) {
                     val existing = episodeDao.getByPodcastAndGuid(podcastId, rssEpisode.guid)
                     if (existing == null) {
-                        EpisodeEntity(
+                        newEpisodes.add(
+                            EpisodeEntity(
+                                podcastId = podcastId,
+                                guid = rssEpisode.guid,
+                                title = rssEpisode.title,
+                                description = rssEpisode.description,
+                                audioUrl = rssEpisode.audioUrl,
+                                publicationDate = rssEpisode.publishedAt,
+                                durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                artworkUrl = rssEpisode.artworkUrl ?: "",
+                            )
+                        )
+                    } else {
+                        // Refresh feed-derived fields so publisher corrections propagate.
+                        episodeDao.updateFeedFields(
                             podcastId = podcastId,
                             guid = rssEpisode.guid,
                             title = rssEpisode.title,
@@ -152,9 +167,8 @@ class PodcastDetailViewModel @Inject constructor(
                             publicationDate = rssEpisode.publishedAt,
                             durationSeconds = (rssEpisode.duration / 1000).toInt(),
                             artworkUrl = rssEpisode.artworkUrl ?: "",
+                            fileSize = rssEpisode.fileSize,
                         )
-                    } else {
-                        null
                     }
                 }
 
@@ -165,7 +179,8 @@ class PodcastDetailViewModel @Inject constructor(
                 podcastDao.update(
                     podcastEntity.copy(
                         lastRefreshedAt = System.currentTimeMillis(),
-                        episodeCount = podcastEntity.episodeCount + newEpisodes.size,
+                        // Derive from actual stored rows rather than an additive guess.
+                        episodeCount = episodeDao.countByPodcastId(podcastId),
                     )
                 )
             } catch (_: Exception) {

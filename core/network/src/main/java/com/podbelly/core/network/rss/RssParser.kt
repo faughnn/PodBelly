@@ -232,7 +232,7 @@ class RssParser @Inject constructor() {
                             val finalDescription = itemDescription.ifBlank { itemSummary }
 
                             val resolvedGuid = itemGuid.ifBlank {
-                                generateGuid(itemTitle, itemAudioUrl)
+                                generateGuid(itemAudioUrl)
                             }
 
                             // Only add episodes that have an audio URL
@@ -423,12 +423,15 @@ class RssParser @Inject constructor() {
     }
 
     /**
-     * Generates a deterministic GUID from title and audio URL using SHA-256.
+     * Generates a deterministic GUID from the episode's audio URL using SHA-256.
+     *
+     * Based on the audio URL alone (not the title) so that a publisher editing only
+     * an episode's title doesn't change the synthesized GUID and cause the same audio
+     * to be re-imported as a duplicate.
      */
-    private fun generateGuid(title: String, audioUrl: String): String {
-        val input = "$title|$audioUrl"
+    private fun generateGuid(audioUrl: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(input.toByteArray(Charsets.UTF_8))
+        val hash = digest.digest(audioUrl.toByteArray(Charsets.UTF_8))
         return hash.joinToString("") { "%02x".format(it) }
     }
 }

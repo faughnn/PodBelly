@@ -41,7 +41,8 @@ data class DiscoverUiState(
     val searchResults: List<DiscoverPodcastItem> = emptyList(),
     val isSearching: Boolean = false,
     val feedUrlInput: String = "",
-    val isSubscribing: Boolean = false,
+    /** Feed URLs with a subscription currently in flight, so each row can spin/disable independently. */
+    val subscribingFeedUrls: Set<String> = emptySet(),
     val message: String? = null,
 )
 
@@ -132,13 +133,11 @@ class DiscoverViewModel @Inject constructor(
 
     fun subscribeToPodcast(feedUrl: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubscribing = true) }
+            _uiState.update { it.copy(subscribingFeedUrls = it.subscribingFeedUrls + feedUrl) }
             try {
                 val existing = podcastDao.getByFeedUrl(feedUrl)
                 if (existing?.subscribed == true) {
-                    _uiState.update {
-                        it.copy(isSubscribing = false, message = "Already subscribed")
-                    }
+                    _uiState.update { it.copy(message = "Already subscribed") }
                     return@launch
                 }
 
@@ -184,7 +183,6 @@ class DiscoverViewModel @Inject constructor(
 
                 _uiState.update { state ->
                     state.copy(
-                        isSubscribing = false,
                         message = "Subscribed to ${feed.title}",
                         searchResults = state.searchResults.map { item ->
                             if (item.feedUrl == feedUrl) item.copy(isSubscribed = true)
@@ -193,12 +191,9 @@ class DiscoverViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isSubscribing = false,
-                        message = "Subscription failed: ${e.message}",
-                    )
-                }
+                _uiState.update { it.copy(message = "Subscription failed: ${e.message}") }
+            } finally {
+                _uiState.update { it.copy(subscribingFeedUrls = it.subscribingFeedUrls - feedUrl) }
             }
         }
     }
@@ -214,12 +209,12 @@ class DiscoverViewModel @Inject constructor(
     }
 
     fun onPodcastClick(feedUrl: String) {
+        // Pure navigation — must NOT touch subscribingFeedUrls (that would disable
+        // every Subscribe button while this fetch runs).
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubscribing = true) }
             try {
                 val existing = podcastDao.getByFeedUrl(feedUrl)
                 if (existing != null) {
-                    _uiState.update { it.copy(isSubscribing = false) }
                     _navigateToPodcast.send(existing.id)
                     return@launch
                 }
@@ -227,7 +222,9 @@ class DiscoverViewModel @Inject constructor(
                 val feed = searchRepository.fetchFeed(feedUrl)
                 val now = System.currentTimeMillis()
 
-                val podcastId = podcastDao.insert(
+                // Insert-if-absent (not REPLACE) so a concurrent second tap can't replace
+                // the row with a new id and CASCADE-delete the episodes we just inserted.
+                val newId = podcastDao.insertIfAbsent(
                     PodcastEntity(
                         feedUrl = feedUrl,
                         title = feed.title,
@@ -243,6 +240,9 @@ class DiscoverViewModel @Inject constructor(
                         episodeCount = feed.episodes.size,
                     )
                 )
+                val podcastId = if (newId != -1L) newId else {
+                    podcastDao.getByFeedUrl(feedUrl)?.id ?: return@launch
+                }
 
                 val episodes = feed.episodes.map { episode ->
                     EpisodeEntity(
@@ -259,15 +259,9 @@ class DiscoverViewModel @Inject constructor(
                 episodeDao.insertAll(episodes)
                 prefetchArtwork(feed.artworkUrl)
 
-                _uiState.update { it.copy(isSubscribing = false) }
                 _navigateToPodcast.send(podcastId)
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isSubscribing = false,
-                        message = "Failed to load podcast: ${e.message}",
-                    )
-                }
+                _uiState.update { it.copy(message = "Failed to load podcast: ${e.message}") }
             }
         }
     }

@@ -49,7 +49,8 @@ class EpisodeDetailViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
-    private val episodeId: Long = checkNotNull(savedStateHandle["episodeId"])
+    /** Stable episode id from navigation args; safe to key download progress on. */
+    val episodeId: Long = checkNotNull(savedStateHandle["episodeId"])
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
     val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors

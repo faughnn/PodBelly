@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -138,8 +140,11 @@ fun MiniPlayer(
                 ) {
                     // Artwork (48dp, 10dp corners)
                     AsyncImage(
-                        model = playbackState.artworkUrl,
+                        model = playbackState.artworkUrl.ifBlank { null },
                         contentDescription = "Episode artwork",
+                        placeholder = rememberVectorPainter(Icons.Filled.Podcasts),
+                        error = rememberVectorPainter(Icons.Filled.Podcasts),
+                        fallback = rememberVectorPainter(Icons.Filled.Podcasts),
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(10.dp)),

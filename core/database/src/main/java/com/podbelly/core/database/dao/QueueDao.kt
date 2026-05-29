@@ -25,6 +25,21 @@ interface QueueDao {
     @Query("DELETE FROM queue_items WHERE episodeId = :episodeId")
     suspend fun removeFromQueue(episodeId: Long)
 
+    @Query("UPDATE queue_items SET position = position + 1")
+    suspend fun shiftAllPositionsUp()
+
+    /**
+     * Atomically inserts [episodeId] at the front of the queue (position 0), shifting
+     * existing items down — so an interruption can't leave the queue shifted with no
+     * head item. No-op if the episode is already queued.
+     */
+    @Transaction
+    suspend fun addToFront(episodeId: Long, addedAt: Long) {
+        if (isInQueue(episodeId)) return
+        shiftAllPositionsUp()
+        addToQueue(QueueItemEntity(episodeId = episodeId, position = 0, addedAt = addedAt))
+    }
+
     @Query("DELETE FROM queue_items")
     suspend fun clearQueue()
 

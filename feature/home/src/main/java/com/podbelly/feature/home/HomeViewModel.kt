@@ -142,11 +142,9 @@ class HomeViewModel @Inject constructor(
 
     fun addToQueueNext(episodeId: Long) {
         viewModelScope.launch {
-            if (queueDao.isInQueue(episodeId)) return@launch
-            val items = queueDao.getQueueOnce()
-            val shifted = items.map { it.queueItem.copy(position = it.queueItem.position + 1) }
-            queueDao.updatePositions(shifted)
-            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = 0, addedAt = System.currentTimeMillis()))
+            // Shift + insert atomically so an interruption can't leave the queue
+            // shifted with no item at the front.
+            queueDao.addToFront(episodeId, System.currentTimeMillis())
         }
     }
 
