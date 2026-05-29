@@ -1,16 +1,41 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 25
+    const val LATEST_VERSION_CODE = 33
 
     val changelog: Map<Int, List<String>> = mapOf(
-        25 to listOf(
+        33 to listOf(
             "Sleep timer's \"end of episode\" now reliably pauses when the episode finishes",
             "Playing an episode from the queue now continues to the correct next episode",
             "Queue playback now uses each podcast's custom speed",
             "Downloads automatically retry after a temporary network drop",
             "Feed refresh now respects the interval you set in Settings",
             "Fixed some episodes not showing up when subscribed to multiple shows",
+        ),
+        32 to listOf(
+            "Fixed episodes restarting from the beginning after they finished instead of stopping",
+        ),
+        31 to listOf(
+            "Fixed a rare crash that could happen when playback was unexpectedly interrupted",
+        ),
+        30 to listOf(
+            "Settings now has a Diagnostics section — share crash logs from your phone when something goes wrong",
+        ),
+        29 to listOf(
+            "Continue Listening is now sorted by most recently played, so the episode you were just listening to is always first",
+            "Settings now shows how much space your downloaded episodes are using next to the Delete all downloads button",
+        ),
+        28 to listOf(
+            "Podcast artwork now loads faster and fades in smoothly while scrolling",
+        ),
+        27 to listOf(
+            "Fixed playback speed reverting to 1x when returning to the app after a long pause",
+        ),
+        26 to listOf(
+            "Fixed the player showing blank after returning to the app following a long pause",
+        ),
+        25 to listOf(
+            "Fixed crash when searching for podcasts in Discover",
         ),
         24 to listOf(
             "Fixed crash when starting a download on Android 14+",

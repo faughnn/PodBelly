@@ -58,6 +58,9 @@ data class EpisodeEntity(
     @ColumnInfo(name = "playbackPosition")
     val playbackPosition: Long = 0L,
 
+    @ColumnInfo(name = "lastPlayedAt")
+    val lastPlayedAt: Long = 0L,
+
     @ColumnInfo(name = "downloadPath")
     val downloadPath: String = "",
 

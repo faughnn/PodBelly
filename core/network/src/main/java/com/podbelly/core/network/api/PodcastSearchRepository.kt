@@ -32,6 +32,7 @@ class PodcastSearchRepository @Inject constructor(
                     artworkUrl = podcast.artworkUrl600.orEmpty()
                 )
             }
+            .distinctBy { it.feedUrl }
     }
 
     /**

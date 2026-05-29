@@ -261,6 +261,7 @@ fun SettingsScreen(
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                     DeleteAllDownloadsRow(
+                        totalDownloadedBytes = uiState.totalDownloadedBytes,
                         onConfirm = { viewModel.deleteAllDownloads() },
                     )
                 }
@@ -336,6 +337,60 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text(text = "Export OPML")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Diagnostics ───────────────────────────────────────────
+
+            item { SectionHeader(title = "Diagnostics") }
+
+            item {
+                SettingsCard {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = "If the app crashes, the stack trace is saved locally. Share it to help diagnose the problem.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.clearCrashLogs() },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(text = "Clear logs")
+                            }
+
+                            Button(
+                                onClick = {
+                                    viewModel.shareCrashLogs { content ->
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, content)
+                                            putExtra(
+                                                Intent.EXTRA_SUBJECT,
+                                                "Podbelly crash logs (v$versionName)",
+                                            )
+                                        }
+                                        context.startActivity(
+                                            Intent.createChooser(shareIntent, "Share crash logs")
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(text = "Share crash logs")
                             }
                         }
                     }
@@ -576,14 +631,20 @@ internal fun ThemePickerRow(
 
 @Composable
 internal fun DeleteAllDownloadsRow(
+    totalDownloadedBytes: Long,
     onConfirm: () -> Unit,
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val hasDownloads = totalDownloadedBytes > 0
+    val formattedSize = remember(totalDownloadedBytes) {
+        android.text.format.Formatter.formatShortFileSize(context, totalDownloadedBytes)
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showDialog = true }
+            .clickable(enabled = hasDownloads) { showDialog = true }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -591,21 +652,36 @@ internal fun DeleteAllDownloadsRow(
             Text(
                 text = "Delete all downloads",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.error,
+                color = if (hasDownloads) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
             Text(
-                text = "Remove all downloaded episode files",
+                text = if (hasDownloads) {
+                    "Remove all downloaded episode files"
+                } else {
+                    "No downloaded episodes"
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Text(
+            text = formattedSize,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Delete all downloads?") },
-            text = { Text("This will remove all downloaded episode files from your device. This cannot be undone.") },
+            text = {
+                Text("This will remove $formattedSize of downloaded episode files from your device. This cannot be undone.")
+            },
             confirmButton = {
                 TextButton(
                     onClick = {

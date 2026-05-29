@@ -1,13 +1,18 @@
 package com.podbelly.feature.discover
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.ImageLoader
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +48,8 @@ data class DiscoverUiState(
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class DiscoverViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val imageLoader: ImageLoader,
     private val searchRepository: PodcastSearchRepository,
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
@@ -173,6 +180,7 @@ class DiscoverViewModel @Inject constructor(
                     )
                 }
                 episodeDao.insertAll(episodes)
+                prefetchArtwork(feed.artworkUrl)
 
                 _uiState.update { state ->
                     state.copy(
@@ -249,6 +257,7 @@ class DiscoverViewModel @Inject constructor(
                     )
                 }
                 episodeDao.insertAll(episodes)
+                prefetchArtwork(feed.artworkUrl)
 
                 _uiState.update { it.copy(isSubscribing = false) }
                 _navigateToPodcast.send(podcastId)
@@ -261,6 +270,15 @@ class DiscoverViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun prefetchArtwork(url: String) {
+        if (url.isBlank()) return
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .memoryCachePolicy(CachePolicy.DISABLED)
+            .build()
+        imageLoader.enqueue(request)
     }
 
     fun clearMessage() {

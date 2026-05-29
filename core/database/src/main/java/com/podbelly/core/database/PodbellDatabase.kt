@@ -23,7 +23,7 @@ import com.podbelly.core.database.entity.QueueItemEntity
         ListeningSessionEntity::class,
         DownloadErrorEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class PodbellDatabase : RoomDatabase() {
@@ -34,7 +34,7 @@ abstract class PodbellDatabase : RoomDatabase() {
     abstract fun downloadErrorDao(): DownloadErrorDao
 
     companion object {
-        val MIGRATION_3_4 = object : Migration(3, 4) {
+        val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // GUIDs are only unique within a feed. Replace the global unique
                 // index on guid with a composite unique index on (podcastId, guid)
@@ -43,6 +43,19 @@ abstract class PodbellDatabase : RoomDatabase() {
                 db.execSQL("DROP INDEX IF EXISTS index_episodes_guid")
                 db.execSQL(
                     "CREATE UNIQUE INDEX IF NOT EXISTS index_episodes_podcastId_guid ON episodes (podcastId, guid)"
+                )
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Seed lastPlayedAt with publicationDate so existing in-progress
+                // episodes retain a sensible relative order on first launch.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN lastPlayedAt INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "UPDATE episodes SET lastPlayedAt = publicationDate WHERE playbackPosition > 0"
                 )
             }
         }

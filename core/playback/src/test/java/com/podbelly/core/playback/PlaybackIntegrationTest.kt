@@ -5,6 +5,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -31,6 +32,7 @@ class PlaybackIntegrationTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var playbackController: PlaybackController
     private lateinit var playbackStateFlow: MutableStateFlow<PlaybackState>
+    private lateinit var episodeEndedFlow: MutableSharedFlow<Unit>
     private lateinit var sleepTimer: SleepTimer
 
     @Before
@@ -38,8 +40,10 @@ class PlaybackIntegrationTest {
         Dispatchers.setMain(testDispatcher)
 
         playbackStateFlow = MutableStateFlow(PlaybackState())
+        episodeEndedFlow = MutableSharedFlow(extraBufferCapacity = 1)
         playbackController = mockk(relaxed = true) {
             every { playbackState } returns playbackStateFlow
+            every { episodeEnded } returns episodeEndedFlow
         }
 
         sleepTimer = SleepTimer(playbackController)
@@ -95,8 +99,7 @@ class PlaybackIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `end-of-episode mode monitors playbackState and pauses when episode ends`() = runTest {
-        // Simulate an episode that is playing at 50% progress
+    fun `end-of-episode mode arms pause-at-episode-end on the controller`() = runTest {
         playbackStateFlow.value = PlaybackState(
             isPlaying = true,
             currentPosition = 30_000L,
@@ -106,15 +109,31 @@ class PlaybackIntegrationTest {
         sleepTimer.startEndOfEpisode()
         advanceUntilIdle()
 
-        // Simulate the episode reaching its end (position >= duration - 500ms, not playing)
+        // The controller (not the SleepTimer) performs the actual stop at STATE_ENDED;
+        // the timer just arms the flag and waits for the real end event.
+        verify { playbackController.setPauseAtEpisodeEnd(true) }
+    }
+
+    @Test
+    fun `end-of-episode mode resets remaining to zero when the episode-ended event fires`() = runTest {
         playbackStateFlow.value = PlaybackState(
-            isPlaying = false,
-            currentPosition = 60_000L,
+            isPlaying = true,
+            currentPosition = 50_000L,
             duration = 60_000L,
         )
+
+        sleepTimer.startEndOfEpisode()
         advanceUntilIdle()
 
-        verify(atLeast = 1) { playbackController.pause() }
+        // The controller signals the real end of the episode.
+        episodeEndedFlow.emit(Unit)
+        advanceUntilIdle()
+
+        assertEquals(
+            "remainingMillis should be 0 once the episode-ended event fires",
+            0L,
+            sleepTimer.remainingMillis.value
+        )
     }
 
     @Test
@@ -130,16 +149,15 @@ class PlaybackIntegrationTest {
         advanceUntilIdle()
 
         // remaining should reflect the distance to the end of the episode
-        val remaining = sleepTimer.remainingMillis.value
         assertEquals(
             "remainingMillis should reflect distance to episode end",
             20_000L,
-            remaining
+            sleepTimer.remainingMillis.value
         )
     }
 
     @Test
-    fun `end-of-episode mode does not pause while episode is still playing`() = runTest {
+    fun `end-of-episode mode does not reset while the episode is still playing`() = runTest {
         playbackStateFlow.value = PlaybackState(
             isPlaying = true,
             currentPosition = 10_000L,
@@ -149,47 +167,22 @@ class PlaybackIntegrationTest {
         sleepTimer.startEndOfEpisode()
         advanceUntilIdle()
 
-        verify(exactly = 0) { playbackController.pause() }
-    }
-
-    @Test
-    fun `end-of-episode mode resets remaining to zero after pausing`() = runTest {
-        playbackStateFlow.value = PlaybackState(
-            isPlaying = true,
-            currentPosition = 50_000L,
-            duration = 60_000L,
-        )
-
-        sleepTimer.startEndOfEpisode()
-        advanceUntilIdle()
-
-        // Episode finishes
-        playbackStateFlow.value = PlaybackState(
-            isPlaying = false,
-            currentPosition = 60_000L,
-            duration = 60_000L,
-        )
-        advanceUntilIdle()
-
-        assertEquals(
-            "remainingMillis should be 0 after end-of-episode triggers",
-            0L,
-            sleepTimer.remainingMillis.value
+        // No episode-ended event yet: the timer stays armed and counts down, it does
+        // not reset to zero.
+        assertTrue(
+            "remainingMillis should still be counting down, not reset",
+            sleepTimer.remainingMillis.value > 0L
         )
     }
 
     @Test
-    fun `end-of-episode mode considers position within 500ms of duration as ended`() = runTest {
-        playbackStateFlow.value = PlaybackState(
-            isPlaying = true,
-            currentPosition = 30_000L,
-            duration = 60_000L,
-        )
-
+    fun `end-of-episode mode does not trigger from a near-duration position alone`() = runTest {
         sleepTimer.startEndOfEpisode()
         advanceUntilIdle()
 
-        // Position is 59,600ms out of 60,000ms (within 500ms threshold), not playing
+        // Position lands within 500ms of the end but no real end event was emitted.
+        // The old implementation incorrectly inferred "ended" from position here; the
+        // new one waits for the actual STATE_ENDED signal, so it must NOT reset.
         playbackStateFlow.value = PlaybackState(
             isPlaying = false,
             currentPosition = 59_600L,
@@ -197,7 +190,11 @@ class PlaybackIntegrationTest {
         )
         advanceUntilIdle()
 
-        verify(atLeast = 1) { playbackController.pause() }
+        assertEquals(
+            "near-duration position must not trigger end-of-episode by itself",
+            Long.MAX_VALUE,
+            sleepTimer.remainingMillis.value
+        )
     }
 
     // -------------------------------------------------------------------------
@@ -257,16 +254,15 @@ class PlaybackIntegrationTest {
             sleepTimer.remainingMillis.value
         )
 
-        // Simulate episode ending -- pause should NOT be called since end-of-episode was cancelled
-        playbackStateFlow.value = PlaybackState(
-            isPlaying = false,
-            currentPosition = 60_000L,
-            duration = 60_000L,
-        )
+        // The cancelled end-of-episode listener must no longer react: firing the
+        // episode-ended event should not reset the now-active timed countdown to zero.
+        episodeEndedFlow.emit(Unit)
         advanceTimeBy(1_000L)
 
-        // pause should not have been called by end-of-episode trigger
-        verify(exactly = 0) { playbackController.pause() }
+        assertTrue(
+            "Timed countdown should remain active after a stale episode-ended event",
+            sleepTimer.remainingMillis.value > 0L
+        )
     }
 
     @Test
