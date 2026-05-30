@@ -180,10 +180,14 @@ class RssParser @Inject constructor() {
                         // --- Inside <channel> but not inside <item> ---
                         insideChannel && !insideItem -> {
                             when {
-                                tag == "title" && ns.isEmpty() -> {
+                                // The channel-level <image> element has its own <title> and
+                                // <link> children; without the !insideChannelImage guard the
+                                // image's title/link would clobber the real channel values
+                                // (since <image> normally appears after the channel's own).
+                                tag == "title" && ns.isEmpty() && !insideChannelImage -> {
                                     channelTitle = readText(parser)
                                 }
-                                tag == "description" && ns.isEmpty() -> {
+                                tag == "description" && ns.isEmpty() && !insideChannelImage -> {
                                     channelDescription = readText(parser)
                                 }
                                 tag == "summary" && ns == NS_ITUNES -> {
@@ -194,7 +198,7 @@ class RssParser @Inject constructor() {
                                 tag == "author" && ns == NS_ITUNES -> {
                                     channelAuthor = readText(parser)
                                 }
-                                tag == "link" && ns.isEmpty() -> {
+                                tag == "link" && ns.isEmpty() && !insideChannelImage -> {
                                     channelLink = readText(parser)
                                 }
                                 tag == "image" && ns == NS_ITUNES -> {

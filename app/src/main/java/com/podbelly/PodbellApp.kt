@@ -10,7 +10,14 @@ import androidx.work.Configuration
 import coil.Coil
 import coil.ImageLoader
 import com.podbelly.core.common.CrashLogStore
+import com.podbelly.core.common.PreferencesManager
+import com.podbelly.worker.WorkManagerSetup
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -25,6 +32,11 @@ class PodbellApp : Application(), Configuration.Provider {
     @Inject
     lateinit var crashLogStore: CrashLogStore
 
+    @Inject
+    lateinit var preferencesManager: PreferencesManager
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -35,6 +47,26 @@ class PodbellApp : Application(), Configuration.Provider {
         Coil.setImageLoader(imageLoader)
         installCrashLogHandler()
         createNotificationChannels()
+        scheduleFeedRefresh()
+    }
+
+    /**
+     * Schedules (or cancels) the periodic background feed refresh to match the user's
+     * configured interval. Collecting the preference keeps the schedule in sync when the
+     * interval is changed in Settings; an interval of 0 means "Manual only", so the periodic
+     * work is cancelled. Without this, [WorkManagerSetup.schedulePeriodicRefresh] was never
+     * called and the background refresh feature never ran.
+     */
+    private fun scheduleFeedRefresh() {
+        appScope.launch {
+            preferencesManager.feedRefreshIntervalMinutes.collectLatest { minutes ->
+                if (minutes <= 0) {
+                    WorkManagerSetup.cancelPeriodicRefresh(this@PodbellApp)
+                } else {
+                    WorkManagerSetup.schedulePeriodicRefresh(this@PodbellApp, minutes)
+                }
+            }
+        }
     }
 
     private fun installCrashLogHandler() {

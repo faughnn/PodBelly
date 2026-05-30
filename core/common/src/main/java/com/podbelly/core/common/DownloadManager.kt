@@ -172,6 +172,13 @@ class DownloadManager @Inject constructor(
             var totalBytesRead = 0L
             var lastPercent = -1
 
+            // When the server omits Content-Length (chunked transfer encoding returns -1),
+            // we can't compute a percentage. Surface an indeterminate sentinel so the UI
+            // shows a moving spinner instead of a frozen 0% that looks like a hung download.
+            if (contentLength <= 0) {
+                _downloadProgress.update { it + (episodeId to INDETERMINATE_PROGRESS) }
+            }
+
             body.byteStream().use { inputStream ->
                 FileOutputStream(outputFile).use { outputStream ->
                     val buffer = ByteArray(BUFFER_SIZE)
@@ -311,8 +318,14 @@ class DownloadManager @Inject constructor(
             request,
         )
 
-        // Show immediate progress in UI while WorkManager starts up
-        _downloadProgress.update { it + (episodeId to 0f) }
+        // Show immediate progress in UI while WorkManager starts up — but only when the
+        // network constraint is already satisfiable. If we're offline, WorkManager defers
+        // the worker indefinitely, downloadEpisode() never runs to clear this seed, and the
+        // UI is left with a permanently stuck 0% spinner. downloadEpisode() seeds its own
+        // 0% when it actually starts, so skipping the optimistic seed while offline is safe.
+        if (hasNetwork()) {
+            _downloadProgress.update { it + (episodeId to 0f) }
+        }
     }
 
     /**
@@ -388,10 +401,25 @@ class DownloadManager @Inject constructor(
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
+    /** Returns `true` when an internet-capable network is currently active. */
+    private fun hasNetwork(): Boolean {
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     companion object {
         private const val TAG = "DownloadManager"
         private const val BUFFER_SIZE = 8 * 1024 // 8 KB buffer
         private const val DOWNLOAD_WORK_TAG = "episode_download"
+
+        /**
+         * Sentinel progress value meaning "downloading, total size unknown" (server sent no
+         * Content-Length). The UI renders an indeterminate spinner for any negative value.
+         */
+        const val INDETERMINATE_PROGRESS = -1f
     }
 }
 

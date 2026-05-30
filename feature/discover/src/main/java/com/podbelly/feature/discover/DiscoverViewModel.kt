@@ -137,13 +137,16 @@ class DiscoverViewModel @Inject constructor(
     }
 
     fun subscribeToPodcast(feedUrl: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(subscribingFeedUrls = it.subscribingFeedUrls + feedUrl) }
-            try {
+        viewModelScope.launch { performSubscribe(feedUrl) }
+    }
+
+    private suspend fun performSubscribe(feedUrl: String) {
+        _uiState.update { it.copy(subscribingFeedUrls = it.subscribingFeedUrls + feedUrl) }
+        try {
                 val existing = podcastDao.getByFeedUrl(feedUrl)
                 if (existing?.subscribed == true) {
                     _uiState.update { it.copy(message = "Already subscribed") }
-                    return@launch
+                    return
                 }
 
                 val feed = searchRepository.fetchFeed(feedUrl)
@@ -200,7 +203,6 @@ class DiscoverViewModel @Inject constructor(
             } finally {
                 _uiState.update { it.copy(subscribingFeedUrls = it.subscribingFeedUrls - feedUrl) }
             }
-        }
     }
 
     fun subscribeByUrl(url: String) {
@@ -209,8 +211,13 @@ class DiscoverViewModel @Inject constructor(
             _uiState.update { it.copy(message = "Please enter a feed URL") }
             return
         }
-        subscribeToPodcast(trimmedUrl)
-        _uiState.update { it.copy(feedUrlInput = "") }
+        // Clear the input only after the subscribe completes. The RSS section derives its
+        // spinner from `feedUrlInput in subscribingFeedUrls`; clearing the field up front
+        // (as before) made that test always false, so the progress indicator never showed.
+        viewModelScope.launch {
+            performSubscribe(trimmedUrl)
+            _uiState.update { it.copy(feedUrlInput = "") }
+        }
     }
 
     fun onPodcastClick(feedUrl: String) {

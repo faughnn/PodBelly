@@ -44,6 +44,19 @@ interface QueueDao {
     }
 
     /**
+     * Atomically appends [episodeId] to the end of the queue. Reading MAX(position) and
+     * inserting inside one @Transaction prevents two concurrent enqueues from both reading
+     * the same max and inserting at the same position (duplicate positions, which leave the
+     * queue order undefined). No-op if the episode is already queued.
+     */
+    @Transaction
+    suspend fun addToEnd(episodeId: Long, addedAt: Long) {
+        if (isInQueue(episodeId)) return
+        val nextPosition = (getMaxPosition() ?: -1) + 1
+        addToQueue(QueueItemEntity(episodeId = episodeId, position = nextPosition, addedAt = addedAt))
+    }
+
+    /**
      * Atomically moves the item identified by [queueId] by [delta] positions and
      * renumbers the whole queue (0..n-1). Reading the snapshot and writing the new
      * positions inside one @Transaction prevents a concurrent mutation (auto-advance

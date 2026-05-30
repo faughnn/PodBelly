@@ -70,6 +70,10 @@ class QueueViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QueueUiState())
 
     fun playItem(episodeId: Long) {
+        // Tapping the currently-playing row should just open the player (the screen
+        // navigates regardless). Re-issuing play() would reload the media item and seek to
+        // the last-persisted DB position, audibly restarting and rewinding up to ~10s.
+        if (playbackController.playbackState.value.episodeId == episodeId) return
         viewModelScope.launch {
             val episode = episodeDao.getByIdOnce(episodeId) ?: return@launch
             val podcast = podcastDao.getByIdOnce(episode.podcastId)

@@ -270,11 +270,19 @@ fun EpisodeDetailScreen(
             ) {
                 when {
                     episodeProgress != null -> {
-                        CircularProgressIndicator(
-                            progress = { episodeProgress ?: 0f },
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
+                        if (episodeProgress < 0f) {
+                            // Indeterminate: server sent no Content-Length.
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                progress = { episodeProgress },
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Downloading")
                     }

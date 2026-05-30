@@ -1,9 +1,21 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 35
+    const val LATEST_VERSION_CODE = 36
 
     val changelog: Map<Int, List<String>> = mapOf(
+        36 to listOf(
+            "Background feed refresh now actually runs on the interval you set, so new episodes and notifications arrive without opening the app",
+            "Switching straight to another episode now saves your place in the one you were listening to",
+            "Tapping the episode that's already playing in the queue now just opens the player instead of restarting it",
+            "The lock-screen and notification 30-second skip no longer jumps to the start while an episode is buffering",
+            "Smoother player screen when the artwork changes between episodes",
+            "Downloads from servers that don't report a file size now show an active spinner instead of a stuck 0%",
+            "Starting a download while offline no longer leaves a stuck progress spinner",
+            "Subscribing by RSS URL now shows a progress spinner while it works",
+            "Library now shows the podcast placeholder for shows without artwork instead of a blank tile",
+            "Fixed some podcasts showing a title or link taken from their artwork instead of the real show details",
+        ),
         35 to listOf(
             "Auto-advancing to the next queued episode now plays your downloaded file — no more streaming or failing when offline",
             "The player no longer keeps showing a finished episode at 0:00 when there's nothing left to play",

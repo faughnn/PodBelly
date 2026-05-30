@@ -103,6 +103,8 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import coil.request.SuccessResult
 import com.podbelly.core.playback.Chapter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1129,12 +1131,18 @@ private fun rememberDominantColor(imageUrl: String, defaultColor: Color): Color 
                 ?.let { it as? BitmapDrawable }
                 ?.bitmap
             if (bitmap != null) {
-                val palette = Palette.from(bitmap).generate()
-                val swatch = palette.darkMutedSwatch
-                    ?: palette.mutedSwatch
-                    ?: palette.dominantSwatch
-                if (swatch != null) {
-                    dominantColor = Color(swatch.rgb)
+                // Palette.generate() is a synchronous, CPU-bound per-pixel scan. The
+                // LaunchedEffect body runs on the composition's Main dispatcher, so run the
+                // analysis on a background dispatcher to avoid blocking the UI thread (jank)
+                // on every artwork change. The result is applied back on resume (Main).
+                val swatchRgb = withContext(Dispatchers.Default) {
+                    val palette = Palette.from(bitmap).generate()
+                    (palette.darkMutedSwatch
+                        ?: palette.mutedSwatch
+                        ?: palette.dominantSwatch)?.rgb
+                }
+                if (swatchRgb != null) {
+                    dominantColor = Color(swatchRgb)
                 }
             }
         } catch (_: Exception) {

@@ -317,6 +317,23 @@ class PlaybackController @Inject constructor(
     ) {
         val controller = mediaController ?: return
 
+        // Flush the outgoing episode's position before we overwrite state. Position is
+        // otherwise only persisted on pause or via the ~10s periodic save, so switching
+        // episodes mid-playback (which calls play() directly, without pausing) would lose
+        // up to ~10s of the previous episode's progress and leave a stale resume point.
+        val previous = _playbackState.value
+        if (previous.episodeId != 0L && previous.episodeId != episodeId && previous.currentPosition > 0L) {
+            val previousId = previous.episodeId
+            val previousPosition = previous.currentPosition
+            scope.launch {
+                try {
+                    episodeDao.updatePlaybackPosition(previousId, previousPosition)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to save outgoing episode position", e)
+                }
+            }
+        }
+
         // End any existing listening session before starting new playback
         endListeningSession()
 

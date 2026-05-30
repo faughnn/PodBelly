@@ -7,7 +7,6 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.common.DownloadErrorEvent
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
@@ -259,9 +258,9 @@ class PodcastDetailViewModel @Inject constructor(
 
     fun addToQueueLast(episodeId: Long) {
         viewModelScope.launch {
-            if (queueDao.isInQueue(episodeId)) return@launch
-            val maxPos = queueDao.getMaxPosition() ?: -1
-            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = maxPos + 1, addedAt = System.currentTimeMillis()))
+            // Read-max + insert atomically (single @Transaction) so two concurrent
+            // enqueues can't both land at the same position.
+            queueDao.addToEnd(episodeId, System.currentTimeMillis())
         }
     }
 }

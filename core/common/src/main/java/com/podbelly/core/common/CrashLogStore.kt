@@ -56,8 +56,14 @@ class CrashLogStore @Inject constructor(
                 if (f.exists() && f.length() + entryBytes.size > MAX_BYTES) {
                     // Rotate by keeping the most recent entries instead of discarding the
                     // whole log — a crash near the cap shouldn't wipe all prior traces.
-                    val existing = f.readText()
-                    val tail = existing.takeLast(KEEP_CHARS)
+                    // Trim by BYTES, not chars — the cap (MAX_BYTES) is measured in bytes, so
+                    // retaining a fixed char count could keep far more than KEEP_BYTES of
+                    // multi-byte UTF-8 and overshoot the cap.
+                    val existingBytes = f.readBytes()
+                    val keepFrom = (existingBytes.size - KEEP_BYTES).coerceAtLeast(0)
+                    // Decoding from an arbitrary byte offset may split a multi-byte char, but
+                    // aligning to the next entry boundary below discards any leading partial.
+                    val tail = String(existingBytes, keepFrom, existingBytes.size - keepFrom, Charsets.UTF_8)
                     // Align to an entry boundary so we don't keep a half stack trace.
                     val boundary = tail.indexOf(ENTRY_MARKER)
                     val kept = if (boundary >= 0) tail.substring(boundary) else ""
@@ -99,8 +105,8 @@ class CrashLogStore @Inject constructor(
         /** Marks the start of each log entry; used to trim on an entry boundary. */
         private const val ENTRY_MARKER = "===== "
 
-        /** Roughly how much of the log to retain when rotating (about half the cap). */
-        private const val KEEP_CHARS = 100 * 1024
+        /** Roughly how many bytes of the log to retain when rotating (about half the cap). */
+        private const val KEEP_BYTES = 100 * 1024
 
         // DateTimeFormatter is immutable and thread-safe (unlike SimpleDateFormat), so it
         // is safe to format outside the lock even when two threads crash concurrently.

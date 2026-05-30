@@ -136,8 +136,15 @@ class PlaybackService : MediaSessionService() {
                     }
                     CUSTOM_COMMAND_FAST_FORWARD -> {
                         exoPlayer?.let { player ->
-                            val newPos = (player.currentPosition + 30_000L)
-                                .coerceAtMost(player.duration.coerceAtLeast(0L))
+                            // Only clamp to duration when it is known. For a streaming/
+                            // buffering item player.duration is C.TIME_UNSET (a large
+                            // negative value), and coerceAtMost(duration.coerceAtLeast(0))
+                            // would force the target back to 0 — seeking to the start of the
+                            // episode instead of skipping forward. Mirror the guard in
+                            // PlaybackController.skipForward().
+                            val target = player.currentPosition + 30_000L
+                            val duration = player.duration
+                            val newPos = if (duration > 0L) target.coerceAtMost(duration) else target
                             player.seekTo(newPos)
                         }
                         Log.d(TAG, "Fast forwarded 30 seconds")
