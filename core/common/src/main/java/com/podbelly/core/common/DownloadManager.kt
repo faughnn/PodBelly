@@ -110,6 +110,10 @@ class DownloadManager @Inject constructor(
                 )
             )
             _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
+            // enqueueDownload optimistically seeded a 0% progress entry; clear it here
+            // (as every other exit path does) so the UI doesn't show a stuck spinner
+            // when the network flipped to mobile between enqueue and execution.
+            _downloadProgress.update { it - episodeId }
             return@withContext
         }
 
@@ -232,6 +236,7 @@ class DownloadManager @Inject constructor(
             // Transient network/transfer failure (timeout, connection drop, etc.).
             // Record it and rethrow so the WorkManager worker can retry with backoff.
             Log.e(TAG, "Network error downloading episode $episodeId", e)
+            deletePartialDownload(episodeId)
             val msg = e.message ?: "Network error"
             downloadErrorDao.insert(
                 DownloadErrorEntity(
@@ -246,6 +251,7 @@ class DownloadManager @Inject constructor(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error downloading episode $episodeId", e)
+            deletePartialDownload(episodeId)
             val msg = e.message ?: "Unknown error"
             downloadErrorDao.insert(
                 DownloadErrorEntity(
@@ -257,6 +263,23 @@ class DownloadManager @Inject constructor(
             )
             _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
             _downloadProgress.update { it - episodeId }
+        }
+    }
+
+    /**
+     * Removes a partially-written download file. Called on failure paths so a download
+     * that ultimately fails (after retries) doesn't leave an orphaned `.mp3` on disk —
+     * the DB-driven delete paths never see it because no downloadPath was recorded.
+     */
+    private fun deletePartialDownload(episodeId: Long) {
+        try {
+            val podcastsDir = context.getExternalFilesDir("podcasts")
+            val partialFile = File(podcastsDir, "$episodeId.mp3")
+            if (partialFile.exists()) {
+                partialFile.delete()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to delete partial download for episode $episodeId", e)
         }
     }
 

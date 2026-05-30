@@ -6,13 +6,11 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.dao.QueueEpisode
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -113,21 +111,9 @@ class QueueViewModel @Inject constructor(
      */
     private fun reorder(queueId: Long, delta: Int) {
         viewModelScope.launch {
-            val currentItems = queueDao.getQueueWithEpisodes().first()
-            val fromIndex = currentItems.indexOfFirst { it.queueItem.id == queueId }
-            if (fromIndex < 0) return@launch
-            val toIndex = fromIndex + delta
-            if (toIndex !in currentItems.indices) return@launch
-
-            val mutableList = currentItems.toMutableList()
-            val movedItem = mutableList.removeAt(fromIndex)
-            mutableList.add(toIndex, movedItem)
-
-            // Rebuild position values for all affected items
-            val updatedEntities = mutableList.mapIndexed { index, queueEpisode ->
-                queueEpisode.queueItem.copy(position = index)
-            }
-            queueDao.updatePositions(updatedEntities)
+            // Resolve + renumber inside a single DB transaction (QueueDao.moveItem) so a
+            // concurrent queue mutation can't interleave between the read and the write.
+            queueDao.moveItem(queueId, delta)
         }
     }
 }

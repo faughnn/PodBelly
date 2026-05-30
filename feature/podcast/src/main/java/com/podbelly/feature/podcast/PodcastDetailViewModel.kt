@@ -251,11 +251,9 @@ class PodcastDetailViewModel @Inject constructor(
 
     fun addToQueueNext(episodeId: Long) {
         viewModelScope.launch {
-            if (queueDao.isInQueue(episodeId)) return@launch
-            val items = queueDao.getQueueOnce()
-            val shifted = items.map { it.queueItem.copy(position = it.queueItem.position + 1) }
-            queueDao.updatePositions(shifted)
-            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = 0, addedAt = System.currentTimeMillis()))
+            // addToFront shifts + inserts inside one @Transaction so an interruption or
+            // concurrent mutation can't leave the queue shifted with no head item.
+            queueDao.addToFront(episodeId, System.currentTimeMillis())
         }
     }
 

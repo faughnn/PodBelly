@@ -29,6 +29,7 @@ import com.podbelly.ui.theme.PodbellTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -60,7 +61,12 @@ class MainActivity : ComponentActivity() {
         playbackController.connectToService(this)
         // Resolve the persisted theme once, synchronously, before the first frame so
         // LIGHT/OLED_DARK/HIGH_CONTRAST users don't see a SYSTEM-theme flash at launch.
-        val initialTheme = runBlocking { preferencesManager.appTheme.first() }
+        // Bounded by a short timeout so a pathologically slow first DataStore disk read
+        // can't block the main thread long enough to ANR; collectAsStateWithLifecycle
+        // applies the real value moments later if the timeout is hit.
+        val initialTheme = runBlocking {
+            withTimeoutOrNull(150) { preferencesManager.appTheme.first() } ?: AppTheme.SYSTEM
+        }
         setContent {
             val appTheme by preferencesManager.appTheme
                 .collectAsStateWithLifecycle(initialTheme)
@@ -81,12 +87,16 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                whatsNewChanges?.let { changes ->
-                    WhatsNewDialog(
-                        versionName = versionName,
-                        changes = changes,
-                        onDismiss = { appViewModel.dismissWhatsNew() },
-                    )
+                // Only show the dialog once the splash has finished, otherwise the
+                // AlertDialog can pop over the still-animating splash on upgrade launches.
+                if (!showSplash) {
+                    whatsNewChanges?.let { changes ->
+                        WhatsNewDialog(
+                            versionName = versionName,
+                            changes = changes,
+                            onDismiss = { appViewModel.dismissWhatsNew() },
+                        )
+                    }
                 }
             }
         }

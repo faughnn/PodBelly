@@ -97,19 +97,25 @@ class PlaybackController @Inject constructor(
     private var currentPodcastTitle: String = ""
     private var currentEpisodeTitle: String = ""
 
+    /**
+     * Per-session state for an in-flight insert. Each [startListeningSession] creates a
+     * fresh holder that its own insert continuation captures, so two overlapping sessions
+     * (e.g. a rapid auto-advance / track change while the prior insert is still
+     * committing) no longer share single mutable fields. If a session is ended before its
+     * insert completes, [ended] is set and the insert continuation finalizes *its own*
+     * row — previously this clobbered the stash and orphaned the earlier session.
+     */
+    private class PendingSession {
+        var ended: Boolean = false
+        var endTime: Long = 0L
+        var listenedMs: Long = 0L
+    }
+
     /** Listening session tracking */
     private var currentSessionId: Long = 0L
     private var sessionStartTime: Long = 0L
-    private var sessionInsertPending: Boolean = false
+    private var pendingSession: PendingSession? = null
     private var lastSessionSaveTime: Long = 0L
-
-    /**
-     * If the session is ended while its insert is still in flight, the end time and
-     * accumulated listened-ms are stashed here so the insert continuation can finalize
-     * the row once it has a real id. Avoids orphaned sessions with no endedAt/listenedMs.
-     */
-    private var pendingSessionEndTime: Long = 0L
-    private var pendingSessionListenedMs: Long = 0L
 
     /** Timestamp of last periodic position save to the database */
     private var lastPositionSaveTime: Long = 0L
@@ -616,7 +622,11 @@ class PlaybackController @Inject constructor(
 
                 play(
                     episodeId = episode.id,
-                    audioUrl = episode.audioUrl,
+                    // Prefer the downloaded file (download-first); fall back to the remote
+                    // URL only if not downloaded — matching every other play() call site.
+                    // Streaming the remote URL here would break offline auto-advance and
+                    // waste mobile data for an episode the user explicitly downloaded.
+                    audioUrl = episode.downloadPath.ifBlank { episode.audioUrl },
                     title = episode.title,
                     podcastTitle = podcastTitle,
                     artworkUrl = episode.artworkUrl,
@@ -643,6 +653,19 @@ class PlaybackController @Inject constructor(
         val controller = mediaController ?: return
         controller.clearMediaItems()
         controller.stop()
+        stopPositionUpdates()
+
+        // Reset state so the just-finished episode doesn't linger in the mini-player at
+        // 0:00 (where tapping play would restart the already-played episode). Mirrors
+        // stop(); without this the cleared media item leaves episodeId/title populated.
+        currentEpisodeId = 0L
+        currentPodcastId = 0L
+        currentAudioUrl = ""
+        currentArtworkUrl = ""
+        currentPodcastTitle = ""
+        currentEpisodeTitle = ""
+
+        _playbackState.value = PlaybackState()
     }
 
     /**
@@ -717,9 +740,11 @@ class PlaybackController @Inject constructor(
         val startTime = System.currentTimeMillis()
         sessionStartTime = startTime
         lastSessionSaveTime = startTime
-        sessionInsertPending = true
-        pendingSessionEndTime = 0L
-        pendingSessionListenedMs = 0L
+        currentSessionId = 0L
+        // Fresh holder for this session; the insert continuation below captures it, so a
+        // later session starting mid-insert can't clobber this one's end-of-session stash.
+        val pending = PendingSession()
+        pendingSession = pending
         val episodeId = currentEpisodeId
         scope.launch {
             try {
@@ -735,24 +760,18 @@ class PlaybackController @Inject constructor(
                     playbackSpeed = _playbackState.value.playbackSpeed,
                 )
                 val insertedId = listeningSessionDao.insert(session)
-                sessionInsertPending = false
 
-                if (pendingSessionEndTime != 0L) {
-                    // The session was ended before this insert completed. Finalize the
-                    // row now so endedAt/listenedMs are not lost (previously this left
-                    // an orphaned, never-updated session).
-                    listeningSessionDao.updateSession(
-                        insertedId,
-                        pendingSessionEndTime,
-                        pendingSessionListenedMs,
-                    )
-                    pendingSessionEndTime = 0L
-                    pendingSessionListenedMs = 0L
-                } else {
+                if (pending.ended) {
+                    // This session was ended before its insert completed. Finalize its
+                    // own row now so endedAt/listenedMs are not lost (previously this
+                    // could leave an orphaned, never-updated session).
+                    listeningSessionDao.updateSession(insertedId, pending.endTime, pending.listenedMs)
+                } else if (pendingSession === pending) {
+                    // Still the active session — record its id. The identity check guards
+                    // against a newer session having superseded this one in the meantime.
                     currentSessionId = insertedId
                 }
             } catch (e: Exception) {
-                sessionInsertPending = false
                 Log.w(TAG, "Failed to start listening session", e)
             }
         }
@@ -760,7 +779,6 @@ class PlaybackController @Inject constructor(
 
     private fun endListeningSession() {
         if (sessionStartTime == 0L) return
-        if (currentSessionId == 0L && !sessionInsertPending) return
         val endTime = System.currentTimeMillis()
         val listenedMs = endTime - sessionStartTime
         val sessionId = currentSessionId
@@ -776,10 +794,13 @@ class PlaybackController @Inject constructor(
                 }
             }
         } else {
-            // Insert still in flight: stash the end values so the insert continuation
-            // finalizes the row once it has a real id.
-            pendingSessionEndTime = endTime
-            pendingSessionListenedMs = listenedMs
+            // Insert still in flight: mark this session's holder ended so its own insert
+            // continuation finalizes the row once it has a real id.
+            pendingSession?.let {
+                it.ended = true
+                it.endTime = endTime
+                it.listenedMs = listenedMs
+            }
         }
     }
 

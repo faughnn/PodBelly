@@ -40,6 +40,11 @@ interface EpisodeDao {
      * and GUID) while preserving user state (played / playbackPosition / download* /
      * lastPlayedAt). Lets publisher corrections (e.g. a changed audioUrl) propagate,
      * which a plain IGNORE insert never would.
+     *
+     * fileSize is only taken from the feed for *not-yet-downloaded* episodes. Once an
+     * episode is downloaded its fileSize holds the real on-disk byte count (written by
+     * [setDownloadPath]); the RSS enclosure length is frequently 0 or inaccurate, so
+     * overwriting it would corrupt storage accounting (getTotalDownloadedBytes).
      */
     @Query(
         """
@@ -50,7 +55,7 @@ interface EpisodeDao {
             publicationDate = :publicationDate,
             durationSeconds = :durationSeconds,
             artworkUrl = :artworkUrl,
-            fileSize = :fileSize
+            fileSize = CASE WHEN downloadPath != '' THEN fileSize ELSE :fileSize END
         WHERE podcastId = :podcastId AND guid = :guid
         """
     )

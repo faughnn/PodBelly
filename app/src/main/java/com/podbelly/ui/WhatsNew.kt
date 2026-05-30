@@ -1,9 +1,20 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 34
+    const val LATEST_VERSION_CODE = 35
 
     val changelog: Map<Int, List<String>> = mapOf(
+        35 to listOf(
+            "Auto-advancing to the next queued episode now plays your downloaded file — no more streaming or failing when offline",
+            "The player no longer keeps showing a finished episode at 0:00 when there's nothing left to play",
+            "Storage usage now stays accurate after feeds refresh instead of dropping to zero for downloaded episodes",
+            "Podcast titles and descriptions with accents, smart quotes and em dashes now display correctly",
+            "Clearing the Discover search box no longer briefly repopulates old results",
+            "Failed downloads no longer leave leftover files wasting storage",
+            "Downloads blocked by Wi-Fi-only no longer show a stuck progress spinner",
+            "Listening stats are more accurate when skipping quickly between episodes",
+            "Faster, smoother app startup",
+        ),
         34 to listOf(
             "Volume boost no longer changes your device's media volume",
             "Skipping forward or scrubbing no longer jumps to the start while an episode is buffering",

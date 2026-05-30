@@ -110,6 +110,11 @@ class DiscoverViewModel @Inject constructor(
         _uiState.update { it.copy(isSearching = true) }
         try {
             val results = searchRepository.search(query)
+            // A blank query is filtered out of the search pipeline, so clearing the box
+            // doesn't cancel this in-flight call via collectLatest. Bail if the query box
+            // no longer matches what we searched, so stale results can't repopulate a
+            // box the user has since cleared or changed.
+            if (_uiState.value.searchQuery != query) return
             val items = results.map { result ->
                 val existing = podcastDao.getByFeedUrl(result.feedUrl)
                 DiscoverPodcastItem(

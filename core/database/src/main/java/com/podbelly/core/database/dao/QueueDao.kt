@@ -15,6 +15,9 @@ interface QueueDao {
     @Query("SELECT * FROM queue_items ORDER BY position ASC")
     fun getAll(): Flow<List<QueueItemEntity>>
 
+    @Query("SELECT * FROM queue_items ORDER BY position ASC")
+    suspend fun getAllOnce(): List<QueueItemEntity>
+
     @Transaction
     @Query("SELECT * FROM queue_items ORDER BY position ASC")
     fun getQueueWithEpisodes(): Flow<List<QueueEpisode>>
@@ -38,6 +41,28 @@ interface QueueDao {
         if (isInQueue(episodeId)) return
         shiftAllPositionsUp()
         addToQueue(QueueItemEntity(episodeId = episodeId, position = 0, addedAt = addedAt))
+    }
+
+    /**
+     * Atomically moves the item identified by [queueId] by [delta] positions and
+     * renumbers the whole queue (0..n-1). Reading the snapshot and writing the new
+     * positions inside one @Transaction prevents a concurrent mutation (auto-advance
+     * removal, a Play Next/Last insert) from interleaving between the read and the
+     * write and leaving duplicate or gapped positions. No-op if the item is missing
+     * or the move is out of bounds.
+     */
+    @Transaction
+    suspend fun moveItem(queueId: Long, delta: Int) {
+        val items = getAllOnce()
+        val fromIndex = items.indexOfFirst { it.id == queueId }
+        if (fromIndex < 0) return
+        val toIndex = fromIndex + delta
+        if (toIndex !in items.indices) return
+
+        val reordered = items.toMutableList()
+        val moved = reordered.removeAt(fromIndex)
+        reordered.add(toIndex, moved)
+        updatePositions(reordered.mapIndexed { index, item -> item.copy(position = index) })
     }
 
     @Query("DELETE FROM queue_items")
