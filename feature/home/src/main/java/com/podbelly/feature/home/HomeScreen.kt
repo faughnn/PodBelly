@@ -50,8 +50,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -99,7 +101,14 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.downloadErrors.collect { error ->
-            snackbarHostState.showSnackbar("Download failed: ${error.message}")
+            // Show in a child coroutine so a slow/queued snackbar doesn't block the
+            // collector (which would back up rapid download-failure events).
+            launch {
+                snackbarHostState.showSnackbar(
+                    message = "Download failed: ${error.message}",
+                    duration = SnackbarDuration.Short,
+                )
+            }
         }
     }
 
@@ -552,12 +561,22 @@ fun EpisodeCard(
                 ) {
                     when {
                         isDownloading -> {
-                            CircularProgressIndicator(
-                                progress = { downloadProgress ?: 0f },
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                            val pct = downloadProgress ?: 0f
+                            if (pct < 0f) {
+                                // Indeterminate: server sent no Content-Length.
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                CircularProgressIndicator(
+                                    progress = { pct },
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                         isDownloaded && episode.played -> {
                             Icon(

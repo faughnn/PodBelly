@@ -23,14 +23,23 @@ object NetworkModule {
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(Interceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .header("User-Agent", "Podbelly/1.0 (Android; Podcast App)")
-                    .build()
+                val original = chain.request()
+                // Only set a default User-Agent when the caller didn't specify one,
+                // so per-request User-Agent values aren't silently overwritten.
+                val request = if (original.header("User-Agent") == null) {
+                    original.newBuilder()
+                        .header("User-Agent", "Podbelly/1.0 (Android; Podcast App)")
+                        .build()
+                } else {
+                    original
+                }
                 chain.proceed(request)
             })
             .connectTimeout(30L, TimeUnit.SECONDS)
             .readTimeout(30L, TimeUnit.SECONDS)
             .writeTimeout(30L, TimeUnit.SECONDS)
+            // Bound total call time so a slow-drip body can't hang a feed fetch forever.
+            .callTimeout(90L, TimeUnit.SECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
             .build()

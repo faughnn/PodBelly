@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -170,8 +171,11 @@ private fun PodcastGridCard(
             // Artwork image (fill width, 1:1 aspect ratio)
             Box {
                 AsyncImage(
-                    model = podcast.artworkUrl,
+                    model = podcast.artworkUrl.ifBlank { null },
                     contentDescription = podcast.title,
+                    placeholder = rememberVectorPainter(Icons.Default.Podcasts),
+                    error = rememberVectorPainter(Icons.Default.Podcasts),
+                    fallback = rememberVectorPainter(Icons.Default.Podcasts),
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)

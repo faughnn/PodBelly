@@ -14,14 +14,15 @@ import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,7 +41,8 @@ data class DiscoverUiState(
     val searchResults: List<DiscoverPodcastItem> = emptyList(),
     val isSearching: Boolean = false,
     val feedUrlInput: String = "",
-    val isSubscribing: Boolean = false,
+    /** Feed URLs with a subscription currently in flight, so each row can spin/disable independently. */
+    val subscribingFeedUrls: Set<String> = emptySet(),
     val message: String? = null,
 )
 
@@ -61,17 +63,24 @@ class DiscoverViewModel @Inject constructor(
     val navigateToPodcast = _navigateToPodcast.receiveAsFlow()
 
     private val searchQueryFlow = MutableStateFlow("")
-    private var searchJob: Job? = null
+
+    /** Explicit (e.g. IME "Search" action) queries that should run without the debounce. */
+    private val immediateSearch = Channel<String>(Channel.CONFLATED)
 
     init {
         viewModelScope.launch {
-            searchQueryFlow
-                .debounce(400L)
-                .distinctUntilChanged()
-                .filter { it.isNotBlank() }
-                .collect { query ->
-                    performSearch(query)
-                }
+            // A single pipeline runs every search. collectLatest cancels any in-flight
+            // search when a newer query arrives, so two concurrent requests can no longer
+            // race to overwrite the results (last-writer-wins).
+            merge(
+                searchQueryFlow
+                    .debounce(400L)
+                    .distinctUntilChanged()
+                    .filter { it.isNotBlank() },
+                immediateSearch.receiveAsFlow(),
+            ).collectLatest { query ->
+                performSearch(query)
+            }
         }
     }
 
@@ -91,10 +100,9 @@ class DiscoverViewModel @Inject constructor(
     fun search(query: String) {
         updateSearchQuery(query)
         if (query.isNotBlank()) {
-            searchJob?.cancel()
-            searchJob = viewModelScope.launch {
-                performSearch(query)
-            }
+            // Bypass the debounce for an explicit search; the shared pipeline still
+            // serializes it via collectLatest.
+            immediateSearch.trySend(query)
         }
     }
 
@@ -102,6 +110,11 @@ class DiscoverViewModel @Inject constructor(
         _uiState.update { it.copy(isSearching = true) }
         try {
             val results = searchRepository.search(query)
+            // A blank query is filtered out of the search pipeline, so clearing the box
+            // doesn't cancel this in-flight call via collectLatest. Bail if the query box
+            // no longer matches what we searched, so stale results can't repopulate a
+            // box the user has since cleared or changed.
+            if (_uiState.value.searchQuery != query) return
             val items = results.map { result ->
                 val existing = podcastDao.getByFeedUrl(result.feedUrl)
                 DiscoverPodcastItem(
@@ -124,15 +137,16 @@ class DiscoverViewModel @Inject constructor(
     }
 
     fun subscribeToPodcast(feedUrl: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSubscribing = true) }
-            try {
+        viewModelScope.launch { performSubscribe(feedUrl) }
+    }
+
+    private suspend fun performSubscribe(feedUrl: String) {
+        _uiState.update { it.copy(subscribingFeedUrls = it.subscribingFeedUrls + feedUrl) }
+        try {
                 val existing = podcastDao.getByFeedUrl(feedUrl)
                 if (existing?.subscribed == true) {
-                    _uiState.update {
-                        it.copy(isSubscribing = false, message = "Already subscribed")
-                    }
-                    return@launch
+                    _uiState.update { it.copy(message = "Already subscribed") }
+                    return
                 }
 
                 val feed = searchRepository.fetchFeed(feedUrl)
@@ -177,7 +191,6 @@ class DiscoverViewModel @Inject constructor(
 
                 _uiState.update { state ->
                     state.copy(
-                        isSubscribing = false,
                         message = "Subscribed to ${feed.title}",
                         searchResults = state.searchResults.map { item ->
                             if (item.feedUrl == feedUrl) item.copy(isSubscribed = true)
@@ -186,14 +199,10 @@ class DiscoverViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isSubscribing = false,
-                        message = "Subscription failed: ${e.message}",
-                    )
-                }
+                _uiState.update { it.copy(message = "Subscription failed: ${e.message}") }
+            } finally {
+                _uiState.update { it.copy(subscribingFeedUrls = it.subscribingFeedUrls - feedUrl) }
             }
-        }
     }
 
     fun subscribeByUrl(url: String) {
@@ -202,17 +211,22 @@ class DiscoverViewModel @Inject constructor(
             _uiState.update { it.copy(message = "Please enter a feed URL") }
             return
         }
-        subscribeToPodcast(trimmedUrl)
-        _uiState.update { it.copy(feedUrlInput = "") }
+        // Clear the input only after the subscribe completes. The RSS section derives its
+        // spinner from `feedUrlInput in subscribingFeedUrls`; clearing the field up front
+        // (as before) made that test always false, so the progress indicator never showed.
+        viewModelScope.launch {
+            performSubscribe(trimmedUrl)
+            _uiState.update { it.copy(feedUrlInput = "") }
+        }
     }
 
     fun onPodcastClick(feedUrl: String) {
+        // Pure navigation — must NOT touch subscribingFeedUrls (that would disable
+        // every Subscribe button while this fetch runs).
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubscribing = true) }
             try {
                 val existing = podcastDao.getByFeedUrl(feedUrl)
                 if (existing != null) {
-                    _uiState.update { it.copy(isSubscribing = false) }
                     _navigateToPodcast.send(existing.id)
                     return@launch
                 }
@@ -220,7 +234,9 @@ class DiscoverViewModel @Inject constructor(
                 val feed = searchRepository.fetchFeed(feedUrl)
                 val now = System.currentTimeMillis()
 
-                val podcastId = podcastDao.insert(
+                // Insert-if-absent (not REPLACE) so a concurrent second tap can't replace
+                // the row with a new id and CASCADE-delete the episodes we just inserted.
+                val newId = podcastDao.insertIfAbsent(
                     PodcastEntity(
                         feedUrl = feedUrl,
                         title = feed.title,
@@ -236,6 +252,9 @@ class DiscoverViewModel @Inject constructor(
                         episodeCount = feed.episodes.size,
                     )
                 )
+                val podcastId = if (newId != -1L) newId else {
+                    podcastDao.getByFeedUrl(feedUrl)?.id ?: return@launch
+                }
 
                 val episodes = feed.episodes.map { episode ->
                     EpisodeEntity(
@@ -252,15 +271,9 @@ class DiscoverViewModel @Inject constructor(
                 episodeDao.insertAll(episodes)
                 prefetchArtwork(feed.artworkUrl)
 
-                _uiState.update { it.copy(isSubscribing = false) }
                 _navigateToPodcast.send(podcastId)
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isSubscribing = false,
-                        message = "Failed to load podcast: ${e.message}",
-                    )
-                }
+                _uiState.update { it.copy(message = "Failed to load podcast: ${e.message}") }
             }
         }
     }

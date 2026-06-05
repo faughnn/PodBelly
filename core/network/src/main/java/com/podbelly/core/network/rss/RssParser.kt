@@ -8,7 +8,7 @@ import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
 import java.security.MessageDigest
-import java.text.ParseException
+import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -45,8 +45,11 @@ class RssParser @Inject constructor() {
             "EEE, d MMM yyyy HH:mm:ss z",
             "yyyy-MM-dd'T'HH:mm:ss'Z'",
             "yyyy-MM-dd'T'HH:mm:ssZ",
+            // RFC 3339 colon-separated offsets (e.g. +02:00) emitted by iTunes/Atom feeds.
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
             "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
             "yyyy-MM-dd"
         )
     }
@@ -177,10 +180,14 @@ class RssParser @Inject constructor() {
                         // --- Inside <channel> but not inside <item> ---
                         insideChannel && !insideItem -> {
                             when {
-                                tag == "title" && ns.isEmpty() -> {
+                                // The channel-level <image> element has its own <title> and
+                                // <link> children; without the !insideChannelImage guard the
+                                // image's title/link would clobber the real channel values
+                                // (since <image> normally appears after the channel's own).
+                                tag == "title" && ns.isEmpty() && !insideChannelImage -> {
                                     channelTitle = readText(parser)
                                 }
-                                tag == "description" && ns.isEmpty() -> {
+                                tag == "description" && ns.isEmpty() && !insideChannelImage -> {
                                     channelDescription = readText(parser)
                                 }
                                 tag == "summary" && ns == NS_ITUNES -> {
@@ -191,7 +198,7 @@ class RssParser @Inject constructor() {
                                 tag == "author" && ns == NS_ITUNES -> {
                                     channelAuthor = readText(parser)
                                 }
-                                tag == "link" && ns.isEmpty() -> {
+                                tag == "link" && ns.isEmpty() && !insideChannelImage -> {
                                     channelLink = readText(parser)
                                 }
                                 tag == "image" && ns == NS_ITUNES -> {
@@ -229,7 +236,7 @@ class RssParser @Inject constructor() {
                             val finalDescription = itemDescription.ifBlank { itemSummary }
 
                             val resolvedGuid = itemGuid.ifBlank {
-                                generateGuid(itemTitle, itemAudioUrl)
+                                generateGuid(itemAudioUrl)
                             }
 
                             // Only add episodes that have an audio URL
@@ -349,39 +356,34 @@ class RssParser @Inject constructor() {
         val cleaned = cleanDateString(trimmed)
 
         for (format in RFC822_FORMATS) {
-            try {
-                val sdf = SimpleDateFormat(format, Locale.US).apply {
-                    timeZone = TimeZone.getTimeZone("UTC")
-                    isLenient = true
-                }
-                val date = sdf.parse(cleaned)
-                if (date != null) {
-                    return date.time
-                }
-            } catch (_: ParseException) {
-                // Try next format
-            }
+            tryParseDate(format, cleaned)?.let { return it }
         }
 
         // Last resort: try the original untouched string
         if (cleaned != trimmed) {
             for (format in RFC822_FORMATS) {
-                try {
-                    val sdf = SimpleDateFormat(format, Locale.US).apply {
-                        timeZone = TimeZone.getTimeZone("UTC")
-                        isLenient = true
-                    }
-                    val date = sdf.parse(trimmed)
-                    if (date != null) {
-                        return date.time
-                    }
-                } catch (_: ParseException) {
-                    // Try next format
-                }
+                tryParseDate(format, trimmed)?.let { return it }
             }
         }
 
         return 0L
+    }
+
+    /**
+     * Attempts to parse [input] with the given [format], returning epoch millis only
+     * when the entire string is consumed. Uses non-lenient parsing so out-of-range
+     * fields (e.g. month 13) are rejected instead of silently rolling over, and the
+     * full-consumption check prevents a short pattern like "yyyy-MM-dd" from matching
+     * only the date prefix of a full timestamp (which dropped the time-of-day).
+     */
+    private fun tryParseDate(format: String, input: String): Long? {
+        val sdf = SimpleDateFormat(format, Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false
+        }
+        val position = ParsePosition(0)
+        val date = sdf.parse(input, position)
+        return if (date != null && position.index == input.length) date.time else null
     }
 
     /**
@@ -425,12 +427,15 @@ class RssParser @Inject constructor() {
     }
 
     /**
-     * Generates a deterministic GUID from title and audio URL using SHA-256.
+     * Generates a deterministic GUID from the episode's audio URL using SHA-256.
+     *
+     * Based on the audio URL alone (not the title) so that a publisher editing only
+     * an episode's title doesn't change the synthesized GUID and cause the same audio
+     * to be re-imported as a duplicate.
      */
-    private fun generateGuid(title: String, audioUrl: String): String {
-        val input = "$title|$audioUrl"
+    private fun generateGuid(audioUrl: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(input.toByteArray(Charsets.UTF_8))
+        val hash = digest.digest(audioUrl.toByteArray(Charsets.UTF_8))
         return hash.joinToString("") { "%02x".format(it) }
     }
 }

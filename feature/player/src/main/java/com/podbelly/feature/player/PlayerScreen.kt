@@ -103,6 +103,8 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import coil.request.SuccessResult
 import com.podbelly.core.playback.Chapter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -460,9 +462,14 @@ private fun SeekBar(
 
         Slider(
             value = sliderPosition,
+            // Track the drag locally and commit a single seek on release, rather than
+            // firing a Media3 seek on every drag frame (dozens/sec). Mirrors the
+            // commit-on-finish pattern the speed slider already uses.
             onValueChange = { fraction ->
                 localSlider = fraction
-                onSeek((fraction * duration).toLong())
+            },
+            onValueChangeFinished = {
+                if (duration > 0L) onSeek((localSlider * duration).toLong())
             },
             modifier = Modifier.fillMaxWidth(),
             interactionSource = interactionSource,
@@ -662,7 +669,9 @@ internal fun SecondaryControls(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Icon(
-                imageVector = if (isSleepTimerActive) Icons.Filled.Bedtime else Icons.Filled.Bedtime,
+                // Active/inactive is conveyed by the tint and the text label below;
+                // the icon itself is the same in both states.
+                imageVector = Icons.Filled.Bedtime,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
                 tint = if (isSleepTimerActive) {
@@ -673,7 +682,7 @@ internal fun SecondaryControls(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = if (isSleepTimerActive) formatMillis(sleepTimerRemaining) else "Sleep",
+                text = if (isSleepTimerActive) formatSleepTimer(sleepTimerRemaining) else "Sleep",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = if (isSleepTimerActive) {
@@ -904,7 +913,7 @@ internal fun SleepTimerPickerContent(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${formatMillis(sleepTimerRemaining)} remaining",
+                    text = "${formatSleepTimer(sleepTimerRemaining)} remaining",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
@@ -1079,6 +1088,15 @@ private fun formatMillis(millis: Long): String {
     }
 }
 
+/**
+ * Formats the sleep-timer readout. The "end of episode" mode uses [Long.MAX_VALUE]
+ * as a sentinel until a real per-frame countdown is available (only while playing),
+ * so render a label instead of an absurd duration when the sentinel is showing.
+ */
+private fun formatSleepTimer(remainingMillis: Long): String {
+    return if (remainingMillis == Long.MAX_VALUE) "End of episode" else formatMillis(remainingMillis)
+}
+
 private fun formatSpeed(speed: Float): String {
     return if (speed == speed.toLong().toFloat()) {
         "${speed.toInt()}.0x"
@@ -1113,12 +1131,18 @@ private fun rememberDominantColor(imageUrl: String, defaultColor: Color): Color 
                 ?.let { it as? BitmapDrawable }
                 ?.bitmap
             if (bitmap != null) {
-                val palette = Palette.from(bitmap).generate()
-                val swatch = palette.darkMutedSwatch
-                    ?: palette.mutedSwatch
-                    ?: palette.dominantSwatch
-                if (swatch != null) {
-                    dominantColor = Color(swatch.rgb)
+                // Palette.generate() is a synchronous, CPU-bound per-pixel scan. The
+                // LaunchedEffect body runs on the composition's Main dispatcher, so run the
+                // analysis on a background dispatcher to avoid blocking the UI thread (jank)
+                // on every artwork change. The result is applied back on resume (Main).
+                val swatchRgb = withContext(Dispatchers.Default) {
+                    val palette = Palette.from(bitmap).generate()
+                    (palette.darkMutedSwatch
+                        ?: palette.mutedSwatch
+                        ?: palette.dominantSwatch)?.rgb
+                }
+                if (swatchRgb != null) {
+                    dominantColor = Color(swatchRgb)
                 }
             }
         } catch (_: Exception) {

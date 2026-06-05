@@ -36,8 +36,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -75,7 +77,9 @@ fun EpisodeDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
-    val episodeProgress = downloadProgress[uiState.episodeId]
+    // Key on the stable nav-arg id, not uiState.episodeId which is 0L until the first
+    // emission (and resets to 0L if the episode row is deleted while open).
+    val episodeProgress = downloadProgress[viewModel.episodeId]
     val context = LocalContext.current
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
@@ -84,7 +88,14 @@ fun EpisodeDetailScreen(
 
     LaunchedEffect(Unit) {
         viewModel.downloadErrors.collect { error ->
-            snackbarHostState.showSnackbar("Download failed: ${error.message}")
+            // Child coroutine + short duration so the collector isn't blocked by a
+            // queued snackbar.
+            launch {
+                snackbarHostState.showSnackbar(
+                    message = "Download failed: ${error.message}",
+                    duration = SnackbarDuration.Short,
+                )
+            }
         }
     }
 
@@ -259,11 +270,19 @@ fun EpisodeDetailScreen(
             ) {
                 when {
                     episodeProgress != null -> {
-                        CircularProgressIndicator(
-                            progress = { episodeProgress ?: 0f },
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
+                        if (episodeProgress < 0f) {
+                            // Indeterminate: server sent no Content-Length.
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                progress = { episodeProgress },
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Downloading")
                     }

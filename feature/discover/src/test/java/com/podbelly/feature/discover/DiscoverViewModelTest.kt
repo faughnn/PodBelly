@@ -187,7 +187,7 @@ class DiscoverViewModelTest {
 
             if (lastItem != null) {
                 assertEquals("Already subscribed", lastItem.message)
-                assertFalse(lastItem.isSubscribing)
+                assertTrue(lastItem.subscribingFeedUrls.isEmpty())
             }
         }
     }
@@ -342,7 +342,7 @@ class DiscoverViewModelTest {
 
             if (lastItem != null) {
                 assertTrue(lastItem.message?.contains("Subscription failed") == true)
-                assertFalse(lastItem.isSubscribing)
+                assertTrue(lastItem.subscribingFeedUrls.isEmpty())
             }
         }
     }

@@ -3,9 +3,7 @@ package com.podbelly.core.playback
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
-import android.media.AudioManager
 import android.media.audiofx.LoudnessEnhancer
 import android.os.Bundle
 import android.util.Log
@@ -50,9 +48,6 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var exoPlayer: ExoPlayer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
-
-    /** Volume level before boost was enabled, so it can be restored on disable. */
-    private var previousStreamVolume: Int = -1
 
     override fun onCreate() {
         super.onCreate()
@@ -141,8 +136,15 @@ class PlaybackService : MediaSessionService() {
                     }
                     CUSTOM_COMMAND_FAST_FORWARD -> {
                         exoPlayer?.let { player ->
-                            val newPos = (player.currentPosition + 30_000L)
-                                .coerceAtMost(player.duration.coerceAtLeast(0L))
+                            // Only clamp to duration when it is known. For a streaming/
+                            // buffering item player.duration is C.TIME_UNSET (a large
+                            // negative value), and coerceAtMost(duration.coerceAtLeast(0))
+                            // would force the target back to 0 — seeking to the start of the
+                            // episode instead of skipping forward. Mirror the guard in
+                            // PlaybackController.skipForward().
+                            val target = player.currentPosition + 30_000L
+                            val duration = player.duration
+                            val newPos = if (duration > 0L) target.coerceAtMost(duration) else target
                             player.seekTo(newPos)
                         }
                         Log.d(TAG, "Fast forwarded 30 seconds")
@@ -197,46 +199,30 @@ class PlaybackService : MediaSessionService() {
     /**
      * Applies volume boost using Android's [LoudnessEnhancer] audio effect.
      *
-     * This is the correct way to boost volume beyond the normal range.
-     * Player.volume is clamped to [0.0, 1.0] and cannot exceed normal level.
-     * LoudnessEnhancer applies gain at the audio output level.
+     * This is the correct way to boost volume beyond the normal range:
+     * [LoudnessEnhancer] applies gain at the audio output level. We deliberately do
+     * NOT touch the system [AudioManager.STREAM_MUSIC] volume — doing so mutated a
+     * global device setting that could be left maxed out on process death or on a
+     * re-entrant enable, silently destroying the user's chosen volume. Toggling the
+     * enhancer is idempotent, so repeated enable/disable calls are safe.
      *
      * Pocket Casts uses a custom AudioProcessor (ShiftyRenderersFactory) for this,
      * but LoudnessEnhancer is simpler and works well for a straightforward boost.
      */
     private fun applyVolumeBoost(enabled: Boolean) {
         val player = exoPlayer ?: return
-        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-        if (enabled) {
-            try {
-                // Save current volume so we can restore it when boost is disabled
-                previousStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-
-                // Max out the system media volume
-                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
-
+        try {
+            if (enabled) {
                 if (loudnessEnhancer == null) {
                     loudnessEnhancer = LoudnessEnhancer(player.audioSessionId)
                 }
                 loudnessEnhancer?.setTargetGain(2000) // ~20 dB boost
                 loudnessEnhancer?.enabled = true
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to enable LoudnessEnhancer", e)
+            } else {
+                loudnessEnhancer?.enabled = false
             }
-        } else {
-            loudnessEnhancer?.enabled = false
-
-            // Restore previous volume level
-            if (previousStreamVolume >= 0) {
-                try {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, previousStreamVolume, 0)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to restore stream volume", e)
-                }
-                previousStreamVolume = -1
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to toggle LoudnessEnhancer", e)
         }
     }
 

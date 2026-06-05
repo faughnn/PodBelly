@@ -6,13 +6,11 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.dao.QueueEpisode
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -72,6 +70,10 @@ class QueueViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QueueUiState())
 
     fun playItem(episodeId: Long) {
+        // Tapping the currently-playing row should just open the player (the screen
+        // navigates regardless). Re-issuing play() would reload the media item and seek to
+        // the last-persisted DB position, audibly restarting and rewinding up to ~10s.
+        if (playbackController.playbackState.value.episodeId == episodeId) return
         viewModelScope.launch {
             val episode = episodeDao.getByIdOnce(episodeId) ?: return@launch
             val podcast = podcastDao.getByIdOnce(episode.podcastId)
@@ -84,6 +86,7 @@ class QueueViewModel @Inject constructor(
                 podcastTitle = podcast?.title.orEmpty(),
                 artworkUrl = episode.artworkUrl.ifBlank { podcast?.artworkUrl.orEmpty() },
                 startPosition = episode.playbackPosition,
+                podcastId = episode.podcastId,
             )
         }
     }
@@ -100,21 +103,21 @@ class QueueViewModel @Inject constructor(
         }
     }
 
-    fun moveItem(fromIndex: Int, toIndex: Int) {
+    fun moveUp(queueId: Long) = reorder(queueId, -1)
+
+    fun moveDown(queueId: Long) = reorder(queueId, +1)
+
+    /**
+     * Moves the queue item identified by [queueId] by [delta] positions. Resolving the
+     * item by its stable id (rather than a UI list index) means a queue mutation between
+     * render and tap — e.g. the head episode finishing and being auto-removed — can no
+     * longer cause the wrong row to be moved.
+     */
+    private fun reorder(queueId: Long, delta: Int) {
         viewModelScope.launch {
-            // Snapshot the current queue items ordered by position
-            val currentItems = queueDao.getQueueWithEpisodes().first()
-            if (fromIndex !in currentItems.indices || toIndex !in currentItems.indices) return@launch
-
-            val mutableList = currentItems.toMutableList()
-            val movedItem = mutableList.removeAt(fromIndex)
-            mutableList.add(toIndex, movedItem)
-
-            // Rebuild position values for all affected items
-            val updatedEntities = mutableList.mapIndexed { index, queueEpisode ->
-                queueEpisode.queueItem.copy(position = index)
-            }
-            queueDao.updatePositions(updatedEntities)
+            // Resolve + renumber inside a single DB transaction (QueueDao.moveItem) so a
+            // concurrent queue mutation can't interleave between the read and the write.
+            queueDao.moveItem(queueId, delta)
         }
     }
 }

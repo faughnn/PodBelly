@@ -48,11 +48,27 @@ class FeedRefreshWorker @AssistedInject constructor(
                 try {
                     val feed = searchRepository.fetchFeed(podcast.feedUrl)
 
-                    // Check existing GUIDs to find truly new episodes
-                    val newEpisodes = feed.episodes.mapNotNull { rssEpisode ->
-                        val existing = episodeDao.getByGuid(rssEpisode.guid)
+                    // Insert truly new episodes; refresh feed-derived fields on ones we
+                    // already have so publisher corrections (e.g. a changed audioUrl) propagate.
+                    val newEpisodes = mutableListOf<EpisodeEntity>()
+                    for (rssEpisode in feed.episodes) {
+                        val existing = episodeDao.getByPodcastAndGuid(podcast.id, rssEpisode.guid)
                         if (existing == null) {
-                            EpisodeEntity(
+                            newEpisodes.add(
+                                EpisodeEntity(
+                                    podcastId = podcast.id,
+                                    guid = rssEpisode.guid,
+                                    title = rssEpisode.title,
+                                    description = rssEpisode.description,
+                                    audioUrl = rssEpisode.audioUrl,
+                                    publicationDate = rssEpisode.publishedAt,
+                                    durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                    artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
+                                    fileSize = rssEpisode.fileSize,
+                                )
+                            )
+                        } else {
+                            episodeDao.updateFeedFields(
                                 podcastId = podcast.id,
                                 guid = rssEpisode.guid,
                                 title = rssEpisode.title,
@@ -63,8 +79,6 @@ class FeedRefreshWorker @AssistedInject constructor(
                                 artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
                                 fileSize = rssEpisode.fileSize,
                             )
-                        } else {
-                            null
                         }
                     }
 
@@ -81,7 +95,8 @@ class FeedRefreshWorker @AssistedInject constructor(
                     podcastDao.update(
                         podcast.copy(
                             lastRefreshedAt = System.currentTimeMillis(),
-                            episodeCount = feed.episodes.size,
+                            // Use the actual stored count, not the feed's (windowed) size.
+                            episodeCount = episodeDao.countByPodcastId(podcast.id),
                         )
                     )
 

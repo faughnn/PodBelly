@@ -4,11 +4,13 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import androidx.work.workDataOf
 import com.podbelly.core.database.dao.DownloadErrorDao
 import com.podbelly.core.database.dao.EpisodeDao
@@ -16,7 +18,7 @@ import com.podbelly.core.database.entity.DownloadErrorEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,6 +32,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -59,8 +64,6 @@ class DownloadManager @Inject constructor(
     /** Emits a one-shot event every time a download fails, so screens can show a Snackbar. */
     val downloadErrors: SharedFlow<DownloadErrorEvent> = _downloadErrors.asSharedFlow()
 
-    /** Active download jobs, keyed by episode ID. */
-    private val activeDownloads = mutableMapOf<Long, Job>()
 
     /**
      * Returns `true` when the user has enabled WiFi-only downloads and the device is not
@@ -107,6 +110,10 @@ class DownloadManager @Inject constructor(
                 )
             )
             _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
+            // enqueueDownload optimistically seeded a 0% progress entry; clear it here
+            // (as every other exit path does) so the UI doesn't show a stuck spinner
+            // when the network flipped to mobile between enqueue and execution.
+            _downloadProgress.update { it - episodeId }
             return@withContext
         }
 
@@ -122,30 +129,35 @@ class DownloadManager @Inject constructor(
             val response = okHttpClient.newCall(request).execute()
 
             if (!response.isSuccessful) {
-                Log.e(TAG, "Download failed with code ${response.code} for episode $episodeId")
-                val msg = "HTTP ${response.code}"
+                val code = response.code
+                val msg = "HTTP $code"
+                response.close()
+                _downloadProgress.update { it - episodeId }
+                // Transient server / rate-limit errors: throw so the IOException handler
+                // records it and the WorkManager worker retries with backoff.
+                if (code >= 500 || code == 408 || code == 429) {
+                    throw IOException(msg)
+                }
+                // Permanent (4xx) failure: record and give up.
+                Log.e(TAG, "Download failed with code $code for episode $episodeId")
                 downloadErrorDao.insert(
                     DownloadErrorEntity(
                         episodeId = episodeId,
                         errorMessage = msg,
-                        errorCode = response.code,
+                        errorCode = code,
                         timestamp = System.currentTimeMillis(),
                     )
                 )
                 _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
-                response.close()
-                _downloadProgress.update { it - episodeId }
                 return@withContext
             }
 
             val body = response.body ?: run {
                 Log.e(TAG, "Empty response body for episode $episodeId")
-                _downloadErrors.tryEmit(
-                    DownloadErrorEvent(episodeId, episode.title, "Server returned empty response")
-                )
                 response.close()
                 _downloadProgress.update { it - episodeId }
-                return@withContext
+                // Treat as transient so the worker retries.
+                throw IOException("Server returned empty response")
             }
 
             val podcastsDir = context.getExternalFilesDir("podcasts")
@@ -158,6 +170,14 @@ class DownloadManager @Inject constructor(
             val outputFile = File(podcastsDir, "$episodeId.mp3")
             val contentLength = body.contentLength()
             var totalBytesRead = 0L
+            var lastPercent = -1
+
+            // When the server omits Content-Length (chunked transfer encoding returns -1),
+            // we can't compute a percentage. Surface an indeterminate sentinel so the UI
+            // shows a moving spinner instead of a frozen 0% that looks like a hung download.
+            if (contentLength <= 0) {
+                _downloadProgress.update { it + (episodeId to INDETERMINATE_PROGRESS) }
+            }
 
             body.byteStream().use { inputStream ->
                 FileOutputStream(outputFile).use { outputStream ->
@@ -165,14 +185,21 @@ class DownloadManager @Inject constructor(
                     var bytesRead: Int
 
                     while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        // Cancellation checkpoint: blocking reads aren't suspension
+                        // points, so without this a cancelled download would keep
+                        // writing until the stream ends.
+                        coroutineContext.ensureActive()
                         outputStream.write(buffer, 0, bytesRead)
                         totalBytesRead += bytesRead
 
-                        // Update progress if content length is known
+                        // Emit progress only when the whole-number percentage changes,
+                        // not on every 8KB chunk (~thousands of Map allocations / file).
                         if (contentLength > 0) {
-                            val progress = (totalBytesRead.toFloat() / contentLength.toFloat())
-                                .coerceIn(0f, 1f)
-                            _downloadProgress.update { it + (episodeId to progress) }
+                            val percent = (totalBytesRead * 100 / contentLength).toInt().coerceIn(0, 100)
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                _downloadProgress.update { it + (episodeId to percent / 100f) }
+                            }
                         }
                     }
 
@@ -181,6 +208,11 @@ class DownloadManager @Inject constructor(
             }
 
             response.close()
+
+            // Final cancellation checkpoint before persisting: if the download was
+            // cancelled just as it finished, do not record a downloadPath in the DB
+            // (the CancellationException handler removes the partial/complete file).
+            coroutineContext.ensureActive()
 
             // Update database with download info
             episodeDao.setDownloadPath(
@@ -207,8 +239,26 @@ class DownloadManager @Inject constructor(
             }
             _downloadProgress.update { it - episodeId }
             throw e
+        } catch (e: IOException) {
+            // Transient network/transfer failure (timeout, connection drop, etc.).
+            // Record it and rethrow so the WorkManager worker can retry with backoff.
+            Log.e(TAG, "Network error downloading episode $episodeId", e)
+            deletePartialDownload(episodeId)
+            val msg = e.message ?: "Network error"
+            downloadErrorDao.insert(
+                DownloadErrorEntity(
+                    episodeId = episodeId,
+                    errorMessage = msg,
+                    errorCode = 0,
+                    timestamp = System.currentTimeMillis(),
+                )
+            )
+            _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
+            _downloadProgress.update { it - episodeId }
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error downloading episode $episodeId", e)
+            deletePartialDownload(episodeId)
             val msg = e.message ?: "Unknown error"
             downloadErrorDao.insert(
                 DownloadErrorEntity(
@@ -220,6 +270,23 @@ class DownloadManager @Inject constructor(
             )
             _downloadErrors.tryEmit(DownloadErrorEvent(episodeId, episode.title, msg))
             _downloadProgress.update { it - episodeId }
+        }
+    }
+
+    /**
+     * Removes a partially-written download file. Called on failure paths so a download
+     * that ultimately fails (after retries) doesn't leave an orphaned `.mp3` on disk —
+     * the DB-driven delete paths never see it because no downloadPath was recorded.
+     */
+    private fun deletePartialDownload(episodeId: Long) {
+        try {
+            val podcastsDir = context.getExternalFilesDir("podcasts")
+            val partialFile = File(podcastsDir, "$episodeId.mp3")
+            if (partialFile.exists()) {
+                partialFile.delete()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to delete partial download for episode $episodeId", e)
         }
     }
 
@@ -237,6 +304,11 @@ class DownloadManager @Inject constructor(
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(workDataOf(DownloadWorker.KEY_EPISODE_ID to episodeId))
             .setConstraints(constraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                WorkRequest.MIN_BACKOFF_MILLIS,
+                TimeUnit.MILLISECONDS,
+            )
             .addTag(DOWNLOAD_WORK_TAG)
             .build()
 
@@ -246,8 +318,14 @@ class DownloadManager @Inject constructor(
             request,
         )
 
-        // Show immediate progress in UI while WorkManager starts up
-        _downloadProgress.update { it + (episodeId to 0f) }
+        // Show immediate progress in UI while WorkManager starts up — but only when the
+        // network constraint is already satisfiable. If we're offline, WorkManager defers
+        // the worker indefinitely, downloadEpisode() never runs to clear this seed, and the
+        // UI is left with a permanently stuck 0% spinner. downloadEpisode() seeds its own
+        // 0% when it actually starts, so skipping the optimistic seed while offline is safe.
+        if (hasNetwork()) {
+            _downloadProgress.update { it + (episodeId to 0f) }
+        }
     }
 
     /**
@@ -256,27 +334,13 @@ class DownloadManager @Inject constructor(
      * @param episodeId The database primary key of the episode whose download to cancel.
      */
     fun cancelDownload(episodeId: Long) {
-        activeDownloads[episodeId]?.cancel()
-        activeDownloads.remove(episodeId)
         workManager.cancelUniqueWork("$DOWNLOAD_WORK_TAG:$episodeId")
         _downloadProgress.update { it - episodeId }
 
-        // Clean up any partial file
-        val podcastsDir = context.getExternalFilesDir("podcasts")
-        val partialFile = File(podcastsDir, "$episodeId.mp3")
-        if (partialFile.exists()) {
-            partialFile.delete()
-        }
-    }
-
-    /**
-     * Retries a failed download, incrementing the retry count before attempting the download again.
-     *
-     * @param episodeId The database primary key of the episode to retry.
-     */
-    suspend fun retryDownload(episodeId: Long) {
-        downloadErrorDao.incrementRetryCount(episodeId)
-        downloadEpisode(episodeId)
+        // Do NOT delete the file here. WorkManager cancellation is asynchronous, so a
+        // synchronous delete could race the still-writing worker and remove a file it
+        // is about to record as "downloaded" — leaving a broken entry. The worker's own
+        // CancellationException handler removes the partial file after it actually stops.
     }
 
     /**
@@ -298,6 +362,9 @@ class DownloadManager @Inject constructor(
         }
 
         episodeDao.clearDownload(episodeId)
+        // Clear any recorded download errors so a stale failure doesn't linger in the
+        // Downloads error list for an episode that no longer has a download.
+        downloadErrorDao.deleteByEpisodeId(episodeId)
         Log.i(TAG, "Deleted download for episode $episodeId")
     }
 
@@ -318,19 +385,12 @@ class DownloadManager @Inject constructor(
                 }
             }
             episodeDao.clearDownload(episode.id)
+            downloadErrorDao.deleteByEpisodeId(episode.id)
             count++
         }
 
         Log.i(TAG, "Deleted all downloads ($count episodes)")
         count
-    }
-
-    /**
-     * Registers an active download job so it can be cancelled later.
-     * Call this when launching the download coroutine.
-     */
-    fun registerDownloadJob(episodeId: Long, job: Job) {
-        activeDownloads[episodeId] = job
     }
 
     private fun isOnWifi(): Boolean {
@@ -341,10 +401,25 @@ class DownloadManager @Inject constructor(
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
+    /** Returns `true` when an internet-capable network is currently active. */
+    private fun hasNetwork(): Boolean {
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     companion object {
         private const val TAG = "DownloadManager"
         private const val BUFFER_SIZE = 8 * 1024 // 8 KB buffer
         private const val DOWNLOAD_WORK_TAG = "episode_download"
+
+        /**
+         * Sentinel progress value meaning "downloading, total size unknown" (server sent no
+         * Content-Length). The UI renders an indeterminate spinner for any negative value.
+         */
+        const val INDETERMINATE_PROGRESS = -1f
     }
 }
 

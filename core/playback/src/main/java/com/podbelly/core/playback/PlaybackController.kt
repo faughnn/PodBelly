@@ -16,6 +16,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
@@ -29,8 +30,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -63,11 +67,24 @@ class PlaybackController @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var mediaController: MediaController? = null
+    private var controllerFuture: ListenableFuture<MediaController>? = null
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
+    /** Emitted once each time the current episode reaches its natural end (STATE_ENDED). */
+    private val _episodeEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val episodeEnded: SharedFlow<Unit> = _episodeEnded.asSharedFlow()
+
+    /**
+     * When true, the player pauses at the end of the current episode instead of
+     * auto-advancing the queue. Set by the sleep timer's "end of episode" mode.
+     */
+    @Volatile
+    private var pauseAtEpisodeEnd: Boolean = false
+
     private var positionUpdateJob: Job? = null
+    private var speedLoadJob: Job? = null
 
     /** Flag indicating that resume() was called and we should apply auto-rewind on next isPlaying=true. */
     private var isResuming = false
@@ -80,10 +97,24 @@ class PlaybackController @Inject constructor(
     private var currentPodcastTitle: String = ""
     private var currentEpisodeTitle: String = ""
 
+    /**
+     * Per-session state for an in-flight insert. Each [startListeningSession] creates a
+     * fresh holder that its own insert continuation captures, so two overlapping sessions
+     * (e.g. a rapid auto-advance / track change while the prior insert is still
+     * committing) no longer share single mutable fields. If a session is ended before its
+     * insert completes, [ended] is set and the insert continuation finalizes *its own*
+     * row — previously this clobbered the stash and orphaned the earlier session.
+     */
+    private class PendingSession {
+        var ended: Boolean = false
+        var endTime: Long = 0L
+        var listenedMs: Long = 0L
+    }
+
     /** Listening session tracking */
     private var currentSessionId: Long = 0L
     private var sessionStartTime: Long = 0L
-    private var sessionInsertPending: Boolean = false
+    private var pendingSession: PendingSession? = null
     private var lastSessionSaveTime: Long = 0L
 
     /** Timestamp of last periodic position save to the database */
@@ -160,8 +191,23 @@ class PlaybackController @Inject constructor(
                         )
                     }
                     stopPositionUpdates()
-                    // Automatically advance to the next queued episode
-                    onEpisodeEnded()
+
+                    // Notify observers (e.g. the end-of-episode sleep timer) that the
+                    // episode actually finished. This is a real signal rather than
+                    // inferring from currentPosition, which is reset to 0 above.
+                    _episodeEnded.tryEmit(Unit)
+
+                    if (pauseAtEpisodeEnd) {
+                        // End-of-episode sleep timer is armed: stop here instead of
+                        // auto-advancing to the next queued episode. Drop the player to
+                        // IDLE (as we do after a normal end) so a Bluetooth/car play
+                        // command can't restart the finished episode from 0.
+                        pauseAtEpisodeEnd = false
+                        stopPlayerAfterEnded()
+                    } else {
+                        // Automatically advance to the next queued episode
+                        onEpisodeEnded()
+                    }
                 }
                 Player.STATE_IDLE -> {
                     _playbackState.update { it.copy(isLoading = false) }
@@ -193,20 +239,30 @@ class PlaybackController @Inject constructor(
      * Must be called once (typically from Application.onCreate or an Activity) before
      * any playback operations are invoked.
      *
-     * Safe to call multiple times -- subsequent calls are no-ops if already connected.
+     * Safe to call multiple times -- subsequent calls are no-ops if already connecting
+     * or connected.
      */
     fun connectToService(context: Context) {
-        if (mediaController != null) return
+        if (mediaController != null || controllerFuture != null) return
+
+        // Always use the application context: this PlaybackController is a Singleton
+        // that outlives any individual Activity. If we bind the MediaController to an
+        // Activity context, Android tears down that context's service-connection
+        // dispatchers when the Activity is destroyed; a later release() (including
+        // Media3's internal release on service disconnect) then crashes with
+        // "Service not registered" inside LoadedApk.forgetServiceDispatcher.
+        val appContext = context.applicationContext
 
         val sessionToken = SessionToken(
-            context,
-            ComponentName(context, PlaybackService::class.java)
+            appContext,
+            ComponentName(appContext, PlaybackService::class.java)
         )
 
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        val future = MediaController.Builder(appContext, sessionToken).buildAsync()
+        controllerFuture = future
 
         Futures.addCallback(
-            controllerFuture,
+            future,
             object : FutureCallback<MediaController> {
                 override fun onSuccess(controller: MediaController) {
                     mediaController = controller
@@ -229,6 +285,7 @@ class PlaybackController @Inject constructor(
                 override fun onFailure(t: Throwable) {
                     Log.e(TAG, "Failed to connect to PlaybackService", t)
                     mediaController = null
+                    controllerFuture = null
                 }
             },
             MoreExecutors.directExecutor()
@@ -259,6 +316,23 @@ class PlaybackController @Inject constructor(
         podcastId: Long = 0L,
     ) {
         val controller = mediaController ?: return
+
+        // Flush the outgoing episode's position before we overwrite state. Position is
+        // otherwise only persisted on pause or via the ~10s periodic save, so switching
+        // episodes mid-playback (which calls play() directly, without pausing) would lose
+        // up to ~10s of the previous episode's progress and leave a stale resume point.
+        val previous = _playbackState.value
+        if (previous.episodeId != 0L && previous.episodeId != episodeId && previous.currentPosition > 0L) {
+            val previousId = previous.episodeId
+            val previousPosition = previous.currentPosition
+            scope.launch {
+                try {
+                    episodeDao.updatePlaybackPosition(previousId, previousPosition)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to save outgoing episode position", e)
+                }
+            }
+        }
 
         // End any existing listening session before starting new playback
         endListeningSession()
@@ -303,8 +377,12 @@ class PlaybackController @Inject constructor(
         controller.play()
         refreshQueueFlags()
 
-        // Apply per-podcast speed immediately so it's correct from the first moment
-        scope.launch {
+        // Apply per-podcast speed immediately so it's correct from the first moment.
+        // Cancel any prior speed-load and bail if the episode changed while loading,
+        // so a rapid play()/auto-advance can't apply an earlier episode's speed and
+        // can't clobber a user speed change made in the gap.
+        speedLoadJob?.cancel()
+        speedLoadJob = scope.launch {
             val speed = if (podcastId != 0L) {
                 val podcastSpeed = podcastDao.getPlaybackSpeed(podcastId)
                 if (podcastSpeed != null && podcastSpeed > 0f) podcastSpeed
@@ -312,7 +390,9 @@ class PlaybackController @Inject constructor(
             } else {
                 preferencesManager.playbackSpeed.first()
             }
-            setPlaybackSpeed(speed)
+            if (currentEpisodeId == episodeId) {
+                setPlaybackSpeed(speed)
+            }
         }
     }
 
@@ -355,7 +435,11 @@ class PlaybackController @Inject constructor(
      */
     fun seekTo(position: Long) {
         val controller = mediaController ?: return
-        val clamped = position.coerceIn(0L, controller.duration.coerceAtLeast(0L))
+        // duration is C.TIME_UNSET (negative) while buffering or for streams with no
+        // known length. Only clamp to the upper bound when the duration is known;
+        // otherwise clamping to 0 would jump the user to the very start.
+        val duration = controller.duration
+        val clamped = if (duration > 0L) position.coerceIn(0L, duration) else position.coerceAtLeast(0L)
         controller.seekTo(clamped)
         _playbackState.update { it.copy(currentPosition = clamped) }
     }
@@ -365,8 +449,11 @@ class PlaybackController @Inject constructor(
      */
     fun skipForward(seconds: Int = 30) {
         val controller = mediaController ?: return
-        val newPos = (controller.currentPosition + seconds * 1000L)
-            .coerceAtMost(controller.duration.coerceAtLeast(0L))
+        val duration = controller.duration
+        val target = controller.currentPosition + seconds * 1000L
+        // When duration is unknown (C.TIME_UNSET), don't clamp to it (it would be 0);
+        // let the player clamp to the real end once it's known.
+        val newPos = if (duration > 0L) target.coerceAtMost(duration) else target
         controller.seekTo(newPos)
         _playbackState.update { it.copy(currentPosition = newPos) }
     }
@@ -445,6 +532,15 @@ class PlaybackController @Inject constructor(
     }
 
     /**
+     * Arms or disarms "pause at end of episode" mode. When armed, the player stops
+     * at the end of the current episode instead of auto-advancing the queue.
+     * Used by the sleep timer's end-of-episode mode.
+     */
+    fun setPauseAtEpisodeEnd(enabled: Boolean) {
+        pauseAtEpisodeEnd = enabled
+    }
+
+    /**
      * Advances to the next episode in the playback queue.
      * If the queue is empty, playback stops.
      */
@@ -461,11 +557,23 @@ class PlaybackController @Inject constructor(
     fun release() {
         stopPositionUpdates()
 
-        mediaController?.run {
-            removeListener(playerListener)
-            release()
-        }
+        mediaController?.removeListener(playerListener)
         mediaController = null
+
+        // Use releaseFuture so that an in-flight buildAsync is cancelled cleanly
+        // rather than leaking a half-built controller. Wrap in try/catch because
+        // Media3 can throw IllegalArgumentException("Service not registered") if
+        // the underlying service binding was already torn down (a known race —
+        // see androidx/media issue #239).
+        controllerFuture?.let { future ->
+            try {
+                MediaController.releaseFuture(future)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing MediaController", e)
+            }
+        }
+        controllerFuture = null
+
         scope.cancel()
     }
 
@@ -493,16 +601,37 @@ class PlaybackController @Inject constructor(
     private suspend fun advanceQueue() {
         // Only auto-advance if queue feature is enabled
         val queueEnabled = preferencesManager.queueEnabled.first()
-        if (!queueEnabled) return
+        if (!queueEnabled) {
+            stopPlayerAfterEnded()
+            return
+        }
 
         try {
-            // Remove the episode that just finished from the queue
-            if (currentEpisodeId != 0L) {
-                queueDao.removeFromQueue(currentEpisodeId)
+            val finishedEpisodeId = currentEpisodeId
+
+            // Determine the next episode based on the finished episode's *position*
+            // in the queue, not simply the lowest-position item. The finished episode
+            // may not be the queue head (e.g. the user tapped a later item to play it),
+            // so blindly taking the head would replay an earlier episode and skip the
+            // correct next one.
+            val queue = queueDao.getQueueOnce()
+            val currentIndex = queue.indexOfFirst { it.episode.id == finishedEpisodeId }
+            val next = when {
+                // Finished episode is in the queue: take the item after it.
+                currentIndex in 0 until queue.size - 1 -> queue[currentIndex + 1]
+                // Finished episode is the last item: nothing to advance to.
+                currentIndex == queue.size - 1 -> null
+                // Finished episode isn't in the queue (played from outside it):
+                // fall back to starting the queue from its head.
+                else -> queue.firstOrNull()
             }
 
-            val next = queueDao.getNextInQueue()
-            if (next != null) {
+            // Remove the episode that just finished from the queue.
+            if (finishedEpisodeId != 0L) {
+                queueDao.removeFromQueue(finishedEpisodeId)
+            }
+
+            if (next != null && next.episode.id != finishedEpisodeId) {
                 val episode = next.episode
 
                 // Look up the actual podcast title from the database
@@ -510,21 +639,50 @@ class PlaybackController @Inject constructor(
 
                 play(
                     episodeId = episode.id,
-                    audioUrl = episode.audioUrl,
+                    // Prefer the downloaded file (download-first); fall back to the remote
+                    // URL only if not downloaded — matching every other play() call site.
+                    // Streaming the remote URL here would break offline auto-advance and
+                    // waste mobile data for an episode the user explicitly downloaded.
+                    audioUrl = episode.downloadPath.ifBlank { episode.audioUrl },
                     title = episode.title,
                     podcastTitle = podcastTitle,
                     artworkUrl = episode.artworkUrl,
                     startPosition = episode.playbackPosition,
+                    podcastId = episode.podcastId,
                 )
             } else {
                 // Nothing left in queue
                 _playbackState.update {
                     it.copy(hasNext = false, hasPrevious = false)
                 }
+                stopPlayerAfterEnded()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to advance queue", e)
         }
+    }
+
+    // A STATE_ENDED player still has the finished media item loaded, so any
+    // play() from a Bluetooth headset, car head unit, or system notification
+    // seeks back to 0 and restarts the same episode. Dropping to IDLE prevents
+    // that.
+    private fun stopPlayerAfterEnded() {
+        val controller = mediaController ?: return
+        controller.clearMediaItems()
+        controller.stop()
+        stopPositionUpdates()
+
+        // Reset state so the just-finished episode doesn't linger in the mini-player at
+        // 0:00 (where tapping play would restart the already-played episode). Mirrors
+        // stop(); without this the cleared media item leaves episodeId/title populated.
+        currentEpisodeId = 0L
+        currentPodcastId = 0L
+        currentAudioUrl = ""
+        currentArtworkUrl = ""
+        currentPodcastTitle = ""
+        currentEpisodeTitle = ""
+
+        _playbackState.value = PlaybackState()
     }
 
     /**
@@ -596,26 +754,41 @@ class PlaybackController @Inject constructor(
 
     private fun startListeningSession() {
         if (currentEpisodeId == 0L) return
-        sessionStartTime = System.currentTimeMillis()
-        lastSessionSaveTime = sessionStartTime
-        sessionInsertPending = true
+        val startTime = System.currentTimeMillis()
+        sessionStartTime = startTime
+        lastSessionSaveTime = startTime
+        currentSessionId = 0L
+        // Fresh holder for this session; the insert continuation below captures it, so a
+        // later session starting mid-insert can't clobber this one's end-of-session stash.
+        val pending = PendingSession()
+        pendingSession = pending
+        val episodeId = currentEpisodeId
         scope.launch {
             try {
                 // Look up podcastId if we don't have it
                 val podcastId = if (currentPodcastId != 0L) currentPodcastId else {
-                    episodeDao.getByIdOnce(currentEpisodeId)?.podcastId ?: 0L
+                    episodeDao.getByIdOnce(episodeId)?.podcastId ?: 0L
                 }
                 currentPodcastId = podcastId
                 val session = ListeningSessionEntity(
-                    episodeId = currentEpisodeId,
+                    episodeId = episodeId,
                     podcastId = podcastId,
-                    startedAt = sessionStartTime,
+                    startedAt = startTime,
                     playbackSpeed = _playbackState.value.playbackSpeed,
                 )
-                currentSessionId = listeningSessionDao.insert(session)
-                sessionInsertPending = false
+                val insertedId = listeningSessionDao.insert(session)
+
+                if (pending.ended) {
+                    // This session was ended before its insert completed. Finalize its
+                    // own row now so endedAt/listenedMs are not lost (previously this
+                    // could leave an orphaned, never-updated session).
+                    listeningSessionDao.updateSession(insertedId, pending.endTime, pending.listenedMs)
+                } else if (pendingSession === pending) {
+                    // Still the active session — record its id. The identity check guards
+                    // against a newer session having superseded this one in the meantime.
+                    currentSessionId = insertedId
+                }
             } catch (e: Exception) {
-                sessionInsertPending = false
                 Log.w(TAG, "Failed to start listening session", e)
             }
         }
@@ -623,14 +796,13 @@ class PlaybackController @Inject constructor(
 
     private fun endListeningSession() {
         if (sessionStartTime == 0L) return
-        if (currentSessionId == 0L && !sessionInsertPending) return
         val endTime = System.currentTimeMillis()
         val listenedMs = endTime - sessionStartTime
         val sessionId = currentSessionId
-        currentSessionId = 0L
         sessionStartTime = 0L
         lastSessionSaveTime = 0L
         if (sessionId != 0L) {
+            currentSessionId = 0L
             scope.launch {
                 try {
                     listeningSessionDao.updateSession(sessionId, endTime, listenedMs)
@@ -638,9 +810,15 @@ class PlaybackController @Inject constructor(
                     Log.w(TAG, "Failed to end listening session", e)
                 }
             }
+        } else {
+            // Insert still in flight: mark this session's holder ended so its own insert
+            // continuation finalizes the row once it has a real id.
+            pendingSession?.let {
+                it.ended = true
+                it.endTime = endTime
+                it.listenedMs = listenedMs
+            }
         }
-        // If the insert was still pending, the session will be saved with the
-        // accumulated listenedMs from periodic updates once the insert completes.
     }
 
     /**

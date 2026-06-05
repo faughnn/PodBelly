@@ -502,12 +502,22 @@ internal fun EpisodeCard(
                 ) {
                     when {
                         isDownloading -> {
-                            CircularProgressIndicator(
-                                progress = { downloadProgress ?: 0f },
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                            val pct = downloadProgress ?: 0f
+                            if (pct < 0f) {
+                                // Indeterminate: server sent no Content-Length.
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                CircularProgressIndicator(
+                                    progress = { pct },
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                         episode.isDownloaded && episode.played -> {
                             Icon(

@@ -257,14 +257,14 @@ class PlaybackControllerTest {
         // However, playNext reads currentEpisodeId which defaults to 0L.
         // When currentEpisodeId is 0, removeFromQueue is NOT called.
         // So first, let's test the default case.
-        coEvery { queueDao.getNextInQueue() } returns null
+        coEvery { queueDao.getQueueOnce() } returns emptyList()
 
         controller.playNext()
         advanceUntilIdle()
 
         // currentEpisodeId is 0L by default, so removeFromQueue should NOT be called
         coVerify(exactly = 0) { queueDao.removeFromQueue(any()) }
-        coVerify(exactly = 1) { queueDao.getNextInQueue() }
+        coVerify(exactly = 1) { queueDao.getQueueOnce() }
     }
 
     @Test
@@ -303,21 +303,18 @@ class PlaybackControllerTest {
             episode = nextEpisode,
         )
 
-        coEvery { queueDao.getNextInQueue() } returns nextQueueEpisode
+        coEvery { queueDao.getQueueOnce() } returns listOf(nextQueueEpisode)
 
         controller.playNext()
         advanceUntilIdle()
 
         // Since mediaController is null, play() will early-return.
-        // But we CAN verify that the DAO was called correctly:
-        coVerify(exactly = 1) { queueDao.getNextInQueue() }
+        // But we CAN verify that the DAO was queried for the queue:
+        coVerify(exactly = 1) { queueDao.getQueueOnce() }
     }
 
     @Test
-    fun `playNext calls getNextInQueue after removing current episode`() = runTest {
-        // Set up a scenario where there IS a next episode but we can verify ordering.
-        // Since currentEpisodeId is 0L (default), removeFromQueue won't be called,
-        // but getNextInQueue should still be called.
+    fun `playNext queries the queue to find the next episode`() = runTest {
         val nextEpisode = EpisodeEntity(
             id = 10L,
             podcastId = 1L,
@@ -332,19 +329,17 @@ class PlaybackControllerTest {
             episode = nextEpisode,
         )
 
-        coEvery { queueDao.getNextInQueue() } returns nextQueueEpisode
+        coEvery { queueDao.getQueueOnce() } returns listOf(nextQueueEpisode)
 
         controller.playNext()
         advanceUntilIdle()
 
-        coVerify(ordering = io.mockk.Ordering.ORDERED) {
-            queueDao.getNextInQueue()
-        }
+        coVerify(exactly = 1) { queueDao.getQueueOnce() }
     }
 
     @Test
     fun `playNext handles dao exception gracefully`() = runTest {
-        coEvery { queueDao.getNextInQueue() } throws RuntimeException("DB error")
+        coEvery { queueDao.getQueueOnce() } throws RuntimeException("DB error")
 
         // Should not throw -- advanceQueue catches exceptions
         controller.playNext()
@@ -375,7 +370,7 @@ class PlaybackControllerTest {
 
     @Test
     fun `successive playNext calls each query the queue`() = runTest {
-        coEvery { queueDao.getNextInQueue() } returns null
+        coEvery { queueDao.getQueueOnce() } returns emptyList()
 
         controller.playNext()
         advanceUntilIdle()
@@ -383,7 +378,7 @@ class PlaybackControllerTest {
         controller.playNext()
         advanceUntilIdle()
 
-        coVerify(exactly = 2) { queueDao.getNextInQueue() }
+        coVerify(exactly = 2) { queueDao.getQueueOnce() }
     }
 
     // -------------------------------------------------------------------------

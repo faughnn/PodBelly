@@ -43,7 +43,9 @@ class AppViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    private val _refreshResult = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    // replay = 1 so the startup banner's collector (composed ~1s later, after the
+    // splash) still receives the result even if the refresh finished first.
+    private val _refreshResult = MutableSharedFlow<Int>(replay = 1, extraBufferCapacity = 1)
     val refreshResult: SharedFlow<Int> = _refreshResult.asSharedFlow()
 
     private val _showWhatsNew = MutableStateFlow<List<String>?>(null)
@@ -92,10 +94,16 @@ class AppViewModel @Inject constructor(
     }
 
     fun refreshIfStale() {
-        val elapsed = System.currentTimeMillis() - lastRefreshTime
-        val fifteenMinutes = 15 * 60 * 1000L
-        if (elapsed >= fifteenMinutes) {
-            refreshFeeds()
+        viewModelScope.launch {
+            // Honor the user's configured refresh interval. 0 means "Manual only",
+            // in which case the foreground refresh should not fire automatically.
+            val intervalMinutes = preferencesManager.feedRefreshIntervalMinutes.first()
+            if (intervalMinutes <= 0) return@launch
+
+            val elapsed = System.currentTimeMillis() - lastRefreshTime
+            if (elapsed >= intervalMinutes * 60_000L) {
+                refreshFeeds()
+            }
         }
     }
 
@@ -115,22 +123,44 @@ class AppViewModel @Inject constructor(
                             try {
                                 val rssFeed = searchRepository.fetchFeed(podcast.feedUrl)
 
-                                val episodeEntities = rssFeed.episodes.map { rssEpisode ->
-                                    EpisodeEntity(
-                                        podcastId = podcast.id,
-                                        guid = rssEpisode.guid,
-                                        title = rssEpisode.title,
-                                        description = rssEpisode.description,
-                                        audioUrl = rssEpisode.audioUrl,
-                                        publicationDate = rssEpisode.publishedAt,
-                                        durationSeconds = (rssEpisode.duration / 1000).toInt(),
-                                        artworkUrl = rssEpisode.artworkUrl ?: "",
-                                        fileSize = rssEpisode.fileSize
-                                    )
+                                // Insert new episodes; refresh feed-derived fields on
+                                // existing ones so publisher corrections propagate.
+                                val newEpisodes = mutableListOf<EpisodeEntity>()
+                                for (rssEpisode in rssFeed.episodes) {
+                                    val existing = episodeDao.getByPodcastAndGuid(podcast.id, rssEpisode.guid)
+                                    if (existing == null) {
+                                        newEpisodes.add(
+                                            EpisodeEntity(
+                                                podcastId = podcast.id,
+                                                guid = rssEpisode.guid,
+                                                title = rssEpisode.title,
+                                                description = rssEpisode.description,
+                                                audioUrl = rssEpisode.audioUrl,
+                                                publicationDate = rssEpisode.publishedAt,
+                                                durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                                artworkUrl = rssEpisode.artworkUrl ?: "",
+                                                fileSize = rssEpisode.fileSize
+                                            )
+                                        )
+                                    } else {
+                                        episodeDao.updateFeedFields(
+                                            podcastId = podcast.id,
+                                            guid = rssEpisode.guid,
+                                            title = rssEpisode.title,
+                                            description = rssEpisode.description,
+                                            audioUrl = rssEpisode.audioUrl,
+                                            publicationDate = rssEpisode.publishedAt,
+                                            durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                            artworkUrl = rssEpisode.artworkUrl ?: "",
+                                            fileSize = rssEpisode.fileSize,
+                                        )
+                                    }
                                 }
 
-                                val inserted = episodeDao.insertAll(episodeEntities)
-                                insertCounts.addAndGet(inserted.count { it != -1L })
+                                if (newEpisodes.isNotEmpty()) {
+                                    episodeDao.insertAll(newEpisodes)
+                                    insertCounts.addAndGet(newEpisodes.size)
+                                }
 
                                 podcastDao.update(
                                     podcast.copy(lastRefreshedAt = System.currentTimeMillis())

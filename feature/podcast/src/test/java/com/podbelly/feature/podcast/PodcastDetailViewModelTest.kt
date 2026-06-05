@@ -489,8 +489,9 @@ class PodcastDetailViewModelTest {
             episodes = listOf(rssEpisode),
         )
         coEvery { searchRepository.fetchFeed("https://example.com/feed.xml") } returns rssFeed
-        coEvery { episodeDao.getByGuid("new-guid") } returns null
+        coEvery { episodeDao.getByPodcastAndGuid(1L, "new-guid") } returns null
         coEvery { episodeDao.insertAll(any()) } returns listOf(100L)
+        coEvery { episodeDao.countByPodcastId(1L) } returns 6
 
         podcastFlow.value = testPodcast
 
@@ -541,7 +542,7 @@ class PodcastDetailViewModelTest {
             episodes = listOf(rssEpisode),
         )
         coEvery { searchRepository.fetchFeed(any()) } returns rssFeed
-        coEvery { episodeDao.getByGuid("existing-guid") } returns testEpisode
+        coEvery { episodeDao.getByPodcastAndGuid(1L, "existing-guid") } returns testEpisode
 
         podcastFlow.value = testPodcast
 

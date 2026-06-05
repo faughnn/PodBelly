@@ -9,7 +9,6 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,7 +48,8 @@ class EpisodeDetailViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
-    private val episodeId: Long = checkNotNull(savedStateHandle["episodeId"])
+    /** Stable episode id from navigation args; safe to key download progress on. */
+    val episodeId: Long = checkNotNull(savedStateHandle["episodeId"])
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
     val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
@@ -133,19 +133,17 @@ class EpisodeDetailViewModel @Inject constructor(
 
     fun addToQueueNext() {
         viewModelScope.launch {
-            if (queueDao.isInQueue(episodeId)) return@launch
-            val items = queueDao.getQueueOnce()
-            val shifted = items.map { it.queueItem.copy(position = it.queueItem.position + 1) }
-            queueDao.updatePositions(shifted)
-            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = 0, addedAt = System.currentTimeMillis()))
+            // addToFront shifts + inserts inside one @Transaction so an interruption or
+            // concurrent mutation can't leave the queue shifted with no head item.
+            queueDao.addToFront(episodeId, System.currentTimeMillis())
         }
     }
 
     fun addToQueueLast() {
         viewModelScope.launch {
-            if (queueDao.isInQueue(episodeId)) return@launch
-            val maxPos = queueDao.getMaxPosition() ?: -1
-            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = maxPos + 1, addedAt = System.currentTimeMillis()))
+            // Read-max + insert atomically (single @Transaction) so two concurrent
+            // enqueues can't both land at the same position.
+            queueDao.addToEnd(episodeId, System.currentTimeMillis())
         }
     }
 

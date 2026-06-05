@@ -7,7 +7,6 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
-import com.podbelly.core.database.entity.QueueItemEntity
 import com.podbelly.core.common.DownloadErrorEvent
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
@@ -140,10 +139,25 @@ class PodcastDetailViewModel @Inject constructor(
                 val podcastEntity = podcastDao.getById(podcastId).first() ?: return@launch
                 val rssFeed = searchRepository.fetchFeed(podcastEntity.feedUrl)
 
-                val newEpisodes = rssFeed.episodes.mapNotNull { rssEpisode ->
-                    val existing = episodeDao.getByGuid(rssEpisode.guid)
+                val newEpisodes = mutableListOf<EpisodeEntity>()
+                for (rssEpisode in rssFeed.episodes) {
+                    val existing = episodeDao.getByPodcastAndGuid(podcastId, rssEpisode.guid)
                     if (existing == null) {
-                        EpisodeEntity(
+                        newEpisodes.add(
+                            EpisodeEntity(
+                                podcastId = podcastId,
+                                guid = rssEpisode.guid,
+                                title = rssEpisode.title,
+                                description = rssEpisode.description,
+                                audioUrl = rssEpisode.audioUrl,
+                                publicationDate = rssEpisode.publishedAt,
+                                durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                artworkUrl = rssEpisode.artworkUrl ?: "",
+                            )
+                        )
+                    } else {
+                        // Refresh feed-derived fields so publisher corrections propagate.
+                        episodeDao.updateFeedFields(
                             podcastId = podcastId,
                             guid = rssEpisode.guid,
                             title = rssEpisode.title,
@@ -152,9 +166,8 @@ class PodcastDetailViewModel @Inject constructor(
                             publicationDate = rssEpisode.publishedAt,
                             durationSeconds = (rssEpisode.duration / 1000).toInt(),
                             artworkUrl = rssEpisode.artworkUrl ?: "",
+                            fileSize = rssEpisode.fileSize,
                         )
-                    } else {
-                        null
                     }
                 }
 
@@ -165,7 +178,8 @@ class PodcastDetailViewModel @Inject constructor(
                 podcastDao.update(
                     podcastEntity.copy(
                         lastRefreshedAt = System.currentTimeMillis(),
-                        episodeCount = podcastEntity.episodeCount + newEpisodes.size,
+                        // Derive from actual stored rows rather than an additive guess.
+                        episodeCount = episodeDao.countByPodcastId(podcastId),
                     )
                 )
             } catch (_: Exception) {
@@ -236,19 +250,17 @@ class PodcastDetailViewModel @Inject constructor(
 
     fun addToQueueNext(episodeId: Long) {
         viewModelScope.launch {
-            if (queueDao.isInQueue(episodeId)) return@launch
-            val items = queueDao.getQueueOnce()
-            val shifted = items.map { it.queueItem.copy(position = it.queueItem.position + 1) }
-            queueDao.updatePositions(shifted)
-            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = 0, addedAt = System.currentTimeMillis()))
+            // addToFront shifts + inserts inside one @Transaction so an interruption or
+            // concurrent mutation can't leave the queue shifted with no head item.
+            queueDao.addToFront(episodeId, System.currentTimeMillis())
         }
     }
 
     fun addToQueueLast(episodeId: Long) {
         viewModelScope.launch {
-            if (queueDao.isInQueue(episodeId)) return@launch
-            val maxPos = queueDao.getMaxPosition() ?: -1
-            queueDao.addToQueue(QueueItemEntity(episodeId = episodeId, position = maxPos + 1, addedAt = System.currentTimeMillis()))
+            // Read-max + insert atomically (single @Transaction) so two concurrent
+            // enqueues can't both land at the same position.
+            queueDao.addToEnd(episodeId, System.currentTimeMillis())
         }
     }
 }

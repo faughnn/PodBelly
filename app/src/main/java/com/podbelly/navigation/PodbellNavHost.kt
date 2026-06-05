@@ -177,11 +177,14 @@ fun PodbellNavHost(
                                 selected = selected,
                                 onClick = {
                                     navController.navigate(item.route) {
+                                        // Save/restore each tab's back stack + state so
+                                        // switching tabs doesn't reset scroll position,
+                                        // search text, or screen-scoped ViewModels.
                                         popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = false
+                                            saveState = true
                                         }
                                         launchSingleTop = true
-                                        restoreState = false
+                                        restoreState = true
                                     }
                                 },
                                 icon = {

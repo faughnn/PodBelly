@@ -207,6 +207,64 @@ class QueueDaoTest {
     }
 
     @Test
+    fun `moveItem moves an item down and renumbers contiguously`() = runTest {
+        val ep1Id = insertEpisode("ep1")
+        val ep2Id = insertEpisode("ep2")
+        val ep3Id = insertEpisode("ep3")
+        queueDao.addToQueue(createQueueItem(episodeId = ep1Id, position = 0))
+        queueDao.addToQueue(createQueueItem(episodeId = ep2Id, position = 1))
+        queueDao.addToQueue(createQueueItem(episodeId = ep3Id, position = 2))
+
+        val headQueueId = queueDao.getQueueOnce().first().queueItem.id
+        queueDao.moveItem(headQueueId, +1) // move ep1 down one slot
+
+        val result = queueDao.getQueueOnce()
+        assertEquals(listOf(ep2Id, ep1Id, ep3Id), result.map { it.queueItem.episodeId })
+        assertEquals(listOf(0, 1, 2), result.map { it.queueItem.position })
+    }
+
+    @Test
+    fun `moveItem moves an item up`() = runTest {
+        val ep1Id = insertEpisode("ep1")
+        val ep2Id = insertEpisode("ep2")
+        val ep3Id = insertEpisode("ep3")
+        queueDao.addToQueue(createQueueItem(episodeId = ep1Id, position = 0))
+        queueDao.addToQueue(createQueueItem(episodeId = ep2Id, position = 1))
+        queueDao.addToQueue(createQueueItem(episodeId = ep3Id, position = 2))
+
+        val lastQueueId = queueDao.getQueueOnce().last().queueItem.id
+        queueDao.moveItem(lastQueueId, -1) // move ep3 up one slot
+
+        val result = queueDao.getQueueOnce()
+        assertEquals(listOf(ep1Id, ep3Id, ep2Id), result.map { it.queueItem.episodeId })
+        assertEquals(listOf(0, 1, 2), result.map { it.queueItem.position })
+    }
+
+    @Test
+    fun `moveItem out of bounds is a no-op`() = runTest {
+        val ep1Id = insertEpisode("ep1")
+        val ep2Id = insertEpisode("ep2")
+        queueDao.addToQueue(createQueueItem(episodeId = ep1Id, position = 0))
+        queueDao.addToQueue(createQueueItem(episodeId = ep2Id, position = 1))
+
+        val headQueueId = queueDao.getQueueOnce().first().queueItem.id
+        queueDao.moveItem(headQueueId, -1) // already first — out of bounds
+
+        val result = queueDao.getQueueOnce()
+        assertEquals(listOf(ep1Id, ep2Id), result.map { it.queueItem.episodeId })
+    }
+
+    @Test
+    fun `moveItem with unknown queueId is a no-op`() = runTest {
+        val ep1Id = insertEpisode("ep1")
+        queueDao.addToQueue(createQueueItem(episodeId = ep1Id, position = 0))
+
+        queueDao.moveItem(99999L, +1)
+
+        assertEquals(listOf(ep1Id), queueDao.getQueueOnce().map { it.queueItem.episodeId })
+    }
+
+    @Test
     fun `getNextInQueue returns item at lowest position`() = runTest {
         val ep1Id = insertEpisode("ep1", title = "First")
         val ep2Id = insertEpisode("ep2", title = "Second")

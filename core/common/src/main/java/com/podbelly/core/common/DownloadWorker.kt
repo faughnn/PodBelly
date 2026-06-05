@@ -12,6 +12,8 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
+import java.io.IOException
 
 /**
  * A [CoroutineWorker] that downloads a podcast episode in the background.
@@ -46,6 +48,18 @@ class DownloadWorker @AssistedInject constructor(
         return try {
             downloadManager.downloadEpisode(episodeId)
             Result.success()
+        } catch (e: CancellationException) {
+            // Work was cancelled (e.g. user tapped cancel). Don't retry.
+            throw e
+        } catch (e: IOException) {
+            // Transient network/transfer failure — retry with backoff up to a cap.
+            if (runAttemptCount < MAX_RETRY_ATTEMPTS) {
+                Log.w(TAG, "Download failed for episode $episodeId, will retry (attempt $runAttemptCount)", e)
+                Result.retry()
+            } else {
+                Log.e(TAG, "Download failed for episode $episodeId after $runAttemptCount attempts", e)
+                Result.failure()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Download failed for episode $episodeId", e)
             Result.failure()
@@ -89,5 +103,6 @@ class DownloadWorker @AssistedInject constructor(
         const val KEY_EPISODE_ID = "episode_id"
         const val CHANNEL_DOWNLOADS = "podbelly_downloads"
         private const val NOTIFICATION_ID_BASE = 2000
+        private const val MAX_RETRY_ATTEMPTS = 3
     }
 }

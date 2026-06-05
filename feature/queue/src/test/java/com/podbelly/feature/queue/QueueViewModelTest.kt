@@ -212,6 +212,7 @@ class QueueViewModelTest {
                 podcastTitle = "Show",
                 artworkUrl = "https://art.com/ep.jpg",
                 startPosition = 0L,
+                podcastId = 1L,
             )
         }
     }
@@ -236,6 +237,7 @@ class QueueViewModelTest {
                 podcastTitle = podcast.title,
                 artworkUrl = episode.artworkUrl,
                 startPosition = 45000L,
+                podcastId = 1L,
             )
         }
         // seekTo should NOT be called separately -- startPosition is passed directly
@@ -275,47 +277,23 @@ class QueueViewModelTest {
     }
 
     @Test
-    fun `moveItem reorders items and calls updatePositions`() = runTest {
-        val episode1 = makeEpisode(id = 1L, podcastId = 1L, title = "First")
-        val episode2 = makeEpisode(id = 2L, podcastId = 1L, title = "Second")
-        val queueItem1 = makeQueueItem(id = 1L, episodeId = 1L, position = 0)
-        val queueItem2 = makeQueueItem(id = 2L, episodeId = 2L, position = 1)
-
-        val queueEpisodes = listOf(
-            QueueEpisode(queueItem = queueItem1, episode = episode1),
-            QueueEpisode(queueItem = queueItem2, episode = episode2),
-        )
-
-        // getQueueWithEpisodes is called as Flow for uiState and as first() in moveItem
-        every { queueDao.getQueueWithEpisodes() } returns MutableStateFlow(queueEpisodes)
-
+    fun `moveDown delegates to queueDao moveItem with positive delta`() = runTest {
+        // The reorder read-modify-write now happens atomically inside QueueDao.moveItem
+        // (see QueueDaoTest); the ViewModel's job is to delegate with the right delta.
         val viewModel = createViewModel()
-        viewModel.moveItem(0, 1) // move first item to second position
+        viewModel.moveDown(queueId = 1L)
         advanceUntilIdle()
 
-        coVerify {
-            queueDao.updatePositions(match { items ->
-                items.size == 2 &&
-                    items[0].episodeId == 2L && items[0].position == 0 &&
-                    items[1].episodeId == 1L && items[1].position == 1
-            })
-        }
+        coVerify { queueDao.moveItem(1L, 1) }
     }
 
     @Test
-    fun `moveItem with invalid indices does not call updatePositions`() = runTest {
-        val episode = makeEpisode(id = 1L, podcastId = 1L)
-        val queueItem = makeQueueItem(id = 1L, episodeId = 1L, position = 0)
-
-        every { queueDao.getQueueWithEpisodes() } returns MutableStateFlow(
-            listOf(QueueEpisode(queueItem = queueItem, episode = episode))
-        )
-
+    fun `moveUp delegates to queueDao moveItem with negative delta`() = runTest {
         val viewModel = createViewModel()
-        viewModel.moveItem(0, 5) // toIndex out of bounds
+        viewModel.moveUp(queueId = 1L)
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { queueDao.updatePositions(any()) }
+        coVerify { queueDao.moveItem(1L, -1) }
     }
 
     @Test

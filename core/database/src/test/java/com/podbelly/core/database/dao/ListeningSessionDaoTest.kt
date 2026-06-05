@@ -364,7 +364,7 @@ class ListeningSessionDaoTest {
             )
         )
 
-        listeningSessionDao.getListeningDays().test {
+        listeningSessionDao.getListeningDays(0L).test {
             val days = awaitItem()
             assertEquals(2, days.size)
             assertEquals(100L, days[0])
@@ -375,7 +375,7 @@ class ListeningSessionDaoTest {
 
     @Test
     fun `getListeningDays returns empty when no sessions`() = runTest {
-        listeningSessionDao.getListeningDays().test {
+        listeningSessionDao.getListeningDays(0L).test {
             assertEquals(emptyList<Long>(), awaitItem())
             cancelAndConsumeRemainingEvents()
         }
@@ -430,7 +430,7 @@ class ListeningSessionDaoTest {
             )
         )
 
-        listeningSessionDao.getListeningMsByDayOfWeek().test {
+        listeningSessionDao.getListeningMsByDayOfWeek(0L).test {
             val stats = awaitItem()
             assertEquals(2, stats.size)
             // Ordered by totalListenedMs DESC, Thursday first (60000 > 30000)
@@ -460,7 +460,7 @@ class ListeningSessionDaoTest {
             )
         )
 
-        listeningSessionDao.getListeningMsByHourOfDay().test {
+        listeningSessionDao.getListeningMsByHourOfDay(0L).test {
             val stats = awaitItem()
             assertEquals(2, stats.size)
             // Ordered by totalListenedMs DESC, hour 10 first

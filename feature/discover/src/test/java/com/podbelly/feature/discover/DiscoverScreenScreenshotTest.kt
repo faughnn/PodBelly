@@ -101,7 +101,7 @@ class DiscoverScreenScreenshotTest {
 
                         SearchResultsList(
                             results = results,
-                            isSubscribing = false,
+                            subscribingFeedUrls = emptySet(),
                             onSubscribe = {},
                             onPodcastClick = {},
                             modifier = Modifier.weight(1f),

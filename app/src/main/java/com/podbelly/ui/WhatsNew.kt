@@ -1,9 +1,55 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 30
+    const val LATEST_VERSION_CODE = 36
 
     val changelog: Map<Int, List<String>> = mapOf(
+        36 to listOf(
+            "Background feed refresh now actually runs on the interval you set, so new episodes and notifications arrive without opening the app",
+            "Switching straight to another episode now saves your place in the one you were listening to",
+            "Tapping the episode that's already playing in the queue now just opens the player instead of restarting it",
+            "The lock-screen and notification 30-second skip no longer jumps to the start while an episode is buffering",
+            "Smoother player screen when the artwork changes between episodes",
+            "Downloads from servers that don't report a file size now show an active spinner instead of a stuck 0%",
+            "Starting a download while offline no longer leaves a stuck progress spinner",
+            "Subscribing by RSS URL now shows a progress spinner while it works",
+            "Library now shows the podcast placeholder for shows without artwork instead of a blank tile",
+            "Fixed some podcasts showing a title or link taken from their artwork instead of the real show details",
+        ),
+        35 to listOf(
+            "Auto-advancing to the next queued episode now plays your downloaded file — no more streaming or failing when offline",
+            "The player no longer keeps showing a finished episode at 0:00 when there's nothing left to play",
+            "Storage usage now stays accurate after feeds refresh instead of dropping to zero for downloaded episodes",
+            "Podcast titles and descriptions with accents, smart quotes and em dashes now display correctly",
+            "Clearing the Discover search box no longer briefly repopulates old results",
+            "Failed downloads no longer leave leftover files wasting storage",
+            "Downloads blocked by Wi-Fi-only no longer show a stuck progress spinner",
+            "Listening stats are more accurate when skipping quickly between episodes",
+            "Faster, smoother app startup",
+        ),
+        34 to listOf(
+            "Volume boost no longer changes your device's media volume",
+            "Skipping forward or scrubbing no longer jumps to the start while an episode is buffering",
+            "Scrubbing the player progress bar is now smooth",
+            "Switching tabs keeps your place (scroll position and search) instead of resetting",
+            "Listening stats and streaks now use your local time zone",
+            "Subscribe buttons no longer all disable while one subscription is in progress",
+            "Episode details now stay up to date when a podcast updates them",
+        ),
+        33 to listOf(
+            "Sleep timer's \"end of episode\" now reliably pauses when the episode finishes",
+            "Playing an episode from the queue now continues to the correct next episode",
+            "Queue playback now uses each podcast's custom speed",
+            "Downloads automatically retry after a temporary network drop",
+            "Feed refresh now respects the interval you set in Settings",
+            "Fixed some episodes not showing up when subscribed to multiple shows",
+        ),
+        32 to listOf(
+            "Fixed episodes restarting from the beginning after they finished instead of stopping",
+        ),
+        31 to listOf(
+            "Fixed a rare crash that could happen when playback was unexpectedly interrupted",
+        ),
         30 to listOf(
             "Settings now has a Diagnostics section — share crash logs from your phone when something goes wrong",
         ),

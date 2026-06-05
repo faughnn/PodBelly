@@ -84,7 +84,10 @@ object DateUtils {
                 val daysBetween = ChronoUnit.DAYS.between(thenDate, nowDate)
 
                 when {
-                    daysBetween == 1L -> "Yesterday"
+                    // We're already past 24 elapsed hours here. daysBetween can still be
+                    // 0 on a DST fall-back day (a 25-hour local day), so treat <= 1 as
+                    // "Yesterday" rather than falling through to an absolute date.
+                    daysBetween <= 1L -> "Yesterday"
                     daysBetween in 2..6 -> "$daysBetween days ago"
                     daysBetween in 7..13 -> "Last week"
                     daysBetween in 14..29 -> "${daysBetween / 7} weeks ago"

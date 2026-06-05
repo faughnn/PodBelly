@@ -100,7 +100,7 @@ fun DiscoverScreen(
                 feedUrl = uiState.feedUrlInput,
                 onFeedUrlChange = viewModel::updateFeedUrl,
                 onSubscribe = viewModel::subscribeByUrl,
-                isSubscribing = uiState.isSubscribing,
+                isSubscribing = uiState.feedUrlInput.trim() in uiState.subscribingFeedUrls,
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -139,7 +139,7 @@ fun DiscoverScreen(
                 else -> {
                     SearchResultsList(
                         results = uiState.searchResults,
-                        isSubscribing = uiState.isSubscribing,
+                        subscribingFeedUrls = uiState.subscribingFeedUrls,
                         onSubscribe = viewModel::subscribeToPodcast,
                         onPodcastClick = viewModel::onPodcastClick,
                         modifier = Modifier.weight(1f),
@@ -275,7 +275,7 @@ internal fun RssUrlSection(
 @Composable
 internal fun SearchResultsList(
     results: List<DiscoverPodcastItem>,
-    isSubscribing: Boolean,
+    subscribingFeedUrls: Set<String>,
     onSubscribe: (String) -> Unit,
     onPodcastClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -291,7 +291,7 @@ internal fun SearchResultsList(
         ) { item ->
             SearchResultItem(
                 item = item,
-                isSubscribing = isSubscribing,
+                isSubscribing = item.feedUrl in subscribingFeedUrls,
                 onSubscribe = { onSubscribe(item.feedUrl) },
                 onClick = { onPodcastClick(item.feedUrl) },
             )

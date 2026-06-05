@@ -7,6 +7,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -27,6 +28,7 @@ class SleepTimerTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var playbackController: PlaybackController
     private lateinit var playbackStateFlow: MutableStateFlow<PlaybackState>
+    private lateinit var episodeEndedFlow: MutableSharedFlow<Unit>
     private lateinit var sleepTimer: SleepTimer
 
     @Before
@@ -34,8 +36,10 @@ class SleepTimerTest {
         Dispatchers.setMain(testDispatcher)
 
         playbackStateFlow = MutableStateFlow(PlaybackState())
+        episodeEndedFlow = MutableSharedFlow(extraBufferCapacity = 1)
         playbackController = mockk(relaxed = true) {
             every { playbackState } returns playbackStateFlow
+            every { episodeEnded } returns episodeEndedFlow
         }
 
         sleepTimer = SleepTimer(playbackController)
