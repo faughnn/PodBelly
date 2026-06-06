@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Niall's Learning Digests</title>
+    <link>https://github.com/faughnn/PodBelly</link>
+    <description>Personal audio digests generated from my dev sessions and notes.</description>
+    <language>en-us</language>
+    <itunes:author>Niall Faughnan</itunes:author>
+    <itunes:summary>Personal audio digests generated from my dev sessions and notes.</itunes:summary>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:category text="Technology"/>
+    <itunes:owner>
+      <itunes:name>Niall Faughnan</itunes:name>
+      <itunes:email></itunes:email>
+    </itunes:owner>
+  </channel>
+</rss>
