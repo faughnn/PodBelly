@@ -13,5 +13,13 @@
       <itunes:name>Niall Faughnan</itunes:name>
       <itunes:email></itunes:email>
     </itunes:owner>
+    <item>
+      <title>Kubernetes, Helm, and GitOps — the foundations under your Dagster platform</title>
+      <description>The conceptual ground walked while taking ownership of the helm-user-code PR: what Kubernetes actually is, how Helm charts work, what ArgoCD does all day, and how the team's two-owner split architecture hangs together — the corrected, final understanding worth reinforcing.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform.m4a" length="28672838" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform</guid>
+      <pubDate>Sat, 06 Jun 2026 12:02:37 +0000</pubDate>
+      <itunes:duration>14:51</itunes:duration>
+    </item>
   </channel>
 </rss>

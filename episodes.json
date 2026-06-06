@@ -1,3 +1,14 @@
 {
-  "episodes": []
+  "episodes": [
+    {
+      "id": "20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform",
+      "title": "Kubernetes, Helm, and GitOps \u2014 the foundations under your Dagster platform",
+      "description": "The conceptual ground walked while taking ownership of the helm-user-code PR: what Kubernetes actually is, how Helm charts work, what ArgoCD does all day, and how the team's two-owner split architecture hangs together \u2014 the corrected, final understanding worth reinforcing.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform.m4a",
+      "bytes": 28672838,
+      "duration_sec": 891,
+      "pubdate_rfc822": "Sat, 06 Jun 2026 12:02:37 +0000",
+      "guid": "podbelly-20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform"
+    }
+  ]
 }
