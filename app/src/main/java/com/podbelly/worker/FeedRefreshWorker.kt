@@ -13,6 +13,7 @@ import com.podbelly.PodbellApp
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
+import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -93,7 +94,13 @@ class FeedRefreshWorker @AssistedInject constructor(
                     }
 
                     podcastDao.update(
-                        podcast.copy(
+                        podcast.withRefreshedMetadata(
+                            title = feed.title,
+                            author = feed.author,
+                            description = feed.description,
+                            artworkUrl = feed.artworkUrl,
+                            link = feed.link,
+                        ).copy(
                             lastRefreshedAt = System.currentTimeMillis(),
                             // Use the actual stored count, not the feed's (windowed) size.
                             episodeCount = episodeDao.countByPodcastId(podcast.id),

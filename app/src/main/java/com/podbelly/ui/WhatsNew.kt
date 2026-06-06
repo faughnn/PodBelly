@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 36
+    const val LATEST_VERSION_CODE = 37
 
     val changelog: Map<Int, List<String>> = mapOf(
+        37 to listOf(
+            "A show's cover art, title and description now update when the podcast changes them — not only when you first subscribe",
+        ),
         36 to listOf(
             "Background feed refresh now actually runs on the interval you set, so new episodes and notifications arrive without opening the app",
             "Switching straight to another episode now saves your place in the one you were listening to",

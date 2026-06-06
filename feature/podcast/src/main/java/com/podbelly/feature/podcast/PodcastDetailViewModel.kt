@@ -7,6 +7,7 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
+import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.common.DownloadErrorEvent
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
@@ -176,7 +177,13 @@ class PodcastDetailViewModel @Inject constructor(
                 }
 
                 podcastDao.update(
-                    podcastEntity.copy(
+                    podcastEntity.withRefreshedMetadata(
+                        title = rssFeed.title,
+                        author = rssFeed.author,
+                        description = rssFeed.description,
+                        artworkUrl = rssFeed.artworkUrl,
+                        link = rssFeed.link,
+                    ).copy(
                         lastRefreshedAt = System.currentTimeMillis(),
                         // Derive from actual stored rows rather than an additive guess.
                         episodeCount = episodeDao.countByPodcastId(podcastId),

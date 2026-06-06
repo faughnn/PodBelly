@@ -9,6 +9,7 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
+import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.ui.WhatsNew
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -163,7 +164,13 @@ class AppViewModel @Inject constructor(
                                 }
 
                                 podcastDao.update(
-                                    podcast.copy(lastRefreshedAt = System.currentTimeMillis())
+                                    podcast.withRefreshedMetadata(
+                                        title = rssFeed.title,
+                                        author = rssFeed.author,
+                                        description = rssFeed.description,
+                                        artworkUrl = rssFeed.artworkUrl,
+                                        link = rssFeed.link,
+                                    ).copy(lastRefreshedAt = System.currentTimeMillis())
                                 )
                             } catch (_: Exception) {
                                 // Skip this feed and continue with the next one.
