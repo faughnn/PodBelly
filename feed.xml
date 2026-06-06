@@ -8,6 +8,7 @@
     <itunes:author>Niall Faughnan</itunes:author>
     <itunes:summary>Personal audio digests generated from my dev sessions and notes.</itunes:summary>
     <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="https://raw.githubusercontent.com/faughnn/PodBelly/podcast/cover.png"/>
     <itunes:category text="Technology"/>
     <itunes:owner>
       <itunes:name>Niall Faughnan</itunes:name>
