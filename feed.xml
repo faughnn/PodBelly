@@ -15,6 +15,14 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>From git push to running pods — CI/CD anatomy, and the three bugs of PR 1494</title>
+      <description>The second half of the PR 1494 story: how a git push becomes running pods, what the deploy recipe does step by step, how container images and their tags really work, and the three genuine bugs found and fixed — a verify script that always cried wolf, a stale secret address, and a merge that produced a broken config.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260606-from-git-push-to-running-pods-ci-cd-anatomy-and-the-three-bugs-of-pr-1494.m4a" length="41613198" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260606-from-git-push-to-running-pods-ci-cd-anatomy-and-the-three-bugs-of-pr-1494</guid>
+      <pubDate>Sat, 06 Jun 2026 15:31:39 +0000</pubDate>
+      <itunes:duration>21:33</itunes:duration>
+    </item>
+    <item>
       <title>Kubernetes, Helm, and GitOps — the foundations under your Dagster platform</title>
       <description>The conceptual ground walked while taking ownership of the helm-user-code PR: what Kubernetes actually is, how Helm charts work, what ArgoCD does all day, and how the team's two-owner split architecture hangs together — the corrected, final understanding worth reinforcing.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform.m4a" length="28672838" type="audio/x-m4a"/>
