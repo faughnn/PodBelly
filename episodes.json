@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260611-reviewing-and-fixing-a-dagster-on-eks-migration-pr-script-injection-database-isolation-and-tests-that-lie",
+      "title": "Reviewing and Fixing a Dagster-on-EKS Migration PR: Script Injection, Database Isolation, and Tests That Lie",
+      "description": "A structured review of one large pull request \u2014 the AI-Eng half of moving Dagster onto new per-account EKS clusters \u2014 and the fixes it drove: blind-detection review, a GitHub Actions script-injection hole, the shared-DB migration-stamping incident and per-PR Neon isolation, an envsubst override trick, CI-gating false comfort, orphaned tests, and resolved-vs-fixed.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260611-reviewing-and-fixing-a-dagster-on-eks-migration-pr-script-injection-database-isolation-and-tests-that-lie.m4a",
+      "bytes": 41683420,
+      "duration_sec": 1295,
+      "pubdate_rfc822": "Thu, 11 Jun 2026 15:36:09 +0000",
+      "guid": "podbelly-20260611-reviewing-and-fixing-a-dagster-on-eks-migration-pr-script-injection-database-isolation-and-tests-that-lie",
+      "number": 5
+    },
+    {
       "id": "20260611-building-the-per-pr-dagster-environment-from-helm-flag-to-live-url",
       "title": "Building the Per-PR Dagster Environment \u2014 From Helm Flag to Live URL",
       "description": "How the per-PR Dagster environment went from design to a clickable URL: Helm values layering and the condition footgun, StatefulSets and the PVC helm leaves behind, the shared ALB IngressGroup, Karpenter scale-from-zero, and the three-layer fix for CI races on destructive steps.",
