@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>4. Building the Per-PR Dagster Environment — From Helm Flag to Live URL</title>
+      <description>How the per-PR Dagster environment went from design to a clickable URL: Helm values layering and the condition footgun, StatefulSets and the PVC helm leaves behind, the shared ALB IngressGroup, Karpenter scale-from-zero, and the three-layer fix for CI races on destructive steps.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260611-building-the-per-pr-dagster-environment-from-helm-flag-to-live-url.m4a" length="14370201" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260611-building-the-per-pr-dagster-environment-from-helm-flag-to-live-url</guid>
+      <pubDate>Thu, 11 Jun 2026 08:02:11 +0000</pubDate>
+      <itunes:episode>4</itunes:episode>
+      <itunes:duration>14:48</itunes:duration>
+    </item>
+    <item>
       <title>3. Deploying Dagster to a New Cluster: Triggers, Accounts, and the Two-Owner Split</title>
       <description>Moving Dagster off an old shared Kubernetes cluster onto new dedicated EKS clusters, and reshaping the CI/CD that deploys it: GitHub Actions triggers, AWS accounts and image registries, the SRE/AI-Eng ownership split, selector vs cascade deploys, YAML anchors, and an expensive env-var misconfiguration.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260608-deploying-dagster-to-a-new-cluster-triggers-accounts-and-the-two-owner-split.m4a" length="23993083" type="audio/x-m4a"/>
