@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>7. Why a Half-Idle Node Won't Schedule a Pod — Infra Lessons from a Per-PR Environment Build</title>
+      <description>Six transferable infra lessons: Kubernetes scheduling by requests (not usage), autoscaler node-pool CPU budgets, GitHub Actions trigger gotchas, a self-erasing secrets pipeline, split-horizon VPN DNS, and shared-vs-ephemeral environment design.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260615-why-a-half-idle-node-won-t-schedule-a-pod-infra-lessons-from-a-per-pr-environment-build.m4a" length="41918853" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260615-why-a-half-idle-node-won-t-schedule-a-pod-infra-lessons-from-a-per-pr-environment-build</guid>
+      <pubDate>Mon, 15 Jun 2026 21:45:51 +0000</pubDate>
+      <itunes:episode>7</itunes:episode>
+      <itunes:duration>21:42</itunes:duration>
+    </item>
+    <item>
       <title>6. How Dependabot Really Works in CI — Two Subsystems, a Secrets Trap, and a Lockfile Bug</title>
       <description>Why one routine Dependabot bump sat with five failing checks, and what each taught about how Dependabot actually behaves in CI: two separate subsystems (version vs security), GitHub starving bot PRs of secrets, a path-filter gap that hides broken lockfiles, and the uv path-dependency stale-lockfile bug — plus why we accepted the manual uv lock fix over automating it.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug.m4a" length="38396784" type="audio/x-m4a"/>
