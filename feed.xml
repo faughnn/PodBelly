@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>6. How Dependabot Really Works in CI — Two Subsystems, a Secrets Trap, and a Lockfile Bug</title>
+      <description>Why one routine Dependabot bump sat with five failing checks, and what each taught about how Dependabot actually behaves in CI: two separate subsystems (version vs security), GitHub starving bot PRs of secrets, a path-filter gap that hides broken lockfiles, and the uv path-dependency stale-lockfile bug — plus why we accepted the manual uv lock fix over automating it.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug.m4a" length="38396784" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug</guid>
+      <pubDate>Mon, 15 Jun 2026 20:20:56 +0000</pubDate>
+      <itunes:episode>6</itunes:episode>
+      <itunes:duration>19:53</itunes:duration>
+    </item>
+    <item>
       <title>5. Reviewing and Fixing a Dagster-on-EKS Migration PR: Script Injection, Database Isolation, and Tests That Lie</title>
       <description>A structured review of one large pull request — the AI-Eng half of moving Dagster onto new per-account EKS clusters — and the fixes it drove: blind-detection review, a GitHub Actions script-injection hole, the shared-DB migration-stamping incident and per-PR Neon isolation, an envsubst override trick, CI-gating false comfort, orphaned tests, and resolved-vs-fixed.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260611-reviewing-and-fixing-a-dagster-on-eks-migration-pr-script-injection-database-isolation-and-tests-that-lie.m4a" length="41683420" type="audio/x-m4a"/>

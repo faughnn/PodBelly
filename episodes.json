@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug",
+      "title": "How Dependabot Really Works in CI \u2014 Two Subsystems, a Secrets Trap, and a Lockfile Bug",
+      "description": "Why one routine Dependabot bump sat with five failing checks, and what each taught about how Dependabot actually behaves in CI: two separate subsystems (version vs security), GitHub starving bot PRs of secrets, a path-filter gap that hides broken lockfiles, and the uv path-dependency stale-lockfile bug \u2014 plus why we accepted the manual uv lock fix over automating it.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug.m4a",
+      "bytes": 38396784,
+      "duration_sec": 1193,
+      "pubdate_rfc822": "Mon, 15 Jun 2026 20:20:56 +0000",
+      "guid": "podbelly-20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug",
+      "number": 6
+    },
+    {
       "id": "20260611-reviewing-and-fixing-a-dagster-on-eks-migration-pr-script-injection-database-isolation-and-tests-that-lie",
       "title": "Reviewing and Fixing a Dagster-on-EKS Migration PR: Script Injection, Database Isolation, and Tests That Lie",
       "description": "A structured review of one large pull request \u2014 the AI-Eng half of moving Dagster onto new per-account EKS clusters \u2014 and the fixes it drove: blind-detection review, a GitHub Actions script-injection hole, the shared-DB migration-stamping incident and per-PR Neon isolation, an envsubst override trick, CI-gating false comfort, orphaned tests, and resolved-vs-fixed.",
