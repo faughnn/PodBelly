@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>8. Why Your Pod Throttles at Startup: A Readiness Probe That Cost a Whole CPU</title>
+      <description>A deployment that kept failing for reasons unrelated to the code — a tour through how Kubernetes enforces CPU limits, the difference between request and limit, CFS throttling mechanics, load-aware gRPC health checks, and how a readiness probe quietly cost a whole CPU core. Transferable lessons for any containerised service.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260618-why-your-pod-throttles-at-startup-a-readiness-probe-that-cost-a-whole-cpu.m4a" length="47485515" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260618-why-your-pod-throttles-at-startup-a-readiness-probe-that-cost-a-whole-cpu</guid>
+      <pubDate>Thu, 18 Jun 2026 18:21:33 +0000</pubDate>
+      <itunes:episode>8</itunes:episode>
+      <itunes:duration>24:35</itunes:duration>
+    </item>
+    <item>
       <title>7. Why a Half-Idle Node Won't Schedule a Pod — Infra Lessons from a Per-PR Environment Build</title>
       <description>Six transferable infra lessons: Kubernetes scheduling by requests (not usage), autoscaler node-pool CPU budgets, GitHub Actions trigger gotchas, a self-erasing secrets pipeline, split-horizon VPN DNS, and shared-vs-ephemeral environment design.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260615-why-a-half-idle-node-won-t-schedule-a-pod-infra-lessons-from-a-per-pr-environment-build.m4a" length="41918853" type="audio/x-m4a"/>
