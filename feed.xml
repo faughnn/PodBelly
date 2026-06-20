@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>9. Seven Kubernetes Lessons From One Stubborn Deploy</title>
+      <description>Seven transferable Kubernetes lessons from one afternoon of getting services deployed and healthy: a config-key mismatch that looked like a broken container, single-node vs autoscaling capacity, coordinator vs step pods, why stuck pods never auto-reap, dual-stack DNS on IPv4-only pods, requests vs limits, and OOM observability gaps.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260620-seven-kubernetes-lessons-from-one-stubborn-deploy.m4a" length="43495684" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260620-seven-kubernetes-lessons-from-one-stubborn-deploy</guid>
+      <pubDate>Sat, 20 Jun 2026 21:38:04 +0000</pubDate>
+      <itunes:episode>9</itunes:episode>
+      <itunes:duration>22:31</itunes:duration>
+    </item>
+    <item>
       <title>8. Why Your Pod Throttles at Startup: A Readiness Probe That Cost a Whole CPU</title>
       <description>A deployment that kept failing for reasons unrelated to the code — a tour through how Kubernetes enforces CPU limits, the difference between request and limit, CFS throttling mechanics, load-aware gRPC health checks, and how a readiness probe quietly cost a whole CPU core. Transferable lessons for any containerised service.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260618-why-your-pod-throttles-at-startup-a-readiness-probe-that-cost-a-whole-cpu.m4a" length="47485515" type="audio/x-m4a"/>

@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260620-seven-kubernetes-lessons-from-one-stubborn-deploy",
+      "title": "Seven Kubernetes Lessons From One Stubborn Deploy",
+      "description": "Seven transferable Kubernetes lessons from one afternoon of getting services deployed and healthy: a config-key mismatch that looked like a broken container, single-node vs autoscaling capacity, coordinator vs step pods, why stuck pods never auto-reap, dual-stack DNS on IPv4-only pods, requests vs limits, and OOM observability gaps.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260620-seven-kubernetes-lessons-from-one-stubborn-deploy.m4a",
+      "bytes": 43495684,
+      "duration_sec": 1351,
+      "pubdate_rfc822": "Sat, 20 Jun 2026 21:38:04 +0000",
+      "guid": "podbelly-20260620-seven-kubernetes-lessons-from-one-stubborn-deploy",
+      "number": 9
+    },
+    {
       "id": "20260618-why-your-pod-throttles-at-startup-a-readiness-probe-that-cost-a-whole-cpu",
       "title": "Why Your Pod Throttles at Startup: A Readiness Probe That Cost a Whole CPU",
       "description": "A deployment that kept failing for reasons unrelated to the code \u2014 a tour through how Kubernetes enforces CPU limits, the difference between request and limit, CFS throttling mechanics, load-aware gRPC health checks, and how a readiness probe quietly cost a whole CPU core. Transferable lessons for any containerised service.",
