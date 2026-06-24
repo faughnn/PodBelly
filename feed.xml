@@ -15,7 +15,7 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
-      <title>10. Roundup — 2026-06-24</title>
+      <title>10. Dependabot Lock Drift, a Per-PR Image Bug, ARC Runners &amp; a DisplayLink Dock — 2026-06-24</title>
       <description>The day in four segments: Dependabot lock-file drift and how a Claude session's context window works; the three-layer per-PR image-resolution bug; ARC self-hosted runners with base+overlay and node pools; and a USB-C DisplayLink dock fix.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260624-roundup-2026-06-24.m4a" length="51600964" type="audio/x-m4a"/>
       <guid isPermaLink="false">podbelly-20260624-roundup-2026-06-24</guid>
