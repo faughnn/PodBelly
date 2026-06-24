@@ -2,7 +2,7 @@
   "episodes": [
     {
       "id": "20260624-roundup-2026-06-24",
-      "title": "Dependabot Lock Drift, a Per-PR Image Bug, ARC Runners & a DisplayLink Dock — 2026-06-24",
+      "title": "Four Rabbit Holes in One Day: Dependabot Lock Drift, a Phantom Image Tag, Self-Hosted Runners, and a Dead Dock",
       "description": "The day in four segments: Dependabot lock-file drift and how a Claude session's context window works; the three-layer per-PR image-resolution bug; ARC self-hosted runners with base+overlay and node pools; and a USB-C DisplayLink dock fix.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260624-roundup-2026-06-24.m4a",
       "bytes": 51600964,
