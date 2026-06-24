@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>10. Roundup — 2026-06-24</title>
+      <description>The day in four segments: Dependabot lock-file drift and how a Claude session's context window works; the three-layer per-PR image-resolution bug; ARC self-hosted runners with base+overlay and node pools; and a USB-C DisplayLink dock fix.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260624-roundup-2026-06-24.m4a" length="51600964" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260624-roundup-2026-06-24</guid>
+      <pubDate>Wed, 24 Jun 2026 16:19:39 +0000</pubDate>
+      <itunes:episode>10</itunes:episode>
+      <itunes:duration>26:43</itunes:duration>
+    </item>
+    <item>
       <title>9. Seven Kubernetes Lessons From One Stubborn Deploy</title>
       <description>Seven transferable Kubernetes lessons from one afternoon of getting services deployed and healthy: a config-key mismatch that looked like a broken container, single-node vs autoscaling capacity, coordinator vs step pods, why stuck pods never auto-reap, dual-stack DNS on IPv4-only pods, requests vs limits, and OOM observability gaps.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260620-seven-kubernetes-lessons-from-one-stubborn-deploy.m4a" length="43495684" type="audio/x-m4a"/>

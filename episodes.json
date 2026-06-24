@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260624-roundup-2026-06-24",
+      "title": "Roundup \u2014 2026-06-24",
+      "description": "The day in four segments: Dependabot lock-file drift and how a Claude session's context window works; the three-layer per-PR image-resolution bug; ARC self-hosted runners with base+overlay and node pools; and a USB-C DisplayLink dock fix.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260624-roundup-2026-06-24.m4a",
+      "bytes": 51600964,
+      "duration_sec": 1603,
+      "pubdate_rfc822": "Wed, 24 Jun 2026 16:19:39 +0000",
+      "guid": "podbelly-20260624-roundup-2026-06-24",
+      "number": 10
+    },
+    {
       "id": "20260620-seven-kubernetes-lessons-from-one-stubborn-deploy",
       "title": "Seven Kubernetes Lessons From One Stubborn Deploy",
       "description": "Seven transferable Kubernetes lessons from one afternoon of getting services deployed and healthy: a config-key mismatch that looked like a broken container, single-node vs autoscaling capacity, coordinator vs step pods, why stuck pods never auto-reap, dual-stack DNS on IPv4-only pods, requests vs limits, and OOM observability gaps.",
