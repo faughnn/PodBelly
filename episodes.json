@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260626-the-deploy-worked-so-why-was-the-build-red",
+      "title": "The Deploy Worked \u2014 So Why Was the Build Red?",
+      "description": "Per-PR preview-env image resolution and the deploy-vs-check distinction, self-hosted CI runner cold-starts, cross-env deploy secrets (OIDC/ESO), splitting Terraform from a monorepo, LLM context/model-internals, and a personal reminder bot \u2014 the threads since the last roundup.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260626-the-deploy-worked-so-why-was-the-build-red.m4a",
+      "bytes": 40244159,
+      "duration_sec": 1250,
+      "pubdate_rfc822": "Fri, 26 Jun 2026 22:35:18 +0000",
+      "guid": "podbelly-20260626-the-deploy-worked-so-why-was-the-build-red",
+      "number": 11
+    },
+    {
       "id": "20260624-roundup-2026-06-24",
       "title": "Four Rabbit Holes in One Day: Dependabot Lock Drift, a Phantom Image Tag, Self-Hosted Runners, and a Dead Dock",
       "description": "The day in four segments: Dependabot lock-file drift and how a Claude session's context window works; the three-layer per-PR image-resolution bug; ARC self-hosted runners with base+overlay and node pools; and a USB-C DisplayLink dock fix.",
@@ -25,7 +36,7 @@
     {
       "id": "20260618-why-your-pod-throttles-at-startup-a-readiness-probe-that-cost-a-whole-cpu",
       "title": "Why Your Pod Throttles at Startup: A Readiness Probe That Cost a Whole CPU",
-      "description": "A deployment that kept failing for reasons unrelated to the code — a tour through how Kubernetes enforces CPU limits, the difference between request and limit, CFS throttling mechanics, load-aware gRPC health checks, and how a readiness probe quietly cost a whole CPU core. Transferable lessons for any containerised service.",
+      "description": "A deployment that kept failing for reasons unrelated to the code \u2014 a tour through how Kubernetes enforces CPU limits, the difference between request and limit, CFS throttling mechanics, load-aware gRPC health checks, and how a readiness probe quietly cost a whole CPU core. Transferable lessons for any containerised service.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260618-why-your-pod-throttles-at-startup-a-readiness-probe-that-cost-a-whole-cpu.m4a",
       "bytes": 47485515,
       "duration_sec": 1475,
@@ -35,7 +46,7 @@
     },
     {
       "id": "20260615-why-a-half-idle-node-won-t-schedule-a-pod-infra-lessons-from-a-per-pr-environment-build",
-      "title": "Why a Half-Idle Node Won't Schedule a Pod — Infra Lessons from a Per-PR Environment Build",
+      "title": "Why a Half-Idle Node Won't Schedule a Pod \u2014 Infra Lessons from a Per-PR Environment Build",
       "description": "Six transferable infra lessons: Kubernetes scheduling by requests (not usage), autoscaler node-pool CPU budgets, GitHub Actions trigger gotchas, a self-erasing secrets pipeline, split-horizon VPN DNS, and shared-vs-ephemeral environment design.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260615-why-a-half-idle-node-won-t-schedule-a-pod-infra-lessons-from-a-per-pr-environment-build.m4a",
       "bytes": 41918853,
@@ -46,8 +57,8 @@
     },
     {
       "id": "20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug",
-      "title": "How Dependabot Really Works in CI — Two Subsystems, a Secrets Trap, and a Lockfile Bug",
-      "description": "Why one routine Dependabot bump sat with five failing checks, and what each taught about how Dependabot actually behaves in CI: two separate subsystems (version vs security), GitHub starving bot PRs of secrets, a path-filter gap that hides broken lockfiles, and the uv path-dependency stale-lockfile bug — plus why we accepted the manual uv lock fix over automating it.",
+      "title": "How Dependabot Really Works in CI \u2014 Two Subsystems, a Secrets Trap, and a Lockfile Bug",
+      "description": "Why one routine Dependabot bump sat with five failing checks, and what each taught about how Dependabot actually behaves in CI: two separate subsystems (version vs security), GitHub starving bot PRs of secrets, a path-filter gap that hides broken lockfiles, and the uv path-dependency stale-lockfile bug \u2014 plus why we accepted the manual uv lock fix over automating it.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260615-how-dependabot-really-works-in-ci-two-subsystems-a-secrets-trap-and-a-lockfile-bug.m4a",
       "bytes": 38396784,
       "duration_sec": 1193,
@@ -58,7 +69,7 @@
     {
       "id": "20260611-reviewing-and-fixing-a-dagster-on-eks-migration-pr-script-injection-database-isolation-and-tests-that-lie",
       "title": "Reviewing and Fixing a Dagster-on-EKS Migration PR: Script Injection, Database Isolation, and Tests That Lie",
-      "description": "A structured review of one large pull request — the AI-Eng half of moving Dagster onto new per-account EKS clusters — and the fixes it drove: blind-detection review, a GitHub Actions script-injection hole, the shared-DB migration-stamping incident and per-PR Neon isolation, an envsubst override trick, CI-gating false comfort, orphaned tests, and resolved-vs-fixed.",
+      "description": "A structured review of one large pull request \u2014 the AI-Eng half of moving Dagster onto new per-account EKS clusters \u2014 and the fixes it drove: blind-detection review, a GitHub Actions script-injection hole, the shared-DB migration-stamping incident and per-PR Neon isolation, an envsubst override trick, CI-gating false comfort, orphaned tests, and resolved-vs-fixed.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260611-reviewing-and-fixing-a-dagster-on-eks-migration-pr-script-injection-database-isolation-and-tests-that-lie.m4a",
       "bytes": 41683420,
       "duration_sec": 1295,
@@ -68,7 +79,7 @@
     },
     {
       "id": "20260611-building-the-per-pr-dagster-environment-from-helm-flag-to-live-url",
-      "title": "Building the Per-PR Dagster Environment — From Helm Flag to Live URL",
+      "title": "Building the Per-PR Dagster Environment \u2014 From Helm Flag to Live URL",
       "description": "How the per-PR Dagster environment went from design to a clickable URL: Helm values layering and the condition footgun, StatefulSets and the PVC helm leaves behind, the shared ALB IngressGroup, Karpenter scale-from-zero, and the three-layer fix for CI races on destructive steps.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260611-building-the-per-pr-dagster-environment-from-helm-flag-to-live-url.m4a",
       "bytes": 14370201,
@@ -90,8 +101,8 @@
     },
     {
       "id": "20260606-from-git-push-to-running-pods-ci-cd-anatomy-and-the-three-bugs-of-pr-1494",
-      "title": "From git push to running pods — CI/CD anatomy, and the three bugs of PR 1494",
-      "description": "The second half of the PR 1494 story: how a git push becomes running pods, what the deploy recipe does step by step, how container images and their tags really work, and the three genuine bugs found and fixed — a verify script that always cried wolf, a stale secret address, and a merge that produced a broken config.",
+      "title": "From git push to running pods \u2014 CI/CD anatomy, and the three bugs of PR 1494",
+      "description": "The second half of the PR 1494 story: how a git push becomes running pods, what the deploy recipe does step by step, how container images and their tags really work, and the three genuine bugs found and fixed \u2014 a verify script that always cried wolf, a stale secret address, and a merge that produced a broken config.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260606-from-git-push-to-running-pods-ci-cd-anatomy-and-the-three-bugs-of-pr-1494.m4a",
       "bytes": 41613198,
       "duration_sec": 1293,
@@ -101,8 +112,8 @@
     },
     {
       "id": "20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform",
-      "title": "Kubernetes, Helm, and GitOps — the foundations under your Dagster platform",
-      "description": "The conceptual ground walked while taking ownership of the helm-user-code PR: what Kubernetes actually is, how Helm charts work, what ArgoCD does all day, and how the team's two-owner split architecture hangs together — the corrected, final understanding worth reinforcing.",
+      "title": "Kubernetes, Helm, and GitOps \u2014 the foundations under your Dagster platform",
+      "description": "The conceptual ground walked while taking ownership of the helm-user-code PR: what Kubernetes actually is, how Helm charts work, what ArgoCD does all day, and how the team's two-owner split architecture hangs together \u2014 the corrected, final understanding worth reinforcing.",
       "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260606-kubernetes-helm-and-gitops-the-foundations-under-your-dagster-platform.m4a",
       "bytes": 28672838,
       "duration_sec": 891,

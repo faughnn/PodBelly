@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>11. The Deploy Worked — So Why Was the Build Red?</title>
+      <description>Per-PR preview-env image resolution and the deploy-vs-check distinction, self-hosted CI runner cold-starts, cross-env deploy secrets (OIDC/ESO), splitting Terraform from a monorepo, LLM context/model-internals, and a personal reminder bot — the threads since the last roundup.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260626-the-deploy-worked-so-why-was-the-build-red.m4a" length="40244159" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260626-the-deploy-worked-so-why-was-the-build-red</guid>
+      <pubDate>Fri, 26 Jun 2026 22:35:18 +0000</pubDate>
+      <itunes:episode>11</itunes:episode>
+      <itunes:duration>20:50</itunes:duration>
+    </item>
+    <item>
       <title>10. Four Rabbit Holes in One Day: Dependabot Lock Drift, a Phantom Image Tag, Self-Hosted Runners, and a Dead Dock</title>
       <description>The day in four segments: Dependabot lock-file drift and how a Claude session's context window works; the three-layer per-PR image-resolution bug; ARC self-hosted runners with base+overlay and node pools; and a USB-C DisplayLink dock fix.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260624-roundup-2026-06-24.m4a" length="51600964" type="audio/x-m4a"/>
