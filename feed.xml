@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>12. The Deploy That Raced a Build That Hadn't Started Yet</title>
+      <description>Five since the last roundup: debugging a Kubernetes Dagster deploy (throttle vs OOM, Loki cardinality, runner cold-start), a secret sync that silently ate 24 keys, uv lockfile drift across a monorepo, browser codecs &amp; HLS transcoding, and a competency-based interview method.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260629-the-deploy-that-raced-a-build-that-hadn-t-started-yet.m4a" length="49749854" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260629-the-deploy-that-raced-a-build-that-hadn-t-started-yet</guid>
+      <pubDate>Mon, 29 Jun 2026 15:40:59 +0000</pubDate>
+      <itunes:episode>12</itunes:episode>
+      <itunes:duration>25:46</itunes:duration>
+    </item>
+    <item>
       <title>11. The Deploy Worked — So Why Was the Build Red?</title>
       <description>Per-PR preview-env image resolution and the deploy-vs-check distinction, self-hosted CI runner cold-starts, cross-env deploy secrets (OIDC/ESO), splitting Terraform from a monorepo, LLM context/model-internals, and a personal reminder bot — the threads since the last roundup.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260626-the-deploy-worked-so-why-was-the-build-red.m4a" length="40244159" type="audio/x-m4a"/>

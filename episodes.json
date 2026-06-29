@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260629-the-deploy-that-raced-a-build-that-hadn-t-started-yet",
+      "title": "The Deploy That Raced a Build That Hadn't Started Yet",
+      "description": "Five since the last roundup: debugging a Kubernetes Dagster deploy (throttle vs OOM, Loki cardinality, runner cold-start), a secret sync that silently ate 24 keys, uv lockfile drift across a monorepo, browser codecs & HLS transcoding, and a competency-based interview method.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260629-the-deploy-that-raced-a-build-that-hadn-t-started-yet.m4a",
+      "bytes": 49749854,
+      "duration_sec": 1546,
+      "pubdate_rfc822": "Mon, 29 Jun 2026 15:40:59 +0000",
+      "guid": "podbelly-20260629-the-deploy-that-raced-a-build-that-hadn-t-started-yet",
+      "number": 12
+    },
+    {
       "id": "20260626-the-deploy-worked-so-why-was-the-build-red",
       "title": "The Deploy Worked \u2014 So Why Was the Build Red?",
       "description": "Per-PR preview-env image resolution and the deploy-vs-check distinction, self-hosted CI runner cold-starts, cross-env deploy secrets (OIDC/ESO), splitting Terraform from a monorepo, LLM context/model-internals, and a personal reminder bot \u2014 the threads since the last roundup.",
