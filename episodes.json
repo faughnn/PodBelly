@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260701-the-pod-was-talking-to-the-wrong-database-diagnosing-deploys-by-source-not-symptom",
+      "title": "The Pod Was Talking to the Wrong Database: Diagnosing Deploys by Source, Not Symptom",
+      "description": "Two sessions on debugging failing per-PR Dagster deploys on Kubernetes: the failure taxonomy (taints, QoS, OOM-kill vs CFS throttling, rolling replacement) and the diagnose-by-source-not-symptom method behind the run-pod-vs-code-server database trap.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260701-the-pod-was-talking-to-the-wrong-database-diagnosing-deploys-by-source-not-symptom.m4a",
+      "bytes": 44780307,
+      "duration_sec": 1391,
+      "pubdate_rfc822": "Wed, 01 Jul 2026 22:10:00 +0000",
+      "guid": "podbelly-20260701-the-pod-was-talking-to-the-wrong-database-diagnosing-deploys-by-source-not-symptom",
+      "number": 13
+    },
+    {
       "id": "20260629-the-deploy-that-raced-a-build-that-hadn-t-started-yet",
       "title": "The Deploy That Raced a Build That Hadn't Started Yet",
       "description": "Five since the last roundup: debugging a Kubernetes Dagster deploy (throttle vs OOM, Loki cardinality, runner cold-start), a secret sync that silently ate 24 keys, uv lockfile drift across a monorepo, browser codecs & HLS transcoding, and a competency-based interview method.",
