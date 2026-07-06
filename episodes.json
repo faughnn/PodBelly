@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260706-when-healthy-lies-a-missing-iam-role-a-schedule-that-ran-nothing-and-an-s3-write-that-wasn-t-fixed",
+      "title": "When 'Healthy' Lies: A Missing IAM Role, a Schedule That Ran Nothing, and an S3 Write That Wasn't Fixed",
+      "description": "Three QA debugging stories where things looked fine until you checked the source, plus a config-registry isolation problem and a GitHub/Slack review-bot bug.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260706-when-healthy-lies-a-missing-iam-role-a-schedule-that-ran-nothing-and-an-s3-write-that-wasn-t-fixed.m4a",
+      "bytes": 46821913,
+      "duration_sec": 1455,
+      "pubdate_rfc822": "Mon, 06 Jul 2026 16:52:57 +0000",
+      "guid": "podbelly-20260706-when-healthy-lies-a-missing-iam-role-a-schedule-that-ran-nothing-and-an-s3-write-that-wasn-t-fixed",
+      "number": 14
+    },
+    {
       "id": "20260701-the-pod-was-talking-to-the-wrong-database-diagnosing-deploys-by-source-not-symptom",
       "title": "The Pod Was Talking to the Wrong Database: Diagnosing Deploys by Source, Not Symptom",
       "description": "Two sessions on debugging failing per-PR Dagster deploys on Kubernetes: the failure taxonomy (taints, QoS, OOM-kill vs CFS throttling, rolling replacement) and the diagnose-by-source-not-symptom method behind the run-pod-vs-code-server database trap.",
