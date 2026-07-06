@@ -128,25 +128,11 @@ class PlaybackService : MediaSessionService() {
                         Log.d(TAG, "Volume boost set to $enabled")
                     }
                     CUSTOM_COMMAND_REWIND -> {
-                        exoPlayer?.let { player ->
-                            val newPos = (player.currentPosition - 10_000L).coerceAtLeast(0L)
-                            player.seekTo(newPos)
-                        }
+                        exoPlayer?.let { player -> seekByOffset(player, -10_000L) }
                         Log.d(TAG, "Rewound 10 seconds")
                     }
                     CUSTOM_COMMAND_FAST_FORWARD -> {
-                        exoPlayer?.let { player ->
-                            // Only clamp to duration when it is known. For a streaming/
-                            // buffering item player.duration is C.TIME_UNSET (a large
-                            // negative value), and coerceAtMost(duration.coerceAtLeast(0))
-                            // would force the target back to 0 — seeking to the start of the
-                            // episode instead of skipping forward. Mirror the guard in
-                            // PlaybackController.skipForward().
-                            val target = player.currentPosition + 30_000L
-                            val duration = player.duration
-                            val newPos = if (duration > 0L) target.coerceAtMost(duration) else target
-                            player.seekTo(newPos)
-                        }
+                        exoPlayer?.let { player -> seekByOffset(player, 30_000L) }
                         Log.d(TAG, "Fast forwarded 30 seconds")
                     }
                 }
@@ -172,6 +158,40 @@ class PlaybackService : MediaSessionService() {
                 sessionActivityIntent?.let { setSessionActivity(it) }
             }
             .build()
+    }
+
+    /**
+     * Seeks [player] by [offsetMs] relative to its current position for the
+     * notification / lock-screen rewind and fast-forward buttons.
+     *
+     * Rapidly tapping these buttons used to crash the app: a forward skip could land
+     * exactly on the duration, driving the player to [Player.STATE_ENDED], which
+     * clears the media item — the next tap then called [Player.seekTo] on an empty
+     * timeline and threw IllegalSeekPositionException. It also made the episode reopen
+     * as "completed" because STATE_ENDED marks it played.
+     *
+     * Guards here:
+     * - Skip entirely when there is no seekable media (IDLE / ENDED / no current item,
+     *   or the seek command isn't available for this controller).
+     * - [computeSkipTarget] caps a forward skip a second short of the end so it can't
+     *   trigger STATE_ENDED.
+     * - The [Player.seekTo] call is wrapped defensively so a lost race (media cleared
+     *   between the guard and the seek) is logged instead of crashing.
+     */
+    private fun seekByOffset(player: Player, offsetMs: Long) {
+        if (player.playbackState == Player.STATE_IDLE ||
+            player.playbackState == Player.STATE_ENDED ||
+            player.currentMediaItem == null ||
+            !player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+        ) {
+            return
+        }
+        val newPos = computeSkipTarget(player.currentPosition, offsetMs, player.duration)
+        try {
+            player.seekTo(newPos)
+        } catch (e: Exception) {
+            Log.w(TAG, "Ignored notification seek to $newPos", e)
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {

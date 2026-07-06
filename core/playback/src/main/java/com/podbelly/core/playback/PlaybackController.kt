@@ -449,11 +449,12 @@ class PlaybackController @Inject constructor(
      */
     fun skipForward(seconds: Int = 30) {
         val controller = mediaController ?: return
-        val duration = controller.duration
-        val target = controller.currentPosition + seconds * 1000L
-        // When duration is unknown (C.TIME_UNSET), don't clamp to it (it would be 0);
-        // let the player clamp to the real end once it's known.
-        val newPos = if (duration > 0L) target.coerceAtMost(duration) else target
+        // computeSkipTarget caps a second short of the end so a forward skip can't land
+        // on the duration and drive the player to STATE_ENDED (which would mark the
+        // episode played). When duration is unknown (C.TIME_UNSET) it returns the raw
+        // target and the player clamps to the real end once it's known. Shared with the
+        // notification skip in PlaybackService.seekByOffset().
+        val newPos = computeSkipTarget(controller.currentPosition, seconds * 1000L, controller.duration)
         controller.seekTo(newPos)
         _playbackState.update { it.copy(currentPosition = newPos) }
     }
@@ -463,7 +464,7 @@ class PlaybackController @Inject constructor(
      */
     fun skipBack(seconds: Int = 10) {
         val controller = mediaController ?: return
-        val newPos = (controller.currentPosition - seconds * 1000L).coerceAtLeast(0L)
+        val newPos = computeSkipTarget(controller.currentPosition, -seconds * 1000L, controller.duration)
         controller.seekTo(newPos)
         _playbackState.update { it.copy(currentPosition = newPos) }
     }
