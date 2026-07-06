@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 37
+    const val LATEST_VERSION_CODE = 38
 
     val changelog: Map<Int, List<String>> = mapOf(
+        38 to listOf(
+            "Fixed a crash when tapping rewind or fast-forward repeatedly from the notification or lock screen",
+            "Fast-forwarding near the end of an episode no longer marks it as finished",
+        ),
         37 to listOf(
             "A show's cover art, title and description now update when the podcast changes them — not only when you first subscribe",
         ),
