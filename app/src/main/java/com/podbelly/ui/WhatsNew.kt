@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 38
+    const val LATEST_VERSION_CODE = 39
 
     val changelog: Map<Int, List<String>> = mapOf(
+        39 to listOf(
+            "Continue Listening no longer shows episodes you've already finished (\"0 seconds left\")",
+        ),
         38 to listOf(
             "Fixed a crash when tapping rewind or fast-forward repeatedly from the notification or lock screen",
             "Fast-forwarding near the end of an episode no longer marks it as finished",
