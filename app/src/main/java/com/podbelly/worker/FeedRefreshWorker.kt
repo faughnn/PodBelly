@@ -66,6 +66,7 @@ class FeedRefreshWorker @AssistedInject constructor(
                                     durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                     artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
                                     fileSize = rssEpisode.fileSize,
+                                    addedAt = System.currentTimeMillis(),
                                 )
                             )
                         } else {

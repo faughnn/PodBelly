@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 39
+    const val LATEST_VERSION_CODE = 40
 
     val changelog: Map<Int, List<String>> = mapOf(
+        40 to listOf(
+            "Episodes that arrive from a refresh now appear in a \"New\" section at the top of Home, so nothing slips past you further down the list",
+            "Once you've seen them, they return to their usual place in the list",
+        ),
         39 to listOf(
             "Continue Listening no longer shows episodes you've already finished (\"0 seconds left\")",
         ),

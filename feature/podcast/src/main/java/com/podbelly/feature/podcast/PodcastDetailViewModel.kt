@@ -154,6 +154,7 @@ class PodcastDetailViewModel @Inject constructor(
                                 publicationDate = rssEpisode.publishedAt,
                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                 artworkUrl = rssEpisode.artworkUrl ?: "",
+                                addedAt = System.currentTimeMillis(),
                             )
                         )
                     } else {

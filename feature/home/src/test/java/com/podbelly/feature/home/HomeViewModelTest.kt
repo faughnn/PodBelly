@@ -44,13 +44,16 @@ class HomeViewModelTest {
     private val episodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
     private val inProgressFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
+    private val newEpisodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { episodeDao.getRecentEpisodes(50) } returns episodesFlow
         every { episodeDao.getInProgressEpisodes() } returns inProgressFlow
+        every { episodeDao.getEpisodesAddedSince(any()) } returns newEpisodesFlow
         every { podcastDao.getAll() } returns podcastsFlow
+        every { preferencesManager.homeNewEpisodesCutoff } returns MutableStateFlow(0L)
     }
 
     @After
@@ -97,6 +100,7 @@ class HomeViewModelTest {
         downloadPath: String = "",
         playbackPosition: Long = 0L,
         played: Boolean = false,
+        addedAt: Long = 0L,
     ) = EpisodeEntity(
         id = id,
         podcastId = podcastId,
@@ -110,6 +114,7 @@ class HomeViewModelTest {
         downloadPath = downloadPath,
         playbackPosition = playbackPosition,
         played = played,
+        addedAt = addedAt,
     )
 
     // -- Tests --
@@ -219,6 +224,73 @@ class HomeViewModelTest {
             val state = awaitItem()
             assertEquals(2, state.recentEpisodes.size)
             assertTrue(state.inProgressEpisodes.isEmpty())
+        }
+    }
+
+    @Test
+    fun `newly added episodes appear in newEpisodes and are excluded from recentEpisodes`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val oldEpisode = makeEpisode(id = 1L, addedAt = 0L)
+        val freshEpisode = makeEpisode(id = 2L, addedAt = 5_000L)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(freshEpisode, oldEpisode)
+            newEpisodesFlow.value = listOf(freshEpisode)
+
+            val state = awaitItem()
+            assertEquals(listOf(2L), state.newEpisodes.map { it.episodeId })
+            assertEquals(listOf(1L), state.recentEpisodes.map { it.episodeId })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `surfacing new episodes advances the persisted cutoff to the highest addedAt`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val first = makeEpisode(id = 1L, addedAt = 3_000L)
+        val second = makeEpisode(id = 2L, addedAt = 7_000L)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(first, second)
+            newEpisodesFlow.value = listOf(second, first)
+
+            awaitItem()
+            advanceUntilIdle()
+
+            coVerify { preferencesManager.setHomeNewEpisodesCutoff(7_000L) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `cutoff is not persisted when nothing new arrived`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val episode = makeEpisode(id = 1L, addedAt = 0L)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(episode)
+
+            val state = awaitItem()
+            advanceUntilIdle()
+
+            assertTrue(state.newEpisodes.isEmpty())
+            coVerify(exactly = 0) { preferencesManager.setHomeNewEpisodesCutoff(any()) }
+            cancelAndIgnoreRemainingEvents()
         }
     }
 

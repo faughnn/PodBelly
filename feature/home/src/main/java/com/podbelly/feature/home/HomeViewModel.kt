@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,6 +39,7 @@ data class HomeEpisodeItem(
 
 data class HomeUiState(
     val recentEpisodes: List<HomeEpisodeItem> = emptyList(),
+    val newEpisodes: List<HomeEpisodeItem> = emptyList(),
     val inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
     val isEmpty: Boolean = false
 )
@@ -59,11 +63,30 @@ class HomeViewModel @Inject constructor(
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
 
+    // The "New" section shows episodes discovered after the persisted cutoff. The
+    // cutoff is snapshotted once per ViewModel so the section doesn't dissolve
+    // while the user is looking at it (episodes arriving mid-visit, e.g. from
+    // pull-to-refresh, still enter the section live because their addedAt is
+    // above the snapshot). The persisted cutoff advances as soon as the section's
+    // contents have been surfaced, so the next visit shows them back in their
+    // normal chronological position.
+    private var sessionNewCutoff: Long? = null
+    private var persistedNewCutoff = 0L
+
+    private val newEpisodesFlow = flow {
+        val cutoff = sessionNewCutoff ?: preferencesManager.homeNewEpisodesCutoff.first().also {
+            sessionNewCutoff = it
+            persistedNewCutoff = it
+        }
+        emitAll(episodeDao.getEpisodesAddedSince(cutoff))
+    }
+
     val uiState: StateFlow<HomeUiState> = combine(
         episodeDao.getRecentEpisodes(50),
         episodeDao.getInProgressEpisodes(),
         podcastDao.getAll(),
-    ) { episodes, inProgressEpisodes, podcasts ->
+        newEpisodesFlow,
+    ) { episodes, inProgressEpisodes, podcasts, newEpisodes ->
         val podcastMap: Map<Long, PodcastEntity> = podcasts.associateBy { it.id }
 
         fun toHomeItem(episode: EpisodeEntity): HomeEpisodeItem? {
@@ -84,9 +107,23 @@ class HomeViewModel @Inject constructor(
 
         val items = episodes.mapNotNull { toHomeItem(it) }
         val inProgress = inProgressEpisodes.mapNotNull { toHomeItem(it) }
+        val newItems = newEpisodes.mapNotNull { toHomeItem(it) }
+
+        // These episodes are about to be on screen — advance the persisted cutoff
+        // so they leave the New section on the next visit.
+        val maxAddedAt = newEpisodes.maxOfOrNull { it.addedAt } ?: 0L
+        if (maxAddedAt > persistedNewCutoff) {
+            persistedNewCutoff = maxAddedAt
+            viewModelScope.launch {
+                preferencesManager.setHomeNewEpisodesCutoff(maxAddedAt)
+            }
+        }
+
+        val newIds = newItems.mapTo(HashSet()) { it.episodeId }
 
         HomeUiState(
-            recentEpisodes = items,
+            recentEpisodes = items.filterNot { it.episodeId in newIds },
+            newEpisodes = newItems,
             inProgressEpisodes = inProgress,
             isEmpty = podcasts.isEmpty()
         )
