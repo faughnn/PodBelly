@@ -92,6 +92,7 @@ class PreferencesManager @Inject constructor(
         val PAUSED_AT = longPreferencesKey("paused_at")
         val QUEUE_ENABLED = booleanPreferencesKey("queue_enabled")
         val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
+        val HOME_NEW_EPISODES_CUTOFF = longPreferencesKey("home_new_episodes_cutoff")
     }
 
     // ── Flows ────────────────────────────────────────────────────────────
@@ -157,6 +158,15 @@ class PreferencesManager @Inject constructor(
 
     val queueEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.QUEUE_ENABLED] ?: true
+    }
+
+    /**
+     * Episodes with addedAt above this value count as "new" on Home. Advanced to
+     * the highest addedAt the user has had on screen, so the New section dissolves
+     * on the next visit once its contents have been seen.
+     */
+    val homeNewEpisodesCutoff: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.HOME_NEW_EPISODES_CUTOFF] ?: 0L
     }
 
     // ── Setters ──────────────────────────────────────────────────────────
@@ -261,6 +271,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setLastSeenVersionCode(code: Int) {
         dataStore.edit { prefs ->
             prefs[Keys.LAST_SEEN_VERSION_CODE] = code
+        }
+    }
+
+    suspend fun setHomeNewEpisodesCutoff(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.HOME_NEW_EPISODES_CUTOFF] = timestamp
         }
     }
 }

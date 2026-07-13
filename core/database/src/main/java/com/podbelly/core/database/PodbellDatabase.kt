@@ -23,7 +23,7 @@ import com.podbelly.core.database.entity.QueueItemEntity
         ListeningSessionEntity::class,
         DownloadErrorEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class PodbellDatabase : RoomDatabase() {
@@ -34,6 +34,17 @@ abstract class PodbellDatabase : RoomDatabase() {
     abstract fun downloadErrorDao(): DownloadErrorDao
 
     companion object {
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Records when a feed refresh first discovered the episode, powering
+                // the "New" section on Home. Existing rows keep 0 so nothing floods
+                // the section on first launch after the update.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN addedAt INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // GUIDs are only unique within a feed. Replace the global unique

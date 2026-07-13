@@ -181,6 +181,7 @@ fun HomeScreen(
             } else {
                 EpisodeList(
                     episodes = uiState.recentEpisodes,
+                    newEpisodes = uiState.newEpisodes,
                     inProgressEpisodes = uiState.inProgressEpisodes,
                     downloadProgress = downloadProgress,
                     onEpisodeClick = onEpisodeClick,
@@ -241,6 +242,7 @@ internal fun EmptyState() {
 @Composable
 internal fun EpisodeList(
     episodes: List<HomeEpisodeItem>,
+    newEpisodes: List<HomeEpisodeItem> = emptyList(),
     inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
     downloadProgress: Map<Long, Float>,
     onEpisodeClick: (Long) -> Unit,
@@ -293,6 +295,76 @@ internal fun EpisodeList(
                         )
                     }
                 }
+            }
+        }
+
+        // New arrivals from the latest refreshes, pinned above the main list
+        // until they've been seen. Sorted by publication date within the section.
+        if (newEpisodes.isNotEmpty()) {
+            item(key = "new_header") {
+                Row(
+                    modifier = Modifier
+                        .animateItem()
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "New",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Surface(
+                        modifier = Modifier.padding(start = 8.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Text(
+                            text = "${newEpisodes.size}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+            }
+
+            items(
+                items = newEpisodes,
+                key = { "new_${it.episodeId}" }
+            ) { episode ->
+                EpisodeCard(
+                    episode = episode,
+                    downloadProgress = downloadProgress[episode.episodeId],
+                    onClick = { onEpisodeClick(episode.episodeId) },
+                    onPlay = { onPlayClick(episode.episodeId) },
+                    onDownload = { onDownloadClick(episode.episodeId) },
+                    onCancelDownload = { onCancelDownloadClick(episode.episodeId) },
+                    queueEnabled = queueEnabled,
+                    onPlayNext = { onPlayNext(episode.episodeId) },
+                    onPlayLast = { onPlayLast(episode.episodeId) },
+                    modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = spring(stiffness = Spring.StiffnessLow),
+                            fadeOutSpec = spring(stiffness = Spring.StiffnessLow),
+                            placementSpec = spring(
+                                stiffness = Spring.StiffnessLow,
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                            ),
+                        )
+                        .padding(horizontal = 16.dp),
+                )
+            }
+
+            if (episodes.isNotEmpty()) item(key = "new_footer") {
+                Text(
+                    text = "Earlier",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier
+                        .animateItem()
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                )
             }
         }
 

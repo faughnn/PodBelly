@@ -78,6 +78,7 @@ class EpisodeDaoTest {
         downloadPath: String = "",
         downloadedAt: Long = 0L,
         fileSize: Long = 0L,
+        addedAt: Long = 0L,
     ) = EpisodeEntity(
         podcastId = podcastId,
         guid = guid,
@@ -92,6 +93,7 @@ class EpisodeDaoTest {
         downloadPath = downloadPath,
         downloadedAt = downloadedAt,
         fileSize = fileSize,
+        addedAt = addedAt,
     )
 
     @Test
@@ -283,6 +285,51 @@ class EpisodeDaoTest {
             val items = awaitItem()
             assertEquals(1, items.size)
             assertEquals("Other EP", items[0].title)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getInProgressEpisodes excludes episodes with 30s or less remaining`() = runTest {
+        episodeDao.insertAll(
+            listOf(
+                createEpisode(guid = "halfway", playbackPosition = 1_800_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "at-end", playbackPosition = 3_600_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "past-end", playbackPosition = 3_700_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "15s-left", playbackPosition = 3_585_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "45s-left", playbackPosition = 3_555_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "unknown-duration", playbackPosition = 500_000L, durationSeconds = 0, downloadPath = "/f"),
+                createEpisode(guid = "short-episode", playbackPosition = 5_000L, durationSeconds = 20, downloadPath = "/f"),
+            )
+        )
+
+        episodeDao.getInProgressEpisodes().test {
+            val guids = awaitItem().map { it.guid }.toSet()
+            assertEquals(setOf("halfway", "45s-left", "unknown-duration", "short-episode"), guids)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getEpisodesAddedSince returns only episodes discovered after the cutoff ordered by publicationDate`() = runTest {
+        val unsubscribedPodcastId = podcastDao.insert(
+            createPodcast(feedUrl = "https://unsubscribed.com/feed", title = "Unsubscribed", subscribed = false)
+        )
+
+        episodeDao.insertAll(
+            listOf(
+                createEpisode(guid = "backlog", addedAt = 0L, publicationDate = 9_000L),
+                createEpisode(guid = "seen", addedAt = 4_000L, publicationDate = 8_000L),
+                createEpisode(guid = "fresh-old-pub", addedAt = 6_000L, publicationDate = 1_000L),
+                createEpisode(guid = "fresh-new-pub", addedAt = 5_000L, publicationDate = 7_000L),
+                createEpisode(podcastId = unsubscribedPodcastId, guid = "fresh-unsub", addedAt = 6_000L, publicationDate = 7_500L),
+            )
+        )
+
+        episodeDao.getEpisodesAddedSince(4_000L).test {
+            val guids = awaitItem().map { it.guid }
+            // Only subscribed episodes above the cutoff, newest publication first.
+            assertEquals(listOf("fresh-new-pub", "fresh-old-pub"), guids)
             cancelAndConsumeRemainingEvents()
         }
     }

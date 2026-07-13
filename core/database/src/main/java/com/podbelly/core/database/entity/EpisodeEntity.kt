@@ -68,5 +68,13 @@ data class EpisodeEntity(
     val downloadedAt: Long = 0L,
 
     @ColumnInfo(name = "fileSize")
-    val fileSize: Long = 0L
+    val fileSize: Long = 0L,
+
+    /**
+     * When this episode row was first discovered by a feed *refresh* (epoch ms).
+     * Deliberately left 0 for episodes imported when first subscribing to a
+     * podcast, so a new subscription's backlog never shows up as "new" on Home.
+     */
+    @ColumnInfo(name = "addedAt")
+    val addedAt: Long = 0L
 )

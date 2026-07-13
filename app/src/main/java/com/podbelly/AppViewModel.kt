@@ -140,7 +140,8 @@ class AppViewModel @Inject constructor(
                                                 publicationDate = rssEpisode.publishedAt,
                                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                                 artworkUrl = rssEpisode.artworkUrl ?: "",
-                                                fileSize = rssEpisode.fileSize
+                                                fileSize = rssEpisode.fileSize,
+                                                addedAt = System.currentTimeMillis()
                                             )
                                         )
                                     } else {
