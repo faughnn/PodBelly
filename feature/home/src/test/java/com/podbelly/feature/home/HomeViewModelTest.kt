@@ -13,6 +13,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -268,6 +269,26 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             coVerify { preferencesManager.setHomeNewEpisodesCutoff(7_000L) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `query cutoff never exceeds the 30-minute recency floor`() = runTest {
+        // A persisted cutoff in the future (e.g. advanced by a session that died
+        // mid-refresh) must not hide episodes discovered in the last 30 minutes.
+        every { preferencesManager.homeNewEpisodesCutoff } returns MutableStateFlow(Long.MAX_VALUE)
+        val cutoffSlot = slot<Long>()
+        every { episodeDao.getEpisodesAddedSince(capture(cutoffSlot)) } returns newEpisodesFlow
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial; subscribing starts the upstream flows
+            advanceUntilIdle()
+
+            assertTrue(cutoffSlot.isCaptured)
+            assertTrue(cutoffSlot.captured <= System.currentTimeMillis() - 30 * 60 * 1000L)
             cancelAndIgnoreRemainingEvents()
         }
     }

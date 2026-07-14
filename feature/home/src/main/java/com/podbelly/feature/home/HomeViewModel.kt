@@ -74,10 +74,18 @@ class HomeViewModel @Inject constructor(
     private var persistedNewCutoff = 0L
 
     private val newEpisodesFlow = flow {
-        val cutoff = sessionNewCutoff ?: preferencesManager.homeNewEpisodesCutoff.first().also {
+        val persisted = sessionNewCutoff ?: preferencesManager.homeNewEpisodesCutoff.first().also {
             sessionNewCutoff = it
             persistedNewCutoff = it
         }
+        // Recency floor: anything discovered in the last 30 minutes counts as new
+        // even if the persisted cutoff already advanced past it. A refresh inserts
+        // feeds one at a time, so a session that dies mid-refresh (process killed
+        // right after pull-to-refresh) would otherwise mark the few feeds that
+        // landed as "seen" after barely a glance, stranding a just-published
+        // episode under Earlier while the rest of its batch shows as New on the
+        // next launch.
+        val cutoff = minOf(persisted, System.currentTimeMillis() - RECENT_GRACE_MS)
         emitAll(episodeDao.getEpisodesAddedSince(cutoff))
     }
 
@@ -190,5 +198,9 @@ class HomeViewModel @Inject constructor(
             // enqueues can't both land at the same position.
             queueDao.addToEnd(episodeId, System.currentTimeMillis())
         }
+    }
+
+    private companion object {
+        const val RECENT_GRACE_MS = 30 * 60 * 1000L
     }
 }

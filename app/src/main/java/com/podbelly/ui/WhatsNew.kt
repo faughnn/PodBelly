@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 40
+    const val LATEST_VERSION_CODE = 41
 
     val changelog: Map<Int, List<String>> = mapOf(
+        41 to listOf(
+            "Fixed just-released episodes sometimes landing under Earlier instead of the New section",
+            "Episodes you've already played no longer show in the New section",
+        ),
         40 to listOf(
             "Episodes that arrive from a refresh now appear in a \"New\" section at the top of Home, so nothing slips past you further down the list",
             "Once you've seen them, they return to their usual place in the list",
