@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -291,6 +292,28 @@ class HomeViewModelTest {
             assertTrue(cutoffSlot.captured <= System.currentTimeMillis() - 30 * 60 * 1000L)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `re-collection after a short absence reuses the visit cutoff`() = runTest {
+        val viewModel = createViewModel()
+
+        // First visit: subscribes the upstream flows and reads the cutoff.
+        viewModel.uiState.test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        // Let WhileSubscribed(5s) actually cancel the upstream between visits.
+        advanceTimeBy(6_000)
+
+        // Second collection moments later (same visit): must not re-read prefs.
+        viewModel.uiState.test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        advanceUntilIdle()
+
+        verify(exactly = 1) { preferencesManager.homeNewEpisodesCutoff }
     }
 
     @Test
