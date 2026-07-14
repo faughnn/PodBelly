@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -64,19 +65,29 @@ class HomeViewModel @Inject constructor(
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
 
     // The "New" section shows episodes discovered after the persisted cutoff. The
-    // cutoff is snapshotted once per ViewModel so the section doesn't dissolve
-    // while the user is looking at it (episodes arriving mid-visit, e.g. from
+    // cutoff is snapshotted per *visit* so the section doesn't dissolve while the
+    // user is looking at it (episodes arriving mid-visit, e.g. from
     // pull-to-refresh, still enter the section live because their addedAt is
     // above the snapshot). The persisted cutoff advances as soon as the section's
     // contents have been surfaced, so the next visit shows them back in their
     // normal chronological position.
+    //
+    // A visit ends when Home hasn't been on screen for NEW_VISIT_AFTER_MS. The
+    // ViewModel can survive the app sitting in the background for hours (the
+    // process often outlives "closing" the app), so a per-ViewModel snapshot
+    // alone would keep showing a stale New section on reopen. Collection stops
+    // while Home is off screen (collectAsStateWithLifecycle + WhileSubscribed),
+    // so the gap between collections measures exactly how long the user was away.
     private var sessionNewCutoff: Long? = null
     private var persistedNewCutoff = 0L
+    private var homeLeftAt = 0L
 
     private val newEpisodesFlow = flow {
-        val persisted = sessionNewCutoff ?: preferencesManager.homeNewEpisodesCutoff.first().also {
+        val now = System.currentTimeMillis()
+        val cached = sessionNewCutoff?.takeIf { now - homeLeftAt < NEW_VISIT_AFTER_MS }
+        val persisted = cached ?: preferencesManager.homeNewEpisodesCutoff.first().also {
             sessionNewCutoff = it
-            persistedNewCutoff = it
+            persistedNewCutoff = maxOf(persistedNewCutoff, it)
         }
         // Recency floor: anything discovered in the last 30 minutes counts as new
         // even if the persisted cutoff already advanced past it. A refresh inserts
@@ -85,8 +96,10 @@ class HomeViewModel @Inject constructor(
         // landed as "seen" after barely a glance, stranding a just-published
         // episode under Earlier while the rest of its batch shows as New on the
         // next launch.
-        val cutoff = minOf(persisted, System.currentTimeMillis() - RECENT_GRACE_MS)
+        val cutoff = minOf(persisted, now - RECENT_GRACE_MS)
         emitAll(episodeDao.getEpisodesAddedSince(cutoff))
+    }.onCompletion {
+        homeLeftAt = System.currentTimeMillis()
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -202,5 +215,8 @@ class HomeViewModel @Inject constructor(
 
     private companion object {
         const val RECENT_GRACE_MS = 30 * 60 * 1000L
+
+        /** Being away from Home longer than this starts a fresh visit. */
+        const val NEW_VISIT_AFTER_MS = 30 * 60 * 1000L
     }
 }
