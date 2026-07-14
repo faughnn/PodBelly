@@ -322,13 +322,14 @@ class EpisodeDaoTest {
                 createEpisode(guid = "seen", addedAt = 4_000L, publicationDate = 8_000L),
                 createEpisode(guid = "fresh-old-pub", addedAt = 6_000L, publicationDate = 1_000L),
                 createEpisode(guid = "fresh-new-pub", addedAt = 5_000L, publicationDate = 7_000L),
+                createEpisode(guid = "fresh-played", addedAt = 6_000L, publicationDate = 7_200L, played = true),
                 createEpisode(podcastId = unsubscribedPodcastId, guid = "fresh-unsub", addedAt = 6_000L, publicationDate = 7_500L),
             )
         )
 
         episodeDao.getEpisodesAddedSince(4_000L).test {
             val guids = awaitItem().map { it.guid }
-            // Only subscribed episodes above the cutoff, newest publication first.
+            // Only unplayed subscribed episodes above the cutoff, newest publication first.
             assertEquals(listOf("fresh-new-pub", "fresh-old-pub"), guids)
             cancelAndConsumeRemainingEvents()
         }

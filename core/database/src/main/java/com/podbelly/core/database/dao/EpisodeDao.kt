@@ -145,15 +145,16 @@ interface EpisodeDao {
     )
     fun getInProgressEpisodes(): Flow<List<EpisodeEntity>>
 
-    // Powers the "New" section on Home: episodes a feed refresh discovered after
-    // the given cutoff. addedAt is 0 for rows imported on initial subscribe, so
-    // they can never match (cutoff is always >= 0).
+    // Powers the "New" section on Home: unplayed episodes a feed refresh discovered
+    // after the given cutoff. addedAt is 0 for rows imported on initial subscribe,
+    // so they can never match (cutoff is always >= 0).
     @Query(
         """
         SELECT episodes.* FROM episodes
         INNER JOIN podcasts ON episodes.podcastId = podcasts.id
         WHERE podcasts.subscribed = 1
           AND episodes.addedAt > :since
+          AND episodes.played = 0
         ORDER BY episodes.publicationDate DESC
         """
     )
