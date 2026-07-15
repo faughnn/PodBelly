@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 45
+    const val LATEST_VERSION_CODE = 46
 
     val changelog: Map<Int, List<String>> = mapOf(
+        46 to listOf(
+            "Tap the New header to clear the section — episodes slide back into their place in the list",
+        ),
         45 to listOf(
             "The refresh status moved to the top bar beside the logo, so it stays visible while you scroll",
             "While feeds are refreshing you now see live progress, e.g. \"Checking 7/12\"",

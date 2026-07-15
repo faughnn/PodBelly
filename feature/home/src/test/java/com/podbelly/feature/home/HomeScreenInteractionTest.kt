@@ -282,6 +282,30 @@ class HomeScreenInteractionTest {
     }
 
     @Test
+    fun `tapping the New header dismisses the section`() {
+        var dismissed = false
+        val newEpisode = createEpisode(episodeId = 5L, title = "Fresh Episode")
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = emptyList(),
+                    newEpisodes = listOf(newEpisode),
+                    inProgressEpisodes = emptyList(),
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                    onDismissNewSection = { dismissed = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("New").performClick()
+        assertTrue(dismissed)
+    }
+
+    @Test
     fun `duration chip shows formatted duration`() {
         val episode = createEpisode(durationSeconds = 5400) // 1h 30m
 

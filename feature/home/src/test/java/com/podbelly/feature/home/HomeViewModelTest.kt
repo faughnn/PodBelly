@@ -56,6 +56,7 @@ class HomeViewModelTest {
         every { episodeDao.getEpisodesAddedSince(any()) } returns newEpisodesFlow
         every { podcastDao.getAll() } returns podcastsFlow
         every { preferencesManager.homeNewEpisodesCutoff } returns MutableStateFlow(0L)
+        every { preferencesManager.homeNewDismissedAt } returns MutableStateFlow(0L)
     }
 
     @After
@@ -314,6 +315,30 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         verify(exactly = 1) { preferencesManager.homeNewEpisodesCutoff }
+    }
+
+    @Test
+    fun `dismissNewSection persists the dismissal and re-queries with a later cutoff`() = runTest {
+        val capturedCutoffs = mutableListOf<Long>()
+        every { episodeDao.getEpisodesAddedSince(capture(capturedCutoffs)) } returns newEpisodesFlow
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial; subscribing starts the upstream flows
+            advanceUntilIdle()
+
+            viewModel.dismissNewSection()
+            advanceUntilIdle()
+
+            coVerify { preferencesManager.setHomeNewDismissedAt(any()) }
+            coVerify { preferencesManager.setHomeNewEpisodesCutoff(any()) }
+            // The hard cutoff triggers a re-query with a strictly later cutoff
+            // (the dismissal time beats the recency-floored soft cutoff).
+            assertTrue(capturedCutoffs.size >= 2)
+            assertTrue(capturedCutoffs.last() > capturedCutoffs.first())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

@@ -177,6 +177,7 @@ fun HomeScreen(
                     queueEnabled = queueEnabled,
                     onPlayNext = { episodeId -> viewModel.addToQueueNext(episodeId) },
                     onPlayLast = { episodeId -> viewModel.addToQueueLast(episodeId) },
+                    onDismissNewSection = viewModel::dismissNewSection,
                 )
             }
         }
@@ -238,6 +239,7 @@ internal fun EpisodeList(
     queueEnabled: Boolean = false,
     onPlayNext: (Long) -> Unit = {},
     onPlayLast: (Long) -> Unit = {},
+    onDismissNewSection: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -286,12 +288,17 @@ internal fun EpisodeList(
 
         // New arrivals from the latest refreshes, pinned above the main list
         // until they've been seen. Sorted by publication date within the section.
+        // Tapping the header dismisses the section.
         if (newEpisodes.isNotEmpty()) {
             item(key = "new_header") {
                 Row(
                     modifier = Modifier
                         .animateItem()
                         .fillMaxWidth()
+                        .clickable(
+                            onClickLabel = "Dismiss new episodes",
+                            onClick = onDismissNewSection,
+                        )
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -315,9 +322,13 @@ internal fun EpisodeList(
                 }
             }
 
+            // Same key as the main list (an episode is never in both — the
+            // ViewModel filters new ids out of recentEpisodes), so animateItem()
+            // slides a card between the sections on dismissal instead of
+            // crossfading it out and back in.
             items(
                 items = newEpisodes,
-                key = { "new_${it.episodeId}" }
+                key = { it.episodeId }
             ) { episode ->
                 EpisodeCard(
                     episode = episode,

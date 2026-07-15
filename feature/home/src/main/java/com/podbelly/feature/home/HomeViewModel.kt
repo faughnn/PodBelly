@@ -12,6 +12,7 @@ import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,7 +20,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.stateIn
@@ -82,16 +85,27 @@ class HomeViewModel @Inject constructor(
     // alone would keep showing a stale New section on reopen. Collection stops
     // while Home is off screen (collectAsStateWithLifecycle + WhileSubscribed),
     // so the gap between collections measures exactly how long the user was away.
+    //
+    // On top of the soft visit cutoff sits a *hard* cutoff (hardNewCutoff,
+    // persisted as homeNewDismissedAt): the moment the user last tapped the New
+    // header to dismiss the section. The recency floor never overrides it — an
+    // explicit tap is unambiguous "seen", unlike the glimpse heuristic the
+    // floor protects against.
     private var sessionNewCutoff: Long? = null
     private var persistedNewCutoff = 0L
     private var homeLeftAt = 0L
+    private val hardNewCutoff = MutableStateFlow<Long?>(null)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val newEpisodesFlow = flow {
         val now = System.currentTimeMillis()
         val cached = sessionNewCutoff?.takeIf { now - homeLeftAt < NEW_VISIT_AFTER_MS }
-        val persisted = cached ?: preferencesManager.homeNewEpisodesCutoff.first().also {
+        val soft = cached ?: preferencesManager.homeNewEpisodesCutoff.first().also {
             sessionNewCutoff = it
             persistedNewCutoff = maxOf(persistedNewCutoff, it)
+        }
+        if (hardNewCutoff.value == null) {
+            hardNewCutoff.value = preferencesManager.homeNewDismissedAt.first()
         }
         // Recency floor: anything discovered in the last 30 minutes counts as new
         // even if the persisted cutoff already advanced past it. A refresh inserts
@@ -99,9 +113,13 @@ class HomeViewModel @Inject constructor(
         // right after pull-to-refresh) would otherwise mark the few feeds that
         // landed as "seen" after barely a glance, stranding a just-published
         // episode under Earlier while the rest of its batch shows as New on the
-        // next launch.
-        val cutoff = minOf(persisted, now - RECENT_GRACE_MS)
-        emitAll(episodeDao.getEpisodesAddedSince(cutoff))
+        // next launch. The hard dismissal cutoff wins over the floor, so tapping
+        // the header clears the section immediately and it stays cleared.
+        emitAll(
+            hardNewCutoff.filterNotNull().flatMapLatest { hard ->
+                episodeDao.getEpisodesAddedSince(maxOf(hard, minOf(soft, now - RECENT_GRACE_MS)))
+            }
+        )
     }.onCompletion {
         homeLeftAt = System.currentTimeMillis()
     }
@@ -157,6 +175,18 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState()
     )
+
+    // Explicit dismissal is a hard cutoff the recency floor doesn't override.
+    // Also advances the soft cutoff so the section stays gone on the next visit.
+    fun dismissNewSection() {
+        val now = System.currentTimeMillis()
+        hardNewCutoff.value = now
+        persistedNewCutoff = maxOf(persistedNewCutoff, now)
+        viewModelScope.launch {
+            preferencesManager.setHomeNewDismissedAt(now)
+            preferencesManager.setHomeNewEpisodesCutoff(now)
+        }
+    }
 
     fun downloadEpisode(episodeId: Long) {
         viewModelScope.launch {
