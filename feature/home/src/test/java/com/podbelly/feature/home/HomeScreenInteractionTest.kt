@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.podbelly.core.common.RefreshProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -125,36 +126,46 @@ class HomeScreenInteractionTest {
     }
 
     @Test
-    fun `refresh status shows spinner text while refreshing`() {
+    fun `refresh indicator shows completion counter while refreshing`() {
         composeTestRule.setContent {
             MaterialTheme {
-                EpisodeList(
-                    episodes = listOf(createEpisode()),
+                RefreshStatusIndicator(
                     isRefreshing = true,
+                    refreshProgress = RefreshProgress(completed = 3, total = 12),
                     lastRefreshedAt = 0L,
-                    downloadProgress = emptyMap(),
-                    onEpisodeClick = {},
-                    onPlayClick = {},
-                    onDownloadClick = {},
+                    bannerMessage = null,
                 )
             }
         }
 
-        composeTestRule.onNodeWithText("Checking for new episodes…").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Checking 3/12…").assertIsDisplayed()
     }
 
     @Test
-    fun `refresh status shows last updated time when idle`() {
+    fun `refresh indicator shows plain checking text before the feed count is known`() {
         composeTestRule.setContent {
             MaterialTheme {
-                EpisodeList(
-                    episodes = listOf(createEpisode()),
+                RefreshStatusIndicator(
+                    isRefreshing = true,
+                    refreshProgress = null,
+                    lastRefreshedAt = 0L,
+                    bannerMessage = null,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Checking…").assertIsDisplayed()
+    }
+
+    @Test
+    fun `refresh indicator shows last updated time when idle`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                RefreshStatusIndicator(
                     isRefreshing = false,
+                    refreshProgress = null,
                     lastRefreshedAt = System.currentTimeMillis() - 30_000L,
-                    downloadProgress = emptyMap(),
-                    onEpisodeClick = {},
-                    onPlayClick = {},
-                    onDownloadClick = {},
+                    bannerMessage = null,
                 )
             }
         }
@@ -163,17 +174,31 @@ class HomeScreenInteractionTest {
     }
 
     @Test
-    fun `refresh status is hidden before the first ever refresh`() {
+    fun `refresh indicator prefers the banner over the updated time`() {
         composeTestRule.setContent {
             MaterialTheme {
-                EpisodeList(
-                    episodes = listOf(createEpisode()),
+                RefreshStatusIndicator(
                     isRefreshing = false,
+                    refreshProgress = null,
+                    lastRefreshedAt = System.currentTimeMillis(),
+                    bannerMessage = "3 new episodes found",
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("3 new episodes found").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Updated", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `refresh indicator is hidden before the first ever refresh`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                RefreshStatusIndicator(
+                    isRefreshing = false,
+                    refreshProgress = null,
                     lastRefreshedAt = 0L,
-                    downloadProgress = emptyMap(),
-                    onEpisodeClick = {},
-                    onPlayClick = {},
-                    onDownloadClick = {},
+                    bannerMessage = null,
                 )
             }
         }

@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 44
+    const val LATEST_VERSION_CODE = 45
 
     val changelog: Map<Int, List<String>> = mapOf(
+        45 to listOf(
+            "The refresh status moved to the top bar beside the logo, so it stays visible while you scroll",
+            "While feeds are refreshing you now see live progress, e.g. \"Checking 7/12\"",
+        ),
         44 to listOf(
             "Home now shows a refresh status below Continue Listening: a spinner while checking for new episodes, and \"Updated X ago\" the rest of the time",
         ),

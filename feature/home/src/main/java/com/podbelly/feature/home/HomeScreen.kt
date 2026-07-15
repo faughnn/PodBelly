@@ -1,13 +1,8 @@
 package com.podbelly.feature.home
 
 import android.text.format.DateUtils
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -82,12 +77,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.podbelly.core.common.MobileDataWarningDialog
+import com.podbelly.core.common.RefreshProgress
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    refreshProgress: RefreshProgress? = null,
     bannerMessage: String? = null,
     viewModel: HomeViewModel = hiltViewModel(),
     onEpisodeClick: (Long) -> Unit,
@@ -135,25 +132,12 @@ fun HomeScreen(
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
-                        AnimatedVisibility(
-                            visible = bannerMessage != null,
-                            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-                            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
-                        ) {
-                            Surface(
-                                modifier = Modifier.padding(start = 12.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                            ) {
-                                Text(
-                                    text = bannerMessage ?: "",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                )
-                            }
-                        }
+                        RefreshStatusIndicator(
+                            isRefreshing = isRefreshing,
+                            refreshProgress = refreshProgress,
+                            lastRefreshedAt = lastRefreshedAt,
+                            bannerMessage = bannerMessage,
+                        )
                     }
                 },
                 actions = {
@@ -185,8 +169,6 @@ fun HomeScreen(
                     episodes = uiState.recentEpisodes,
                     newEpisodes = uiState.newEpisodes,
                     inProgressEpisodes = uiState.inProgressEpisodes,
-                    isRefreshing = isRefreshing,
-                    lastRefreshedAt = lastRefreshedAt,
                     downloadProgress = downloadProgress,
                     onEpisodeClick = onEpisodeClick,
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
@@ -248,8 +230,6 @@ internal fun EpisodeList(
     episodes: List<HomeEpisodeItem>,
     newEpisodes: List<HomeEpisodeItem> = emptyList(),
     inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
-    isRefreshing: Boolean = false,
-    lastRefreshedAt: Long = 0L,
     downloadProgress: Map<Long, Float>,
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
@@ -301,20 +281,6 @@ internal fun EpisodeList(
                         )
                     }
                 }
-            }
-        }
-
-        // Refresh status, directly below Continue Listening (or first when the
-        // carousel is empty): spinner while a refresh is running, otherwise when
-        // the feeds were last successfully refreshed. Hidden only before the very
-        // first refresh (fresh install) when there's nothing to report yet.
-        if (isRefreshing || lastRefreshedAt > 0L) {
-            item(key = "refresh_status") {
-                RefreshStatusRow(
-                    isRefreshing = isRefreshing,
-                    lastRefreshedAt = lastRefreshedAt,
-                    modifier = Modifier.animateItem(),
-                )
             }
         }
 
@@ -419,13 +385,15 @@ internal fun EpisodeList(
 }
 
 // ------------------------------------------------------------------
-// Refresh status row
+// Refresh status indicator (top bar, beside the logo)
 // ------------------------------------------------------------------
 
 @Composable
-private fun RefreshStatusRow(
+internal fun RefreshStatusIndicator(
     isRefreshing: Boolean,
+    refreshProgress: RefreshProgress?,
     lastRefreshedAt: Long,
+    bannerMessage: String?,
     modifier: Modifier = Modifier,
 ) {
     // Re-render every minute so "Updated X min ago" doesn't go stale while the
@@ -438,24 +406,48 @@ private fun RefreshStatusRow(
         }
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (isRefreshing) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(12.dp),
-                strokeWidth = 1.5.dp,
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Checking for new episodes…",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
+    when {
+        isRefreshing -> {
+            Row(
+                modifier = modifier.padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp),
+                    strokeWidth = 1.5.dp,
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                // Feeds refresh in parallel (5 at a time), so this counts
+                // completions rather than a position in a sequence.
+                val progressText = refreshProgress
+                    ?.takeIf { it.total > 0 }
+                    ?.let { "Checking ${it.completed}/${it.total}…" }
+                    ?: "Checking…"
+                Text(
+                    text = progressText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        bannerMessage != null -> {
+            Surface(
+                modifier = modifier.padding(start = 12.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Text(
+                    text = bannerMessage,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+            }
+        }
+
+        lastRefreshedAt > 0L -> {
             val updatedText = if (now - lastRefreshedAt < DateUtils.MINUTE_IN_MILLIS) {
                 "Updated just now"
             } else {
@@ -470,6 +462,9 @@ private fun RefreshStatusRow(
                 text = updatedText,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = modifier.padding(start = 12.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
