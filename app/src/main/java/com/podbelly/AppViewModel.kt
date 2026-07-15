@@ -123,7 +123,12 @@ class AppViewModel @Inject constructor(
             try {
                 val podcasts: List<PodcastEntity> = podcastDao.getAll().first()
                 _refreshProgress.value = RefreshProgress(completed = 0, total = podcasts.size)
-                val semaphore = Semaphore(5)
+                // Most of a feed fetch is server latency, not bandwidth, so wide
+                // parallelism nearly divides refresh time by the concurrency. 32 is
+                // safe now that feeds stream straight into the parser (memory per
+                // in-flight feed is just its parsed episodes, bounded by the 10MB
+                // read cap) — buffering whole documents was the old reason for 5.
+                val semaphore = Semaphore(32)
                 val insertCounts = java.util.concurrent.atomic.AtomicInteger(0)
                 val successCounts = java.util.concurrent.atomic.AtomicInteger(0)
                 podcasts.map { podcast ->

@@ -460,4 +460,80 @@ class RssParserTest {
 
         assertEquals("https://example.com/itunes-art.jpg", feed.artworkUrl)
     }
+
+    // -------------------------------------------------------------------------
+    // Streaming input (InputStream overload)
+    // -------------------------------------------------------------------------
+
+    private fun streamFeedXml(title: String, encodingDecl: String?) = buildString {
+        append("<?xml version=\"1.0\"")
+        if (encodingDecl != null) append(" encoding=\"$encodingDecl\"")
+        append("?>\n")
+        append(
+            """
+            <rss version="2.0">
+              <channel>
+                <title>$title</title>
+                <description>Desc</description>
+              </channel>
+            </rss>
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `streaming parse produces the same result as string parse`() = runTest {
+        val xml = streamFeedXml("Streamed Podcast", "UTF-8")
+
+        val fromString = parser.parse("https://example.com/feed.xml", xml)
+        val fromStream = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.UTF_8),
+            null,
+        )
+
+        assertEquals(fromString, fromStream)
+    }
+
+    @Test
+    fun `streaming parse sniffs ISO-8859-1 from the XML prolog when no header charset`() = runTest {
+        // "Séance Café" — bytes are ISO-8859-1, declared only in the prolog.
+        val xml = streamFeedXml("Séance Café", "ISO-8859-1")
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.ISO_8859_1),
+            null,
+        )
+
+        assertEquals("Séance Café", feed.title)
+    }
+
+    @Test
+    fun `streaming parse prefers the header charset over the prolog`() = runTest {
+        // Server says ISO-8859-1 in Content-Type while the prolog lies (UTF-8);
+        // header must win, matching the old buffered implementation.
+        val xml = streamFeedXml("Séance Café", "UTF-8")
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.ISO_8859_1),
+            "ISO-8859-1",
+        )
+
+        assertEquals("Séance Café", feed.title)
+    }
+
+    @Test
+    fun `streaming parse defaults to UTF-8 without header or prolog encoding`() = runTest {
+        val xml = streamFeedXml("Séance Café", null)
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.UTF_8),
+            null,
+        )
+
+        assertEquals("Séance Café", feed.title)
+    }
 }
