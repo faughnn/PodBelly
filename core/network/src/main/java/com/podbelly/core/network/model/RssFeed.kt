@@ -18,4 +18,12 @@ data class RssEpisode(
     val duration: Long,
     val artworkUrl: String?,
     val fileSize: Long,
+    /**
+     * Podcasting 2.0 `<podcast:transcript>` URL, or null when the item has none.
+     * When a feed lists several transcripts the parser keeps the most useful type
+     * (JSON, then VTT, then SRT, then anything else).
+     */
+    val transcriptUrl: String? = null,
+    /** MIME type of [transcriptUrl] as declared by the feed (e.g. "text/vtt"). */
+    val transcriptType: String? = null,
 )

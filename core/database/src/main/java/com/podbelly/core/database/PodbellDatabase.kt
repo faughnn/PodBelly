@@ -23,7 +23,7 @@ import com.podbelly.core.database.entity.QueueItemEntity
         ListeningSessionEntity::class,
         DownloadErrorEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class PodbellDatabase : RoomDatabase() {
@@ -34,6 +34,20 @@ abstract class PodbellDatabase : RoomDatabase() {
     abstract fun downloadErrorDao(): DownloadErrorDao
 
     companion object {
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Podcasting 2.0 episode transcripts (<podcast:transcript>). Existing
+                // rows start empty and are backfilled by the next feed refresh via
+                // updateFeedFields.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN transcriptUrl TEXT NOT NULL DEFAULT ''"
+                )
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN transcriptType TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Per-podcast intro/outro auto-skip (seconds; 0 = disabled), the

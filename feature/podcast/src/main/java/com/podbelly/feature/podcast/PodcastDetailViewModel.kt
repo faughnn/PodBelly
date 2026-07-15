@@ -159,6 +159,8 @@ class PodcastDetailViewModel @Inject constructor(
                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                 artworkUrl = rssEpisode.artworkUrl ?: "",
                                 addedAt = System.currentTimeMillis(),
+                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                transcriptType = rssEpisode.transcriptType ?: "",
                             )
                         )
                     } else {
@@ -173,6 +175,8 @@ class PodcastDetailViewModel @Inject constructor(
                             durationSeconds = (rssEpisode.duration / 1000).toInt(),
                             artworkUrl = rssEpisode.artworkUrl ?: "",
                             fileSize = rssEpisode.fileSize,
+                            transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                            transcriptType = rssEpisode.transcriptType ?: "",
                         )
                     }
                 }

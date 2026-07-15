@@ -224,6 +224,8 @@ class SettingsViewModel @Inject constructor(
                                 durationSeconds = (ep.duration / 1000).toInt(),
                                 artworkUrl = ep.artworkUrl ?: "",
                                 fileSize = ep.fileSize,
+                                transcriptUrl = ep.transcriptUrl ?: "",
+                                transcriptType = ep.transcriptType ?: "",
                             )
                         }
                         try {

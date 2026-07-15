@@ -34,6 +34,12 @@ class RssParser @Inject constructor() {
         private const val NS_ITUNES = "http://www.itunes.com/dtds/podcast-1.0.dtd"
         private const val NS_CONTENT = "http://purl.org/rss/1.0/modules/content/"
 
+        // Podcasting 2.0 namespace (podcast:transcript etc.). The spec URL is the
+        // canonical one, but some feeds still declare the old GitHub URL.
+        private const val NS_PODCAST = "https://podcastindex.org/namespace/1.0"
+        private const val NS_PODCAST_LEGACY =
+            "https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md"
+
         private val RFC822_FORMATS = arrayOf(
             "EEE, dd MMM yyyy HH:mm:ss Z",
             "EEE, dd MMM yyyy HH:mm:ss z",
@@ -117,6 +123,8 @@ class RssParser @Inject constructor() {
         var itemFileSize = 0L
         var itemArtworkUrl: String? = null
         var itemLink = ""
+        var itemTranscriptUrl: String? = null
+        var itemTranscriptType: String? = null
 
         var eventType = parser.eventType
         while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -142,6 +150,8 @@ class RssParser @Inject constructor() {
                             itemFileSize = 0L
                             itemArtworkUrl = null
                             itemLink = ""
+                            itemTranscriptUrl = null
+                            itemTranscriptType = null
                         }
 
                         // --- Inside <item> ---
@@ -196,6 +206,20 @@ class RssParser @Inject constructor() {
                                 }
                                 tag == "link" && ns.isEmpty() -> {
                                     itemLink = readText(parser)
+                                }
+                                tag == "transcript" && (ns == NS_PODCAST || ns == NS_PODCAST_LEGACY) -> {
+                                    // Podcasting 2.0 <podcast:transcript url="…" type="…"/>.
+                                    // A feed may list several transcripts in different
+                                    // formats; keep the one whose type we can use best.
+                                    val url = parser.getAttributeValue(null, "url")
+                                    val type = parser.getAttributeValue(null, "type") ?: ""
+                                    if (!url.isNullOrBlank() &&
+                                        (itemTranscriptUrl == null ||
+                                            transcriptTypeRank(type) < transcriptTypeRank(itemTranscriptType ?: ""))
+                                    ) {
+                                        itemTranscriptUrl = url.trim()
+                                        itemTranscriptType = type.trim()
+                                    }
                                 }
                             }
                         }
@@ -273,7 +297,9 @@ class RssParser @Inject constructor() {
                                         duration = itemDuration,
                                         publishedAt = itemPublishedAt,
                                         fileSize = itemFileSize,
-                                        artworkUrl = itemArtworkUrl
+                                        artworkUrl = itemArtworkUrl,
+                                        transcriptUrl = itemTranscriptUrl,
+                                        transcriptType = itemTranscriptType,
                                     )
                                 )
                             }
@@ -326,6 +352,20 @@ class RssParser @Inject constructor() {
         }
 
         return result.toString().trim()
+    }
+
+    /**
+     * Preference order for `<podcast:transcript>` types when a feed lists several:
+     * podcastindex JSON first (timestamps + easiest to parse), then VTT, then SRT,
+     * then anything else (e.g. text/html) as a last resort. Lower rank wins.
+     */
+    private fun transcriptTypeRank(type: String): Int {
+        return when (type.substringBefore(';').trim().lowercase(Locale.US)) {
+            "application/json" -> 0
+            "text/vtt" -> 1
+            "application/x-subrip", "application/srt" -> 2
+            else -> 3
+        }
     }
 
     /**

@@ -55,7 +55,9 @@ interface EpisodeDao {
             publicationDate = :publicationDate,
             durationSeconds = :durationSeconds,
             artworkUrl = :artworkUrl,
-            fileSize = CASE WHEN downloadPath != '' THEN fileSize ELSE :fileSize END
+            fileSize = CASE WHEN downloadPath != '' THEN fileSize ELSE :fileSize END,
+            transcriptUrl = :transcriptUrl,
+            transcriptType = :transcriptType
         WHERE podcastId = :podcastId AND guid = :guid
         """
     )
@@ -69,6 +71,8 @@ interface EpisodeDao {
         durationSeconds: Int,
         artworkUrl: String,
         fileSize: Long,
+        transcriptUrl: String,
+        transcriptType: String,
     )
 
     @Query(

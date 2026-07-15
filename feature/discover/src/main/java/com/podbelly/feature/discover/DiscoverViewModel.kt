@@ -250,6 +250,8 @@ class DiscoverViewModel @Inject constructor(
                         publicationDate = episode.publishedAt,
                         durationSeconds = (episode.duration / 1000).toInt(),
                         artworkUrl = episode.artworkUrl ?: "",
+                        transcriptUrl = episode.transcriptUrl ?: "",
+                        transcriptType = episode.transcriptType ?: "",
                     )
                 }
                 episodeDao.insertAll(episodes)
@@ -337,6 +339,8 @@ class DiscoverViewModel @Inject constructor(
                         publicationDate = episode.publishedAt,
                         durationSeconds = (episode.duration / 1000).toInt(),
                         artworkUrl = episode.artworkUrl ?: "",
+                        transcriptUrl = episode.transcriptUrl ?: "",
+                        transcriptType = episode.transcriptType ?: "",
                     )
                 }
                 episodeDao.insertAll(episodes)

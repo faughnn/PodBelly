@@ -36,6 +36,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -48,6 +49,7 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
@@ -102,6 +104,7 @@ import coil.request.ImageRequest
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import coil.request.SuccessResult
+import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.playback.Chapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -288,6 +291,8 @@ fun PlayerScreen(
                     onToggleSkipSilence = { viewModel.toggleSkipSilence() },
                     onToggleVolumeBoost = { viewModel.toggleVolumeBoost() },
                     onChaptersClick = { viewModel.showChaptersList() },
+                    hasTranscript = uiState.transcript.available,
+                    onTranscriptClick = { viewModel.showTranscript() },
                 )
 
                 Spacer(modifier = Modifier.height(48.dp))
@@ -371,6 +376,24 @@ fun PlayerScreen(
                     viewModel.seekToChapter(index)
                     viewModel.hideChaptersList()
                 },
+            )
+        }
+    }
+
+    // ── Transcript bottom sheet (mirrors the chapters pattern) ─────────
+    if (uiState.transcript.visible) {
+        val transcriptSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.hideTranscript() },
+            sheetState = transcriptSheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            TranscriptListContent(
+                cues = uiState.transcript.cues,
+                isLoading = uiState.transcript.isLoading,
+                isError = uiState.transcript.error,
+                currentPositionMs = playback.currentPosition,
+                onCueClick = { cue -> viewModel.seekToCue(cue.startMs) },
             )
         }
     }
@@ -639,6 +662,8 @@ internal fun SecondaryControls(
     onToggleSkipSilence: () -> Unit,
     onToggleVolumeBoost: () -> Unit,
     onChaptersClick: () -> Unit,
+    hasTranscript: Boolean = false,
+    onTranscriptClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -731,6 +756,20 @@ internal fun SecondaryControls(
                     text = "Ch.",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        // Transcript button (only when the episode has a transcript)
+        if (hasTranscript) {
+            FilledTonalIconButton(
+                onClick = onTranscriptClick,
+                modifier = Modifier.size(42.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Description,
+                    contentDescription = "Show transcript",
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -1066,6 +1105,108 @@ internal fun ChaptersListContent(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Transcript bottom sheet content
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Scrollable transcript of the playing episode (Podcasting 2.0
+ * `<podcast:transcript>`). Each cue shows its [mm:ss] timestamp and text; tapping
+ * a cue seeks playback to it. The cue containing the playback position is
+ * highlighted, mirroring the chapters list.
+ */
+@Composable
+internal fun TranscriptListContent(
+    cues: List<TranscriptCue>,
+    isLoading: Boolean,
+    isError: Boolean,
+    currentPositionMs: Long,
+    onCueClick: (TranscriptCue) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 40.dp),
+    ) {
+        Text(
+            text = "Transcript",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            isError || cues.isEmpty() -> {
+                Text(
+                    text = "Transcript couldn't be loaded.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 24.dp),
+                )
+            }
+
+            else -> {
+                val currentCueIndex = cues.indexOfLast { currentPositionMs >= it.startMs }
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    itemsIndexed(cues) { index, cue ->
+                        val isCurrent = index == currentCueIndex
+                        val bgColor = if (isCurrent) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        } else {
+                            Color.Transparent
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(bgColor)
+                                .clickable { onCueClick(cue) }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = formatMillis(cue.startMs),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isCurrent) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.width(52.dp),
+                            )
+                            Text(
+                                text = cue.text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isCurrent) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
             }
         }

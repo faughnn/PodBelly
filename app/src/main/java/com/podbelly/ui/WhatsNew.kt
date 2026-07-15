@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 49
+    const val LATEST_VERSION_CODE = 50
 
     val changelog: Map<Int, List<String>> = mapOf(
+        50 to listOf(
+            "Read along with episode transcripts: tap the transcript button on the player for shows that provide them",
+            "Tap any line in the transcript to jump straight to that moment",
+        ),
         49 to listOf(
             "Skip intros and outros automatically: set per-podcast skip times from the podcast page menu (Skip intro & outro)",
             "Episodes start past the intro and finish before the outro, then move on to your queue as usual",

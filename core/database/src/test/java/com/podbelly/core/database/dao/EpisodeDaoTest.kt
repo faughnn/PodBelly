@@ -361,4 +361,40 @@ class EpisodeDaoTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `transcript fields default to empty`() = runTest {
+        episodeDao.insertAll(listOf(createEpisode(guid = "ep1")))
+
+        val episode = episodeDao.getByGuid("ep1")!!
+        assertEquals("", episode.transcriptUrl)
+        assertEquals("", episode.transcriptType)
+    }
+
+    @Test
+    fun `updateFeedFields backfills transcript on existing episodes`() = runTest {
+        // Episode imported before the feed declared a transcript (transcript empty).
+        episodeDao.insertAll(listOf(createEpisode(guid = "ep1", playbackPosition = 5000L)))
+
+        // A later refresh delivers the transcript.
+        episodeDao.updateFeedFields(
+            podcastId = podcastId,
+            guid = "ep1",
+            title = "Episode 1",
+            description = "Episode description",
+            audioUrl = "https://example.com/audio.mp3",
+            publicationDate = 1000L,
+            durationSeconds = 3600,
+            artworkUrl = "",
+            fileSize = 0L,
+            transcriptUrl = "https://example.com/ep1.vtt",
+            transcriptType = "text/vtt",
+        )
+
+        val episode = episodeDao.getByGuid("ep1")!!
+        assertEquals("https://example.com/ep1.vtt", episode.transcriptUrl)
+        assertEquals("text/vtt", episode.transcriptType)
+        // User state is untouched by the feed-field refresh.
+        assertEquals(5000L, episode.playbackPosition)
+    }
 }
