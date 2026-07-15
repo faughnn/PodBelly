@@ -95,6 +95,14 @@ interface EpisodeDao {
     @Query("SELECT * FROM episodes WHERE downloadPath != ''")
     suspend fun getDownloadedEpisodesOnce(): List<EpisodeEntity>
 
+    /** Downloaded episodes of one podcast, newest first. Powers the Android Auto browse tree. */
+    @Query("SELECT * FROM episodes WHERE podcastId = :podcastId AND downloadPath != '' ORDER BY publicationDate DESC")
+    suspend fun getDownloadedByPodcastIdOnce(podcastId: Long): List<EpisodeEntity>
+
+    /** Ids of podcasts that have at least one downloaded episode (Android Auto browse tree). */
+    @Query("SELECT DISTINCT podcastId FROM episodes WHERE downloadPath != ''")
+    suspend fun getPodcastIdsWithDownloads(): List<Long>
+
     @Query("SELECT COALESCE(SUM(fileSize), 0) FROM episodes WHERE downloadPath != ''")
     fun getTotalDownloadedBytes(): Flow<Long>
 

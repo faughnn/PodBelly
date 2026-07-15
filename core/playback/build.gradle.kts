@@ -42,6 +42,8 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
+    // Bridges suspend browse-tree queries to the ListenableFutures Media3 callbacks require
+    implementation(libs.coroutines.guava)
     implementation(libs.androidx.core.ktx)
 
     testImplementation(libs.junit)

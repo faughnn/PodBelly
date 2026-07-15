@@ -49,6 +49,29 @@ internal fun computeSkipTarget(currentPositionMs: Long, offsetMs: Long, duration
  * - An outro at least as long as the whole episode never fires (misconfiguration
  *   would otherwise finish the episode the instant it starts).
  */
+/**
+ * Start position for playback initiated *outside* the app UI (Android Auto browse),
+ * mirroring [PlaybackController]'s per-podcast intro-skip rules
+ * (`applySkipSettings`, the AntennaPod per-feed "Skip introduction" pattern):
+ *
+ * - Resume from the saved position by default.
+ * - Apply the intro skip only when the saved position is *before* the intro's end —
+ *   resuming an episode beyond the intro must never move the user's position.
+ * - Never skip when the intro would cover the whole (known) episode; an unknown
+ *   duration ([durationMs] <= 0) is allowed through and the player clamps later.
+ */
+internal fun resolveExternalStartPosition(
+    savedPositionMs: Long,
+    durationMs: Long,
+    skipIntroSeconds: Int,
+): Long {
+    val skipIntroMs = skipIntroSeconds * 1000L
+    if (skipIntroMs <= 0L) return savedPositionMs
+    if (savedPositionMs >= skipIntroMs) return savedPositionMs
+    if (durationMs > 0L && skipIntroMs >= durationMs) return savedPositionMs
+    return skipIntroMs
+}
+
 internal fun shouldEndForOutro(
     positionMs: Long,
     durationMs: Long,

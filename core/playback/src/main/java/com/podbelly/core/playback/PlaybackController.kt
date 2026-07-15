@@ -188,6 +188,35 @@ class PlaybackController @Inject constructor(
             }
         }
 
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val newEpisodeId = mediaItem?.mediaId?.let { BrowseTree.parseEpisodeId(it) } ?: return
+            if (newEpisodeId == 0L || newEpisodeId == currentEpisodeId) return
+
+            // The player moved to an episode this controller didn't start — playback
+            // was initiated externally (Android Auto browse). play() is not in the
+            // path, so flush the outgoing episode's position and re-sync all
+            // per-episode state (id, metadata, podcastId, outro-skip) from the
+            // controller; otherwise mark-played/position-saving would keep targeting
+            // the previous episode.
+            val previous = _playbackState.value
+            if (previous.episodeId != 0L && previous.episodeId != newEpisodeId && previous.currentPosition > 0L) {
+                val previousId = previous.episodeId
+                val previousPosition = previous.currentPosition
+                scope.launch {
+                    try {
+                        episodeDao.updatePlaybackPosition(previousId, previousPosition)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to save outgoing episode position", e)
+                    }
+                }
+            }
+            endListeningSession()
+            currentSkipOutroSeconds = 0
+            outroEndFired = false
+            currentAudioUrl = ""
+            mediaController?.let { syncStateFromController(it) }
+        }
+
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
             _playbackState.update {
                 it.copy(
@@ -1116,7 +1145,9 @@ class PlaybackController @Inject constructor(
     private fun syncStateFromController(controller: MediaController) {
         val metadata = controller.mediaMetadata
         val mediaId = controller.currentMediaItem?.mediaId
-        val episodeId = mediaId?.toLongOrNull() ?: 0L
+        // parseEpisodeId understands both the app's plain numeric ids and the
+        // browse-tree "episode_{id}" form served to Android Auto.
+        val episodeId = mediaId?.let { BrowseTree.parseEpisodeId(it) } ?: 0L
 
         currentEpisodeId = episodeId
         currentEpisodeTitle = metadata.title?.toString() ?: ""
@@ -1139,5 +1170,34 @@ class PlaybackController @Inject constructor(
         }
 
         refreshQueueFlags()
+        syncEpisodeDetailsFromDatabase(episodeId)
+    }
+
+    /**
+     * Completes a controller-state sync with details only the database knows:
+     * podcastId (for listening sessions and the player UI) and the per-podcast
+     * outro-skip. Without this, playback started outside the app (Android Auto)
+     * or resumed after a reconnect would never honour the outro-skip, because
+     * that plumbing normally lives in [play].
+     */
+    private fun syncEpisodeDetailsFromDatabase(episodeId: Long) {
+        if (episodeId == 0L) return
+        scope.launch {
+            try {
+                val episode = episodeDao.getByIdOnce(episodeId) ?: return@launch
+                // Bail if playback moved on while we were loading.
+                if (currentEpisodeId != episodeId) return@launch
+                currentPodcastId = episode.podcastId
+                if (currentAudioUrl.isBlank()) {
+                    currentAudioUrl = episode.downloadPath.ifBlank { episode.audioUrl }
+                }
+                outroEndFired = false
+                currentSkipOutroSeconds =
+                    podcastDao.getSkipSettings(episode.podcastId)?.skipOutroSeconds ?: 0
+                _playbackState.update { it.copy(podcastId = episode.podcastId) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to sync episode details from database", e)
+            }
+        }
     }
 }

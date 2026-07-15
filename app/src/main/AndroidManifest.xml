@@ -34,6 +34,11 @@
 
         <!-- PlaybackService is declared in core:playback's manifest and merged automatically -->
 
+        <!-- Android Auto: declares this app as a media app to the car system. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
         <!--
             WorkManager's SystemForegroundService must declare foregroundServiceType
             so that DownloadWorker can run as a DATA_SYNC foreground service on API 34+.

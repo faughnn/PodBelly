@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 50
+    const val LATEST_VERSION_CODE = 51
 
     val changelog: Map<Int, List<String>> = mapOf(
+        51 to listOf(
+            "Android Auto support: browse your queue and downloaded episodes from the car screen",
+            "Playback started in the car picks up where you left off, with your per-podcast speed and intro skip",
+        ),
         50 to listOf(
             "Read along with episode transcripts: tap the transcript button on the player for shows that provide them",
             "Tap any line in the transcript to jump straight to that moment",
