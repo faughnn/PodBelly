@@ -36,6 +36,9 @@ data class DiscoverPodcastItem(
     val isSubscribed: Boolean,
 )
 
+/** A browsable chart category, mapping a chip label to an iTunes genre id. */
+data class ChartCategory(val label: String, val genreId: Int)
+
 data class DiscoverUiState(
     val searchQuery: String = "",
     val searchResults: List<DiscoverPodcastItem> = emptyList(),
@@ -44,6 +47,11 @@ data class DiscoverUiState(
     /** Feed URLs with a subscription currently in flight, so each row can spin/disable independently. */
     val subscribingFeedUrls: Set<String> = emptySet(),
     val message: String? = null,
+    val chartCategories: List<ChartCategory> = DiscoverViewModel.CHART_CATEGORIES,
+    val selectedChartGenreId: Int = DiscoverViewModel.TOP_CHART_GENRE_ID,
+    val chartResults: List<DiscoverPodcastItem> = emptyList(),
+    val isLoadingChart: Boolean = false,
+    val chartError: String? = null,
 )
 
 @OptIn(FlowPreview::class)
@@ -67,6 +75,14 @@ class DiscoverViewModel @Inject constructor(
     /** Explicit (e.g. IME "Search" action) queries that should run without the debounce. */
     private val immediateSearch = Channel<String>(Channel.CONFLATED)
 
+    /** Charts already fetched this session, so switching chips back is instant. */
+    private val chartCache = mutableMapOf<Int, List<DiscoverPodcastItem>>()
+
+    // Charts are region-specific; follow the device locale, falling back to the
+    // US chart when the locale carries no country.
+    private val chartCountry: String =
+        java.util.Locale.getDefault().country.lowercase().ifBlank { "us" }
+
     init {
         viewModelScope.launch {
             // A single pipeline runs every search. collectLatest cancels any in-flight
@@ -80,6 +96,56 @@ class DiscoverViewModel @Inject constructor(
                 immediateSearch.receiveAsFlow(),
             ).collectLatest { query ->
                 performSearch(query)
+            }
+        }
+
+        loadChart(TOP_CHART_GENRE_ID)
+    }
+
+    fun selectChartCategory(genreId: Int) {
+        _uiState.update { it.copy(selectedChartGenreId = genreId) }
+        loadChart(genreId)
+    }
+
+    fun retryChart() {
+        loadChart(_uiState.value.selectedChartGenreId)
+    }
+
+    private fun loadChart(genreId: Int) {
+        chartCache[genreId]?.let { cached ->
+            _uiState.update { it.copy(chartResults = cached, isLoadingChart = false, chartError = null) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingChart = true, chartError = null) }
+            try {
+                val results = searchRepository.topPodcasts(chartCountry, genreId)
+                val items = results.map { result ->
+                    val existing = podcastDao.getByFeedUrl(result.feedUrl)
+                    DiscoverPodcastItem(
+                        title = result.title,
+                        author = result.author,
+                        artworkUrl = result.artworkUrl,
+                        feedUrl = result.feedUrl,
+                        isSubscribed = existing?.subscribed == true,
+                    )
+                }
+                chartCache[genreId] = items
+                // Only publish if this chip is still selected; a slow response for a
+                // deselected category must not overwrite the current chart.
+                if (_uiState.value.selectedChartGenreId == genreId) {
+                    _uiState.update { it.copy(chartResults = items, isLoadingChart = false) }
+                }
+            } catch (e: Exception) {
+                if (_uiState.value.selectedChartGenreId == genreId) {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingChart = false,
+                            chartError = "Couldn't load charts: ${e.message}",
+                        )
+                    }
+                }
             }
         }
     }
@@ -189,14 +255,19 @@ class DiscoverViewModel @Inject constructor(
                 episodeDao.insertAll(episodes)
                 prefetchArtwork(feed.artworkUrl)
 
+                fun List<DiscoverPodcastItem>.markSubscribed() = map { item ->
+                    if (item.feedUrl == feedUrl) item.copy(isSubscribed = true) else item
+                }
                 _uiState.update { state ->
                     state.copy(
                         message = "Subscribed to ${feed.title}",
-                        searchResults = state.searchResults.map { item ->
-                            if (item.feedUrl == feedUrl) item.copy(isSubscribed = true)
-                            else item
-                        },
+                        searchResults = state.searchResults.markSubscribed(),
+                        chartResults = state.chartResults.markSubscribed(),
                     )
+                }
+                // Cached charts hold their own isSubscribed flags — keep them honest.
+                for ((genreId, items) in chartCache) {
+                    chartCache[genreId] = items.markSubscribed()
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Subscription failed: ${e.message}") }
@@ -289,5 +360,27 @@ class DiscoverViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.update { it.copy(message = null) }
+    }
+
+    companion object {
+        /** iTunes' root "Podcasts" genre — the overall chart. */
+        const val TOP_CHART_GENRE_ID = 26
+
+        val CHART_CATEGORIES = listOf(
+            ChartCategory("Top", TOP_CHART_GENRE_ID),
+            ChartCategory("Comedy", 1303),
+            ChartCategory("News", 1489),
+            ChartCategory("True Crime", 1488),
+            ChartCategory("Technology", 1318),
+            ChartCategory("Society & Culture", 1324),
+            ChartCategory("Sport", 1545),
+            ChartCategory("Business", 1321),
+            ChartCategory("History", 1487),
+            ChartCategory("Science", 1533),
+            ChartCategory("Health & Fitness", 1512),
+            ChartCategory("Music", 1310),
+            ChartCategory("TV & Film", 1309),
+            ChartCategory("Education", 1304),
+        )
     }
 }

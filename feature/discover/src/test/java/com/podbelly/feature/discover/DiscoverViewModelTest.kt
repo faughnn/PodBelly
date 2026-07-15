@@ -346,4 +346,97 @@ class DiscoverViewModelTest {
             }
         }
     }
+
+    // -- Charts --
+
+    private fun chartResult(feedUrl: String, title: String) = SearchResult(
+        feedUrl = feedUrl,
+        title = title,
+        author = "Author",
+        artworkUrl = "https://art.example/$title.jpg",
+    )
+
+    @Test
+    fun `top chart loads on init and marks subscribed podcasts`() = runTest {
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns listOf(
+            chartResult("https://feed.a", "Chart Show A"),
+            chartResult("https://feed.b", "Chart Show B"),
+        )
+        coEvery { podcastDao.getByFeedUrl("https://feed.a") } returns PodcastEntity(
+            id = 1L,
+            feedUrl = "https://feed.a",
+            title = "Chart Show A",
+            author = "Author",
+            description = "Desc",
+            artworkUrl = "",
+            link = "",
+            language = "en",
+            lastBuildDate = 0L,
+            subscribed = true,
+            subscribedAt = 0L,
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("Chart Show A", "Chart Show B"), state.chartResults.map { it.title })
+        assertTrue(state.chartResults[0].isSubscribed)
+        assertFalse(state.chartResults[1].isSubscribed)
+        assertFalse(state.isLoadingChart)
+        assertNull(state.chartError)
+        coVerify { searchRepository.topPodcasts(any(), DiscoverViewModel.TOP_CHART_GENRE_ID, any()) }
+    }
+
+    @Test
+    fun `selecting a category loads its chart by genre id`() = runTest {
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns emptyList()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.selectChartCategory(1303)
+        advanceUntilIdle()
+
+        assertEquals(1303, viewModel.uiState.value.selectedChartGenreId)
+        coVerify { searchRepository.topPodcasts(any(), 1303, any()) }
+    }
+
+    @Test
+    fun `switching back to a cached category does not refetch`() = runTest {
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns emptyList()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.selectChartCategory(1303)
+        advanceUntilIdle()
+        viewModel.selectChartCategory(DiscoverViewModel.TOP_CHART_GENRE_ID)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            searchRepository.topPodcasts(any(), DiscoverViewModel.TOP_CHART_GENRE_ID, any())
+        }
+    }
+
+    @Test
+    fun `chart failure surfaces an error and retry recovers`() = runTest {
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } throws RuntimeException("offline")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.chartError != null)
+        assertTrue(viewModel.uiState.value.chartResults.isEmpty())
+
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns listOf(
+            chartResult("https://feed.c", "Recovered Show"),
+        )
+        viewModel.retryChart()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull(state.chartError)
+        assertEquals(listOf("Recovered Show"), state.chartResults.map { it.title })
+    }
 }

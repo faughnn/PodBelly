@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.RssFeed
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -118,7 +120,19 @@ fun DiscoverScreen(
                 }
 
                 uiState.searchResults.isEmpty() && uiState.searchQuery.isBlank() -> {
-                    DiscoverEmptyState(modifier = Modifier.weight(1f))
+                    ChartsSection(
+                        categories = uiState.chartCategories,
+                        selectedGenreId = uiState.selectedChartGenreId,
+                        onCategorySelected = viewModel::selectChartCategory,
+                        results = uiState.chartResults,
+                        isLoading = uiState.isLoadingChart,
+                        error = uiState.chartError,
+                        onRetry = viewModel::retryChart,
+                        subscribingFeedUrls = uiState.subscribingFeedUrls,
+                        onSubscribe = viewModel::subscribeToPodcast,
+                        onPodcastClick = viewModel::onPodcastClick,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 uiState.searchResults.isEmpty() && uiState.searchQuery.isNotBlank() -> {
@@ -267,6 +281,83 @@ internal fun RssUrlSection(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Subscribe")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ChartsSection(
+    categories: List<ChartCategory>,
+    selectedGenreId: Int,
+    onCategorySelected: (Int) -> Unit,
+    results: List<DiscoverPodcastItem>,
+    isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    subscribingFeedUrls: Set<String>,
+    onSubscribe: (String) -> Unit,
+    onPodcastClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(
+                items = categories,
+                key = { it.genreId },
+            ) { category ->
+                FilterChip(
+                    selected = category.genreId == selectedGenreId,
+                    onClick = { onCategorySelected(category.genreId) },
+                    label = { Text(category.label) },
+                )
+            }
+        }
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            error != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(onClick = onRetry) {
+                        Text("Retry")
+                    }
+                }
+            }
+
+            else -> {
+                SearchResultsList(
+                    results = results,
+                    subscribingFeedUrls = subscribingFeedUrls,
+                    onSubscribe = onSubscribe,
+                    onPodcastClick = onPodcastClick,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
