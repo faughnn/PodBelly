@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 47
+    const val LATEST_VERSION_CODE = 48
 
     val changelog: Map<Int, List<String>> = mapOf(
+        48 to listOf(
+            "Discover now shows the top podcast charts for your country the moment you open it — no search needed",
+            "Browse charts by category: Comedy, News, True Crime, Technology, Sport and more",
+        ),
         47 to listOf(
             "Feed refresh is much faster: up to 32 podcasts update at once instead of 5",
             "Refreshing uses far less memory, even for shows with huge episode archives",

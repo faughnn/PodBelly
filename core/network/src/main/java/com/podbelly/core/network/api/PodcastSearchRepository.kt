@@ -38,6 +38,39 @@ class PodcastSearchRepository @Inject constructor(
     }
 
     /**
+     * Fetches the iTunes top-podcasts chart for [country] and [genreId] (26 = the
+     * overall chart) and maps it to [SearchResult]s, preserving chart order.
+     *
+     * The chart feed doesn't include feed URLs, so entries are enriched with one
+     * batched lookup call; entries iTunes can't resolve (or that lack a feed URL)
+     * are dropped.
+     */
+    suspend fun topPodcasts(country: String, genreId: Int, limit: Int = 25): List<SearchResult> {
+        val chart = itunesSearchApi.topPodcasts(country = country, genre = genreId, limit = limit)
+        val chartIds = chart.feed.entry.orEmpty()
+            .mapNotNull { it.id?.attributes?.imId }
+            .filter { it.isNotBlank() }
+        if (chartIds.isEmpty()) return emptyList()
+
+        // lookup returns results in arbitrary order; restore the chart ranking.
+        val rankById: Map<String, Int> = chartIds.withIndex().associate { (i, id) -> id to i }
+        val lookup = itunesSearchApi.lookupPodcasts(ids = chartIds.joinToString(","))
+
+        return lookup.results
+            .filter { !it.feedUrl.isNullOrBlank() }
+            .sortedBy { rankById[it.collectionId?.toString()] ?: Int.MAX_VALUE }
+            .map { podcast ->
+                SearchResult(
+                    feedUrl = podcast.feedUrl.orEmpty().trim(),
+                    title = (podcast.trackName ?: podcast.collectionName).orEmpty(),
+                    author = podcast.artistName.orEmpty(),
+                    artworkUrl = podcast.artworkUrl600.orEmpty()
+                )
+            }
+            .distinctBy { it.feedUrl }
+    }
+
+    /**
      * Fetches the RSS feed at the given [feedUrl] and parses it into
      * an [RssFeed] domain model. Follows redirects and sets a proper User-Agent.
      */
