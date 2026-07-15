@@ -110,6 +110,7 @@ fun PodbellNavHost(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val isRefreshing by appViewModel.isRefreshing.collectAsStateWithLifecycle()
+    val refreshProgress by appViewModel.refreshProgress.collectAsStateWithLifecycle()
     val queueEnabled by appViewModel.queueEnabled.collectAsStateWithLifecycle()
 
     // Determine whether to show bottom nav and mini player
@@ -222,6 +223,7 @@ fun PodbellNavHost(
                 HomeScreen(
                     isRefreshing = isRefreshing,
                     onRefresh = { appViewModel.refreshFeeds() },
+                    refreshProgress = refreshProgress,
                     bannerMessage = bannerMessage,
                     onEpisodeClick = { episodeId ->
                         navController.navigate(Screen.EpisodeDetail.createRoute(episodeId))

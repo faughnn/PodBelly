@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
+import java.io.InputStream
 import java.io.StringReader
 import java.security.MessageDigest
 import java.text.ParsePosition
@@ -62,15 +63,37 @@ class RssParser @Inject constructor() {
      * @return A parsed [RssFeed] containing channel metadata and a list of [RssEpisode]s.
      */
     suspend fun parse(feedUrl: String, xmlContent: String): RssFeed = withContext(Dispatchers.IO) {
-        parseInternal(feedUrl, xmlContent)
+        val parser = newParser()
+        parser.setInput(StringReader(xmlContent))
+        parseInternal(feedUrl, parser)
     }
 
-    private fun parseInternal(feedUrl: String, xmlContent: String): RssFeed {
+    /**
+     * Parses an RSS 2.0 feed directly from [inputStream] without buffering the
+     * document into memory, so peak memory per feed is just the parsed episode
+     * objects rather than raw bytes plus a decoded copy of the whole XML. This
+     * is what makes a high feed-refresh parallelism safe.
+     *
+     * @param charsetName Charset from the HTTP Content-Type header, if any. When
+     *   null the parser sniffs the BOM / `<?xml encoding="…"?>` prolog and falls
+     *   back to UTF-8, preserving the header → prolog → UTF-8 precedence that
+     *   keeps accents and smart quotes intact on ISO-8859-1 / windows-1252 feeds.
+     */
+    suspend fun parse(feedUrl: String, inputStream: InputStream, charsetName: String?): RssFeed =
+        withContext(Dispatchers.IO) {
+            val parser = newParser()
+            parser.setInput(inputStream, charsetName)
+            parseInternal(feedUrl, parser)
+        }
+
+    private fun newParser(): XmlPullParser {
         val factory = XmlPullParserFactory.newInstance().apply {
             isNamespaceAware = true
         }
-        val parser = factory.newPullParser()
-        parser.setInput(StringReader(xmlContent))
+        return factory.newPullParser()
+    }
+
+    private fun parseInternal(feedUrl: String, parser: XmlPullParser): RssFeed {
 
         var channelTitle = ""
         var channelAuthor = ""

@@ -1,9 +1,20 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 44
+    const val LATEST_VERSION_CODE = 47
 
     val changelog: Map<Int, List<String>> = mapOf(
+        47 to listOf(
+            "Feed refresh is much faster: up to 32 podcasts update at once instead of 5",
+            "Refreshing uses far less memory, even for shows with huge episode archives",
+        ),
+        46 to listOf(
+            "Tap the New header to clear the section — episodes slide back into their place in the list",
+        ),
+        45 to listOf(
+            "The refresh status moved to the top bar beside the logo, so it stays visible while you scroll",
+            "While feeds are refreshing you now see live progress, e.g. \"Checking 7/12\"",
+        ),
         44 to listOf(
             "Home now shows a refresh status below Continue Listening: a spinner while checking for new episodes, and \"Updated X ago\" the rest of the time",
         ),

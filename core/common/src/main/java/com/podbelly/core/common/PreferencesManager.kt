@@ -93,6 +93,7 @@ class PreferencesManager @Inject constructor(
         val QUEUE_ENABLED = booleanPreferencesKey("queue_enabled")
         val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
         val HOME_NEW_EPISODES_CUTOFF = longPreferencesKey("home_new_episodes_cutoff")
+        val HOME_NEW_DISMISSED_AT = longPreferencesKey("home_new_dismissed_at")
         val LAST_FEED_REFRESH_AT = longPreferencesKey("last_feed_refresh_at")
     }
 
@@ -168,6 +169,15 @@ class PreferencesManager @Inject constructor(
      */
     val homeNewEpisodesCutoff: Flow<Long> = dataStore.data.map { prefs ->
         prefs[Keys.HOME_NEW_EPISODES_CUTOFF] ?: 0L
+    }
+
+    /**
+     * When the user last explicitly dismissed the New section by tapping its
+     * header (epoch ms, 0 = never). Unlike [homeNewEpisodesCutoff], this is a
+     * hard cutoff: the recency floor does not resurrect episodes below it.
+     */
+    val homeNewDismissedAt: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.HOME_NEW_DISMISSED_AT] ?: 0L
     }
 
     /** When feeds last refreshed successfully (epoch ms, 0 = never). */
@@ -283,6 +293,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setHomeNewEpisodesCutoff(timestamp: Long) {
         dataStore.edit { prefs ->
             prefs[Keys.HOME_NEW_EPISODES_CUTOFF] = timestamp
+        }
+    }
+
+    suspend fun setHomeNewDismissedAt(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.HOME_NEW_DISMISSED_AT] = timestamp
         }
     }
 

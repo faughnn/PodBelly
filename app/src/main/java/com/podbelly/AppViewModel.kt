@@ -5,6 +5,7 @@ import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.RefreshProgress
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -43,6 +45,10 @@ class AppViewModel @Inject constructor(
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    /** Non-null while a refresh is running: how many feeds have finished so far. */
+    private val _refreshProgress = MutableStateFlow<RefreshProgress?>(null)
+    val refreshProgress: StateFlow<RefreshProgress?> = _refreshProgress.asStateFlow()
 
     // replay = 1 so the startup banner's collector (composed ~1s later, after the
     // splash) still receives the result even if the refresh finished first.
@@ -116,7 +122,13 @@ class AppViewModel @Inject constructor(
             var newEpisodeCount = 0
             try {
                 val podcasts: List<PodcastEntity> = podcastDao.getAll().first()
-                val semaphore = Semaphore(5)
+                _refreshProgress.value = RefreshProgress(completed = 0, total = podcasts.size)
+                // Most of a feed fetch is server latency, not bandwidth, so wide
+                // parallelism nearly divides refresh time by the concurrency. 32 is
+                // safe now that feeds stream straight into the parser (memory per
+                // in-flight feed is just its parsed episodes, bounded by the 10MB
+                // read cap) — buffering whole documents was the old reason for 5.
+                val semaphore = Semaphore(32)
                 val insertCounts = java.util.concurrent.atomic.AtomicInteger(0)
                 val successCounts = java.util.concurrent.atomic.AtomicInteger(0)
                 podcasts.map { podcast ->
@@ -177,6 +189,9 @@ class AppViewModel @Inject constructor(
                                 successCounts.incrementAndGet()
                             } catch (_: Exception) {
                                 // Skip this feed and continue with the next one.
+                            } finally {
+                                // Count failures too — progress tracks completions.
+                                _refreshProgress.update { it?.copy(completed = it.completed + 1) }
                             }
                         }
                     }
@@ -190,6 +205,7 @@ class AppViewModel @Inject constructor(
                 }
             } finally {
                 _isRefreshing.value = false
+                _refreshProgress.value = null
                 _refreshResult.tryEmit(newEpisodeCount)
                 lastRefreshTime = System.currentTimeMillis()
             }

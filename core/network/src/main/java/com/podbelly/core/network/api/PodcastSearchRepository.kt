@@ -7,8 +7,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.FilterInputStream
 import java.io.IOException
-import java.nio.charset.Charset
+import java.io.InputStream
 import javax.inject.Inject
 
 class PodcastSearchRepository @Inject constructor(
@@ -58,45 +59,55 @@ class PodcastSearchRepository @Inject constructor(
 
             val body = response.body
                 ?: throw IOException("Empty response body for $feedUrl")
-            val source = body.source()
 
-            // Cap how much of an (untrusted) feed we buffer into memory so a hostile or
-            // misconfigured server can't OOM the app. request() tries to buffer one byte
-            // past the limit; if it succeeds the feed is over budget.
-            source.request(MAX_FEED_BYTES + 1)
-            if (source.buffer.size > MAX_FEED_BYTES) {
-                throw IOException("Feed exceeds ${MAX_FEED_BYTES / (1024 * 1024)}MB limit: $feedUrl")
-            }
+            // Stream the body straight into the XML parser instead of buffering the
+            // whole document: peak memory per in-flight feed drops from roughly
+            // 3-4x the file size (raw bytes + decoded String + parsed text) to just
+            // the parsed episode objects, which is what makes a high refresh
+            // parallelism safe. Same idea as AntennaPod, which streams feeds
+            // through SAX rather than holding them in memory. The byte cap still
+            // applies so a hostile or endless feed can't run away.
+            //
+            // Charset precedence is preserved from the buffered implementation:
+            // HTTP Content-Type header first; otherwise the parser sniffs the BOM /
+            // <?xml encoding="…"?> prolog, defaulting to UTF-8. Many real feeds are
+            // served as ISO-8859-1 / windows-1252, and force-decoding those as
+            // UTF-8 turns accents, smart quotes and em dashes into garbage.
+            val limited = LimitedInputStream(body.byteStream(), MAX_FEED_BYTES, feedUrl)
+            val headerCharset = body.contentType()?.charset()?.name()
 
-            // Decode using the feed's actual charset rather than assuming UTF-8. Many
-            // real feeds are served as ISO-8859-1 / windows-1252; force-decoding those as
-            // UTF-8 turns accents, smart quotes and em dashes into garbage. Prefer the
-            // HTTP Content-Type charset, then the <?xml encoding="…"?> declaration,
-            // defaulting to UTF-8 only when neither is present.
-            val bytes = source.readByteArray()
-            val charset = body.contentType()?.charset()
-                ?: detectXmlDeclCharset(bytes)
-                ?: Charsets.UTF_8
-
-            rssParser.parse(feedUrl, String(bytes, charset))
+            rssParser.parse(feedUrl, limited, headerCharset)
         }
     }
 
     /**
-     * Sniffs the charset declared in an XML prolog (`<?xml … encoding="…"?>`). The
-     * declaration itself is always ASCII-compatible, so a short prefix can be read as
-     * ISO-8859-1 to recover the encoding attribute. Returns null if absent/unknown.
+     * Throws once more than [limit] bytes have been read, bounding how much of an
+     * (untrusted) feed we will ever pull off the network.
      */
-    private fun detectXmlDeclCharset(bytes: ByteArray): Charset? {
-        val prefix = String(bytes, 0, minOf(bytes.size, 256), Charsets.ISO_8859_1)
-        if (!prefix.startsWith("<?xml")) return null
-        val declEnd = prefix.indexOf("?>")
-        if (declEnd < 0) return null
-        val match = ENCODING_REGEX.find(prefix.substring(0, declEnd)) ?: return null
-        return try {
-            Charset.forName(match.groupValues[1])
-        } catch (e: Exception) {
-            null
+    private class LimitedInputStream(
+        stream: InputStream,
+        private val limit: Long,
+        private val feedUrl: String,
+    ) : FilterInputStream(stream) {
+        private var bytesRead = 0L
+
+        override fun read(): Int {
+            val b = super.read()
+            if (b >= 0) count(1)
+            return b
+        }
+
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            val n = super.read(b, off, len)
+            if (n > 0) count(n.toLong())
+            return n
+        }
+
+        private fun count(n: Long) {
+            bytesRead += n
+            if (bytesRead > limit) {
+                throw IOException("Feed exceeds ${limit / (1024 * 1024)}MB limit: $feedUrl")
+            }
         }
     }
 
@@ -104,9 +115,7 @@ class PodcastSearchRepository @Inject constructor(
         private const val USER_AGENT =
             "Podbelly/1.0 (Android; Podcast App) OkHttp"
 
-        private val ENCODING_REGEX = Regex("""encoding\s*=\s*["']([^"']+)["']""")
-
-        /** Maximum feed size we will buffer into memory (10 MB). */
+        /** Maximum bytes we will read from a single feed (10 MB). */
         private const val MAX_FEED_BYTES = 10L * 1024 * 1024
     }
 }
