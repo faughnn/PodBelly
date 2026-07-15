@@ -93,6 +93,7 @@ class PreferencesManager @Inject constructor(
         val QUEUE_ENABLED = booleanPreferencesKey("queue_enabled")
         val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
         val HOME_NEW_EPISODES_CUTOFF = longPreferencesKey("home_new_episodes_cutoff")
+        val LAST_FEED_REFRESH_AT = longPreferencesKey("last_feed_refresh_at")
     }
 
     // ── Flows ────────────────────────────────────────────────────────────
@@ -167,6 +168,11 @@ class PreferencesManager @Inject constructor(
      */
     val homeNewEpisodesCutoff: Flow<Long> = dataStore.data.map { prefs ->
         prefs[Keys.HOME_NEW_EPISODES_CUTOFF] ?: 0L
+    }
+
+    /** When feeds last refreshed successfully (epoch ms, 0 = never). */
+    val lastFeedRefreshAt: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.LAST_FEED_REFRESH_AT] ?: 0L
     }
 
     // ── Setters ──────────────────────────────────────────────────────────
@@ -277,6 +283,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setHomeNewEpisodesCutoff(timestamp: Long) {
         dataStore.edit { prefs ->
             prefs[Keys.HOME_NEW_EPISODES_CUTOFF] = timestamp
+        }
+    }
+
+    suspend fun setLastFeedRefreshAt(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LAST_FEED_REFRESH_AT] = timestamp
         }
     }
 }

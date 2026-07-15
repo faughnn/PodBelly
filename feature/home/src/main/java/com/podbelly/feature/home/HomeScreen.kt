@@ -53,6 +53,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -97,6 +98,7 @@ fun HomeScreen(
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
+    val lastRefreshedAt by viewModel.lastRefreshedAt.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -183,6 +185,8 @@ fun HomeScreen(
                     episodes = uiState.recentEpisodes,
                     newEpisodes = uiState.newEpisodes,
                     inProgressEpisodes = uiState.inProgressEpisodes,
+                    isRefreshing = isRefreshing,
+                    lastRefreshedAt = lastRefreshedAt,
                     downloadProgress = downloadProgress,
                     onEpisodeClick = onEpisodeClick,
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
@@ -244,6 +248,8 @@ internal fun EpisodeList(
     episodes: List<HomeEpisodeItem>,
     newEpisodes: List<HomeEpisodeItem> = emptyList(),
     inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
+    isRefreshing: Boolean = false,
+    lastRefreshedAt: Long = 0L,
     downloadProgress: Map<Long, Float>,
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
@@ -261,6 +267,19 @@ internal fun EpisodeList(
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // Refresh status: spinner while a refresh is running, otherwise when the
+        // feeds were last successfully refreshed. Hidden only before the very
+        // first refresh (fresh install) when there's nothing to report yet.
+        if (isRefreshing || lastRefreshedAt > 0L) {
+            item(key = "refresh_status") {
+                RefreshStatusRow(
+                    isRefreshing = isRefreshing,
+                    lastRefreshedAt = lastRefreshedAt,
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
+
         // Continue Listening horizontal carousel
         if (inProgressEpisodes.isNotEmpty()) {
             item(key = "carousel_header") {
@@ -393,6 +412,63 @@ internal fun EpisodeList(
                         ),
                     )
                     .padding(horizontal = 16.dp),
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------------
+// Refresh status row
+// ------------------------------------------------------------------
+
+@Composable
+private fun RefreshStatusRow(
+    isRefreshing: Boolean,
+    lastRefreshedAt: Long,
+    modifier: Modifier = Modifier,
+) {
+    // Re-render every minute so "Updated X min ago" doesn't go stale while the
+    // screen stays open.
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(isRefreshing, lastRefreshedAt) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(60_000)
+        }
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (isRefreshing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 1.5.dp,
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Checking for new episodes…",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            val updatedText = if (now - lastRefreshedAt < DateUtils.MINUTE_IN_MILLIS) {
+                "Updated just now"
+            } else {
+                "Updated " + DateUtils.getRelativeTimeSpanString(
+                    lastRefreshedAt,
+                    now,
+                    DateUtils.MINUTE_IN_MILLIS,
+                    DateUtils.FORMAT_ABBREV_RELATIVE,
+                ).toString().replaceFirstChar { it.lowercaseChar() }
+            }
+            Text(
+                text = updatedText,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

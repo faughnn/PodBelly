@@ -61,6 +61,10 @@ class HomeViewModel @Inject constructor(
     val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    /** When feeds last refreshed successfully (epoch ms, 0 = never). */
+    val lastRefreshedAt: StateFlow<Long> = preferencesManager.lastFeedRefreshAt
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
 

@@ -10,6 +10,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.podbelly.PodbellApp
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
@@ -26,6 +27,7 @@ class FeedRefreshWorker @AssistedInject constructor(
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
     private val searchRepository: PodcastSearchRepository,
+    private val preferencesManager: PreferencesManager,
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -112,6 +114,12 @@ class FeedRefreshWorker @AssistedInject constructor(
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to refresh feed for podcast: ${podcast.title}", e)
                 }
+            }
+
+            // Record the refresh only if it actually reached at least one feed,
+            // so an offline attempt doesn't claim the feed is up to date.
+            if (refreshedCount > 0) {
+                preferencesManager.setLastFeedRefreshAt(System.currentTimeMillis())
             }
 
             // Post notifications for new episodes

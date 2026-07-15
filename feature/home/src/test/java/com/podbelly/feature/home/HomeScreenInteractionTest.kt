@@ -125,6 +125,63 @@ class HomeScreenInteractionTest {
     }
 
     @Test
+    fun `refresh status shows spinner text while refreshing`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = listOf(createEpisode()),
+                    isRefreshing = true,
+                    lastRefreshedAt = 0L,
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Checking for new episodes…").assertIsDisplayed()
+    }
+
+    @Test
+    fun `refresh status shows last updated time when idle`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = listOf(createEpisode()),
+                    isRefreshing = false,
+                    lastRefreshedAt = System.currentTimeMillis() - 30_000L,
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Updated just now").assertIsDisplayed()
+    }
+
+    @Test
+    fun `refresh status is hidden before the first ever refresh`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = listOf(createEpisode()),
+                    isRefreshing = false,
+                    lastRefreshedAt = 0L,
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                )
+            }
+        }
+
+        composeTestRule.onAllNodesWithText("Updated", substring = true).assertCountEquals(0)
+    }
+
+    @Test
     fun `episode list renders all items`() {
         val episodes = listOf(
             createEpisode(episodeId = 1L, title = "Episode Alpha"),
