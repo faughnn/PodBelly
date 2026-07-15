@@ -267,19 +267,6 @@ internal fun EpisodeList(
         ),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Refresh status: spinner while a refresh is running, otherwise when the
-        // feeds were last successfully refreshed. Hidden only before the very
-        // first refresh (fresh install) when there's nothing to report yet.
-        if (isRefreshing || lastRefreshedAt > 0L) {
-            item(key = "refresh_status") {
-                RefreshStatusRow(
-                    isRefreshing = isRefreshing,
-                    lastRefreshedAt = lastRefreshedAt,
-                    modifier = Modifier.animateItem(),
-                )
-            }
-        }
-
         // Continue Listening horizontal carousel
         if (inProgressEpisodes.isNotEmpty()) {
             item(key = "carousel_header") {
@@ -314,6 +301,20 @@ internal fun EpisodeList(
                         )
                     }
                 }
+            }
+        }
+
+        // Refresh status, directly below Continue Listening (or first when the
+        // carousel is empty): spinner while a refresh is running, otherwise when
+        // the feeds were last successfully refreshed. Hidden only before the very
+        // first refresh (fresh install) when there's nothing to report yet.
+        if (isRefreshing || lastRefreshedAt > 0L) {
+            item(key = "refresh_status") {
+                RefreshStatusRow(
+                    isRefreshing = isRefreshing,
+                    lastRefreshedAt = lastRefreshedAt,
+                    modifier = Modifier.animateItem(),
+                )
             }
         }
 

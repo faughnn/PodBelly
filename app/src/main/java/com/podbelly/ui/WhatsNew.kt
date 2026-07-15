@@ -1,11 +1,11 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 43
+    const val LATEST_VERSION_CODE = 44
 
     val changelog: Map<Int, List<String>> = mapOf(
-        43 to listOf(
-            "Home now shows a refresh status at the top of the list: a spinner while checking for new episodes, and \"Updated X ago\" the rest of the time",
+        44 to listOf(
+            "Home now shows a refresh status below Continue Listening: a spinner while checking for new episodes, and \"Updated X ago\" the rest of the time",
         ),
         42 to listOf(
             "The New section now clears when you return to the app after a while away, not only after a full restart",
