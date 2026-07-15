@@ -35,6 +35,7 @@ object DatabaseModule {
                 PodbellDatabase.MIGRATION_3_4,
                 PodbellDatabase.MIGRATION_4_5,
                 PodbellDatabase.MIGRATION_5_6,
+                PodbellDatabase.MIGRATION_6_7,
             )
             .build()
     }

@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 48
+    const val LATEST_VERSION_CODE = 49
 
     val changelog: Map<Int, List<String>> = mapOf(
+        49 to listOf(
+            "Skip intros and outros automatically: set per-podcast skip times from the podcast page menu (Skip intro & outro)",
+            "Episodes start past the intro and finish before the outro, then move on to your queue as usual",
+        ),
         48 to listOf(
             "Discover now shows the top podcast charts for your country the moment you open it — no search needed",
             "Browse charts by category: Comedy, News, True Crime, Technology, Sport and more",

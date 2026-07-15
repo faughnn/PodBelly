@@ -1,6 +1,8 @@
 package com.podbelly.core.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -68,5 +70,70 @@ class SeekMathTest {
     fun `very short episode caps target at zero rather than going negative`() {
         // duration under 1s: (duration - 1000) coerced to at least 0.
         assertEquals(0L, computeSkipTarget(200L, 30_000L, 500L))
+    }
+
+    // -------------------------------------------------------------------------
+    // shouldEndForOutro -- per-podcast outro auto-skip end detection
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `outro does not fire before the outro window`() {
+        // 30s outro on a 10min episode: window starts at 570_000.
+        assertFalse(shouldEndForOutro(569_999L, duration, 30, alreadyFired = false))
+        assertFalse(shouldEndForOutro(0L, duration, 30, alreadyFired = false))
+    }
+
+    @Test
+    fun `outro fires exactly at the window boundary`() {
+        assertTrue(shouldEndForOutro(570_000L, duration, 30, alreadyFired = false))
+    }
+
+    @Test
+    fun `outro fires inside the window`() {
+        assertTrue(shouldEndForOutro(590_000L, duration, 30, alreadyFired = false))
+        assertTrue(shouldEndForOutro(duration, duration, 30, alreadyFired = false))
+    }
+
+    @Test
+    fun `outro never fires when disabled`() {
+        assertFalse(shouldEndForOutro(599_000L, duration, 0, alreadyFired = false))
+        assertFalse(shouldEndForOutro(599_000L, duration, -5, alreadyFired = false))
+    }
+
+    @Test
+    fun `outro never fires when duration is unknown`() {
+        assertFalse(shouldEndForOutro(599_000L, 0L, 30, alreadyFired = false))
+        assertFalse(shouldEndForOutro(599_000L, -9_223_372_036_854_775_807L, 30, alreadyFired = false))
+    }
+
+    @Test
+    fun `outro fires at most once per episode playback`() {
+        assertFalse(shouldEndForOutro(590_000L, duration, 30, alreadyFired = true))
+    }
+
+    @Test
+    fun `outro covering the whole episode never fires`() {
+        // 60s outro on a 60s episode would end it the moment it starts.
+        assertFalse(shouldEndForOutro(0L, 60_000L, 60, alreadyFired = false))
+        assertFalse(shouldEndForOutro(30_000L, 60_000L, 60, alreadyFired = false))
+        // Longer than the episode: same.
+        assertFalse(shouldEndForOutro(30_000L, 60_000L, 90, alreadyFired = false))
+    }
+
+    @Test
+    fun `outro shorter than the episode fires normally on a short episode`() {
+        // 15s outro on a 60s episode: window starts at 45_000.
+        assertFalse(shouldEndForOutro(44_999L, 60_000L, 15, alreadyFired = false))
+        assertTrue(shouldEndForOutro(45_000L, 60_000L, 15, alreadyFired = false))
+    }
+
+    @Test
+    fun `seek parked a second short of the end still lands inside the outro window`() {
+        // computeSkipTarget parks user seeks at duration - 1000; any outro of >= 2s
+        // must still catch that position so the episode completes instead of
+        // sitting parked just short of the end.
+        val parked = computeSkipTarget(595_000L, 30_000L, duration)
+        assertEquals(599_000L, parked)
+        assertTrue(shouldEndForOutro(parked, duration, 15, alreadyFired = false))
     }
 }

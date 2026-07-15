@@ -187,6 +187,84 @@ class PodcastDaoTest {
     }
 
     @Test
+    fun `skip intro and outro default to zero`() = runTest {
+        val id = podcastDao.insert(createPodcast())
+
+        val settings = podcastDao.getSkipSettings(id)
+        assertNotNull(settings)
+        assertEquals(0, settings!!.skipIntroSeconds)
+        assertEquals(0, settings.skipOutroSeconds)
+    }
+
+    @Test
+    fun `updateSkipIntroSeconds persists only the intro value`() = runTest {
+        val id = podcastDao.insert(createPodcast())
+
+        podcastDao.updateSkipIntroSeconds(id, 30)
+
+        val settings = podcastDao.getSkipSettings(id)!!
+        assertEquals(30, settings.skipIntroSeconds)
+        assertEquals(0, settings.skipOutroSeconds)
+    }
+
+    @Test
+    fun `updateSkipOutroSeconds persists only the outro value`() = runTest {
+        val id = podcastDao.insert(createPodcast())
+
+        podcastDao.updateSkipOutroSeconds(id, 45)
+
+        val settings = podcastDao.getSkipSettings(id)!!
+        assertEquals(0, settings.skipIntroSeconds)
+        assertEquals(45, settings.skipOutroSeconds)
+    }
+
+    @Test
+    fun `skip settings can be reset back to zero`() = runTest {
+        val id = podcastDao.insert(createPodcast())
+        podcastDao.updateSkipIntroSeconds(id, 15)
+        podcastDao.updateSkipOutroSeconds(id, 60)
+
+        podcastDao.updateSkipIntroSeconds(id, 0)
+        podcastDao.updateSkipOutroSeconds(id, 0)
+
+        val settings = podcastDao.getSkipSettings(id)!!
+        assertEquals(0, settings.skipIntroSeconds)
+        assertEquals(0, settings.skipOutroSeconds)
+    }
+
+    @Test
+    fun `skip setting updates do not leak across podcasts`() = runTest {
+        val id1 = podcastDao.insert(createPodcast(feedUrl = "https://a.com/feed"))
+        val id2 = podcastDao.insert(createPodcast(feedUrl = "https://b.com/feed"))
+
+        podcastDao.updateSkipIntroSeconds(id1, 30)
+        podcastDao.updateSkipOutroSeconds(id1, 15)
+
+        val other = podcastDao.getSkipSettings(id2)!!
+        assertEquals(0, other.skipIntroSeconds)
+        assertEquals(0, other.skipOutroSeconds)
+    }
+
+    @Test
+    fun `getSkipSettings returns null for nonexistent podcast`() = runTest {
+        assertNull(podcastDao.getSkipSettings(999L))
+    }
+
+    @Test
+    fun `skip settings survive a full-row update`() = runTest {
+        val id = podcastDao.insert(createPodcast())
+        podcastDao.updateSkipIntroSeconds(id, 30)
+
+        // A feed refresh reads the row and writes it back with new metadata —
+        // the skip settings it carries must be preserved.
+        val current = podcastDao.getByIdOnce(id)!!
+        podcastDao.update(current.copy(title = "Refreshed Title"))
+
+        val settings = podcastDao.getSkipSettings(id)!!
+        assertEquals(30, settings.skipIntroSeconds)
+    }
+
+    @Test
     fun `insert with same feedUrl replaces existing due to REPLACE strategy`() = runTest {
         val feedUrl = "https://example.com/feed.xml"
         val id1 = podcastDao.insert(createPodcast(feedUrl = feedUrl, title = "Original", episodeCount = 5))
