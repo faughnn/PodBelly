@@ -118,6 +118,7 @@ class AppViewModel @Inject constructor(
                 val podcasts: List<PodcastEntity> = podcastDao.getAll().first()
                 val semaphore = Semaphore(5)
                 val insertCounts = java.util.concurrent.atomic.AtomicInteger(0)
+                val successCounts = java.util.concurrent.atomic.AtomicInteger(0)
                 podcasts.map { podcast ->
                     launch {
                         semaphore.withPermit {
@@ -173,6 +174,7 @@ class AppViewModel @Inject constructor(
                                         link = rssFeed.link,
                                     ).copy(lastRefreshedAt = System.currentTimeMillis())
                                 )
+                                successCounts.incrementAndGet()
                             } catch (_: Exception) {
                                 // Skip this feed and continue with the next one.
                             }
@@ -181,6 +183,11 @@ class AppViewModel @Inject constructor(
                 }.forEach { it.join() }
 
                 newEpisodeCount = insertCounts.get()
+                // Record the refresh only if it actually reached at least one feed,
+                // so an offline attempt doesn't claim the feed is up to date.
+                if (successCounts.get() > 0) {
+                    preferencesManager.setLastFeedRefreshAt(System.currentTimeMillis())
+                }
             } finally {
                 _isRefreshing.value = false
                 _refreshResult.tryEmit(newEpisodeCount)
