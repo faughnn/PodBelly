@@ -3,6 +3,7 @@ package com.podbelly.core.playback
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
@@ -246,6 +247,14 @@ class PlaybackController @Inject constructor(
      */
     fun connectToService(context: Context) {
         if (mediaController != null || controllerFuture != null) return
+
+        // Robolectric unit tests boot the real Application, which lands here. Its
+        // shadow bindService resolves the service's MediaBrowserService intent
+        // filter (added for Android Auto) and invokes onServiceConnected with a
+        // null ComponentName, which NPEs inside media3's MediaControllerImplBase.
+        // Before the MediaLibraryService conversion the bind simply never
+        // connected under Robolectric — keep unit tests connectionless explicitly.
+        if (Build.FINGERPRINT == "robolectric") return
 
         // Always use the application context: this PlaybackController is a Singleton
         // that outlives any individual Activity. If we bind the MediaController to an
