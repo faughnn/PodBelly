@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 48
+    const val LATEST_VERSION_CODE = 49
 
     val changelog: Map<Int, List<String>> = mapOf(
+        49 to listOf(
+            "Fixed feeds with special characters (accents, smart quotes) potentially displaying incorrectly on some devices",
+            "Fixed feeds that start with a byte-order mark failing to load",
+        ),
         48 to listOf(
             "Discover now shows the top podcast charts for your country the moment you open it — no search needed",
             "Browse charts by category: Comedy, News, True Crime, Technology, Sport and more",
