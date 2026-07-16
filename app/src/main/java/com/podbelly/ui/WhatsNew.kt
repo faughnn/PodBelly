@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 51
+    const val LATEST_VERSION_CODE = 52
 
     val changelog: Map<Int, List<String>> = mapOf(
+        52 to listOf(
+            "Chromecast support: tap the cast button on the player to listen on your TV or speakers",
+            "Casting streams the episode to the receiver and hands playback back to your phone, at the same spot, when you disconnect",
+        ),
         51 to listOf(
             "Android Auto support: browse your queue and downloaded episodes from the car screen",
             "Playback started in the car picks up where you left off, with your per-podcast speed and intro skip",

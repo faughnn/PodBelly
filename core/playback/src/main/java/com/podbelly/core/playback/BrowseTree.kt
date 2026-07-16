@@ -145,6 +145,29 @@ object BrowseTree {
     }
 
     /**
+     * A playable MediaItem for a Chromecast receiver.
+     *
+     * Always uses the REMOTE stream URL — the receiver cannot read files on the
+     * phone, so the download-first rule necessarily bends while casting — and
+     * carries an explicit MIME type because CastPlayer's DefaultMediaItemConverter
+     * requires one. Returns null when the feed provides no remote URL (the caller
+     * must surface that instead of silently failing on the receiver).
+     */
+    fun castEpisodeItem(
+        episode: EpisodeEntity,
+        podcastTitle: String,
+        fallbackArtworkUrl: String = "",
+    ): MediaItem? {
+        if (episode.audioUrl.isBlank()) return null
+        return MediaItem.Builder()
+            .setMediaId(episode.id.toString())
+            .setUri(episode.audioUrl)
+            .setMimeType(audioMimeTypeFor(episode.audioUrl))
+            .setMediaMetadata(episodeMetadata(episode, podcastTitle, fallbackArtworkUrl))
+            .build()
+    }
+
+    /**
      * Best-effort audio MIME type for a podcast enclosure URL. Podcast enclosures are
      * overwhelmingly MP3, so that is the default when the extension is unrecognised.
      * Needed because CastPlayer's DefaultMediaItemConverter requires a non-null MIME

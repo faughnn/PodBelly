@@ -59,6 +59,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.androidx.palette)
 
+    // Chromecast button (MediaRouteButton + CastButtonFactory)
+    implementation(libs.androidx.mediarouter)
+    implementation(libs.play.services.cast.framework)
+
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
 

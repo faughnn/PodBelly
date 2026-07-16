@@ -39,6 +39,12 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
+        <!-- Chromecast: media3's default provider targets the default media receiver
+             (the same receiver app the media3 cast demo uses). -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="androidx.media3.cast.DefaultCastOptionsProvider" />
+
         <!--
             WorkManager's SystemForegroundService must declare foregroundServiceType
             so that DownloadWorker can run as a DATA_SYNC foreground service on API 34+.

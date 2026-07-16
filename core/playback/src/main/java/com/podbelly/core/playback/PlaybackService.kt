@@ -7,7 +7,10 @@ import android.content.Intent
 import android.media.audiofx.LoudnessEnhancer
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.OptIn
+import androidx.media3.cast.CastPlayer
+import androidx.media3.cast.SessionAvailabilityListener
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -21,6 +24,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.google.android.gms.cast.framework.CastContext
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -35,6 +39,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -84,6 +89,12 @@ class PlaybackService : MediaLibraryService() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
     /**
+     * Remote player for Chromecast. Null on devices without Google Play services
+     * (Cast initialization threw) — everything then behaves exactly as before.
+     */
+    private var castPlayer: CastPlayer? = null
+
+    /**
      * Scope for browse-tree queries and item resolution. Main.immediate matches the
      * session callback threading model; Room suspend queries hop to their own IO
      * executor internally.
@@ -130,6 +141,166 @@ class PlaybackService : MediaLibraryService() {
                 sessionActivityIntent?.let { setSessionActivity(it) }
             }
             .build()
+
+        initializeCast()
+    }
+
+    // -------------------------------------------------------------------------
+    // Chromecast (media3 cast demo's PlayerManager pattern)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Sets up the [CastPlayer] and the session-availability listener that swaps the
+     * MediaSession between the local and remote player. All connected controllers
+     * (the app UI's MediaController, Android Auto) follow the session transparently,
+     * so PlaybackController's position loop — outro-skip, mark-played, position
+     * saving, queue auto-advance — keeps observing whichever player is active.
+     *
+     * Devices without Google Play services must not crash:
+     * [CastContext.getSharedInstance] throws there, and we degrade to local-only
+     * playback with [castPlayer] left null.
+     */
+    private fun initializeCast() {
+        val castContext = try {
+            CastContext.getSharedInstance(this)
+        } catch (e: Exception) {
+            Log.i(TAG, "Cast framework unavailable; continuing without Chromecast", e)
+            return
+        }
+        try {
+            castPlayer = CastPlayer(castContext).apply {
+                setSessionAvailabilityListener(object : SessionAvailabilityListener {
+                    override fun onCastSessionAvailable() = switchToCastPlayer()
+                    override fun onCastSessionUnavailable() = switchToLocalPlayer()
+                })
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to create CastPlayer; continuing without Chromecast", e)
+            castPlayer = null
+        }
+    }
+
+    private fun isCasting(): Boolean {
+        val cast = castPlayer ?: return false
+        return mediaLibrarySession?.player === cast
+    }
+
+    /**
+     * A cast session connected: hand the MediaSession to the [CastPlayer],
+     * transferring the current episode, position and play-when-ready state.
+     *
+     * Download-first wrinkle: the receiver cannot read files on the phone, so the
+     * cast item is rebuilt from the episode's REMOTE audioUrl (with a MIME type for
+     * the receiver). If the feed provides no remote URL, the swap is aborted with a
+     * message and local playback resumes untouched.
+     */
+    private fun switchToCastPlayer() {
+        val cast = castPlayer ?: return
+        val session = mediaLibrarySession ?: return
+        if (session.player === cast) return
+        val local = session.player
+
+        val episodeId = local.currentMediaItem?.mediaId?.let { BrowseTree.parseEpisodeId(it) }
+
+        if (episodeId == null) {
+            // Nothing loaded locally: still hand the session over so anything the
+            // user starts next plays on the receiver.
+            session.player = cast
+            return
+        }
+
+        serviceScope.launch {
+            val episode = try {
+                episodeDao.getByIdOnce(episodeId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load episode $episodeId for cast handoff", e)
+                null
+            }
+            val podcast = episode?.let {
+                try {
+                    podcastDao.getByIdOnce(it.podcastId)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            val castItem = episode?.let {
+                BrowseTree.castEpisodeItem(it, podcast?.title ?: "", podcast?.artworkUrl ?: "")
+            }
+            if (castItem == null) {
+                // No remote stream URL — keep playing locally rather than going
+                // silent on the receiver.
+                Log.w(TAG, "Cannot cast episode $episodeId: feed has no remote audio URL")
+                showToast("Can't cast this episode — it has no streaming link. Playing on this device.")
+                return@launch
+            }
+
+            // Capture the transfer state at the moment of the swap, not when the
+            // cast session appeared — local playback kept advancing during the
+            // database lookup above. serviceScope is main-thread, same as the player.
+            val positionMs = local.currentPosition
+            val playWhenReady = local.playWhenReady
+            val playbackParameters = local.playbackParameters
+            local.stop()
+            local.clearMediaItems()
+            session.player = cast
+            cast.setMediaItem(castItem, positionMs)
+            cast.playbackParameters = playbackParameters
+            cast.playWhenReady = playWhenReady
+            cast.prepare()
+        }
+    }
+
+    /**
+     * The cast session ended: hand the MediaSession back to the local ExoPlayer and
+     * resume the DOWNLOADED file at the position the receiver reached (download-first
+     * again the moment we're back on-device; falls back to the stream URL only when
+     * there is no download, matching every other local play path).
+     */
+    private fun switchToLocalPlayer() {
+        val cast = castPlayer ?: return
+        val local = exoPlayer ?: return
+        val session = mediaLibrarySession ?: return
+        if (session.player === local) return
+
+        val episodeId = cast.currentMediaItem?.mediaId?.let { BrowseTree.parseEpisodeId(it) }
+        val positionMs = cast.currentPosition
+        val playWhenReady = cast.playWhenReady
+
+        cast.stop()
+        cast.clearMediaItems()
+        session.player = local
+
+        if (episodeId == null) return
+
+        serviceScope.launch {
+            val episode = try {
+                episodeDao.getByIdOnce(episodeId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load episode $episodeId after cast ended", e)
+                null
+            } ?: return@launch
+            val podcast = try {
+                podcastDao.getByIdOnce(episode.podcastId)
+            } catch (e: Exception) {
+                null
+            }
+            val localItem = BrowseTree.playableEpisodeItem(
+                episode,
+                podcast?.title ?: "",
+                podcast?.artworkUrl ?: "",
+            ) ?: return@launch
+            local.setMediaItem(localItem, positionMs)
+            local.playWhenReady = playWhenReady
+            local.prepare()
+        }
+    }
+
+    private fun showToast(message: String) {
+        try {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to show toast", e)
+        }
     }
 
     /**
@@ -180,11 +351,17 @@ class PlaybackService : MediaLibraryService() {
     override fun onDestroy() {
         serviceScope.cancel()
         releaseLoudnessEnhancer()
-        mediaLibrarySession?.run {
-            player.release()
-            release()
-        }
+        // Release the session first (media3 demo ordering), then both players —
+        // the session's current player may be either one, so each is released
+        // explicitly to avoid leaking the inactive player.
+        mediaLibrarySession?.release()
         mediaLibrarySession = null
+        castPlayer?.let { cast ->
+            cast.setSessionAvailabilityListener(null)
+            cast.release()
+        }
+        castPlayer = null
+        exoPlayer?.release()
         exoPlayer = null
         super.onDestroy()
     }
@@ -431,7 +608,9 @@ class PlaybackService : MediaLibraryService() {
      * Resolves incoming MediaItems to fully populated playable items.
      *
      * - Items that already carry a URI (the app's own play() path when the URI
-     *   survives the controller/session hop) pass through untouched.
+     *   survives the controller/session hop) pass through untouched — unless we are
+     *   casting, in which case they are rebuilt from the remote stream URL because
+     *   the receiver cannot read files on the phone.
      * - Browse-tree ids ("episode_{id}", i.e. picked from Android Auto) are looked
      *   up in the database and must be downloaded — download-first, undownloaded
      *   episodes are silently dropped (they are never listed as playable anyway).
@@ -439,9 +618,10 @@ class PlaybackService : MediaLibraryService() {
      *   when there is no download, matching PlaybackController's behaviour.
      */
     private suspend fun resolveMediaItems(mediaItems: List<MediaItem>): List<MediaItem> {
+        val casting = isCasting()
         val resolved = mutableListOf<MediaItem>()
         for (item in mediaItems) {
-            if (item.localConfiguration != null) {
+            if (item.localConfiguration != null && !casting) {
                 resolved += item
                 continue
             }
@@ -461,11 +641,19 @@ class PlaybackService : MediaLibraryService() {
             } catch (e: Exception) {
                 null
             }
-            val playable = BrowseTree.playableEpisodeItem(
-                episode,
-                podcast?.title ?: "",
-                podcast?.artworkUrl ?: "",
-            ) ?: continue
+            val playable = if (casting) {
+                // Rebuild for the receiver: remote URL + MIME type. Episodes with no
+                // remote URL cannot be cast and are dropped (logged) — e.g. the queue
+                // auto-advancing into such an episode mid-cast simply stops.
+                BrowseTree.castEpisodeItem(episode, podcast?.title ?: "", podcast?.artworkUrl ?: "")
+                    .also {
+                        if (it == null) {
+                            Log.w(TAG, "Dropping episode $episodeId while casting: no remote audio URL")
+                        }
+                    }
+            } else {
+                BrowseTree.playableEpisodeItem(episode, podcast?.title ?: "", podcast?.artworkUrl ?: "")
+            } ?: continue
             resolved += playable
         }
         return resolved
