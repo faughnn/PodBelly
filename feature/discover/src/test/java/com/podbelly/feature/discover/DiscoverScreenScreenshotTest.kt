@@ -34,13 +34,6 @@ class DiscoverScreenScreenshotTest {
                             onSearch = {},
                         )
 
-                        RssUrlSection(
-                            feedUrl = "",
-                            onFeedUrlChange = {},
-                            onSubscribe = {},
-                            isSubscribing = false,
-                        )
-
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                         DiscoverEmptyState(modifier = Modifier.weight(1f))
@@ -90,13 +83,6 @@ class DiscoverScreenScreenshotTest {
                             onSearch = {},
                         )
 
-                        RssUrlSection(
-                            feedUrl = "",
-                            onFeedUrlChange = {},
-                            onSubscribe = {},
-                            isSubscribing = false,
-                        )
-
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                         SearchResultsList(
@@ -113,23 +99,15 @@ class DiscoverScreenScreenshotTest {
     }
 
     @Test
-    fun rssUrlInputWithSubscribing() {
+    fun rssUrlDialog() {
         paparazzi.snapshot {
             MaterialTheme {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    SearchSection(
-                        query = "",
-                        onQueryChange = {},
-                        onSearch = {},
-                    )
-
-                    RssUrlSection(
-                        feedUrl = "https://feeds.simplecast.com/dHoohVNH",
-                        onFeedUrlChange = {},
-                        onSubscribe = {},
-                        isSubscribing = true,
-                    )
-                }
+                RssUrlDialog(
+                    feedUrl = "https://feeds.simplecast.com/dHoohVNH",
+                    onFeedUrlChange = {},
+                    onSubscribe = {},
+                    onDismiss = {},
+                )
             }
         }
     }

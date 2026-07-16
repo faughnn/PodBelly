@@ -10,6 +10,7 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -39,6 +41,9 @@ data class DiscoverPodcastItem(
 /** A browsable chart category, mapping a chip label to an iTunes genre id. */
 data class ChartCategory(val label: String, val genreId: Int)
 
+/** A selectable chart storefront region. */
+data class ChartRegion(val code: String, val label: String)
+
 data class DiscoverUiState(
     val searchQuery: String = "",
     val searchResults: List<DiscoverPodcastItem> = emptyList(),
@@ -52,6 +57,8 @@ data class DiscoverUiState(
     val chartResults: List<DiscoverPodcastItem> = emptyList(),
     val isLoadingChart: Boolean = false,
     val chartError: String? = null,
+    val chartRegions: List<ChartRegion> = DiscoverViewModel.CHART_REGIONS,
+    val selectedChartCountry: String = "",
 )
 
 @OptIn(FlowPreview::class)
@@ -62,6 +69,7 @@ class DiscoverViewModel @Inject constructor(
     private val searchRepository: PodcastSearchRepository,
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DiscoverUiState())
@@ -78,9 +86,12 @@ class DiscoverViewModel @Inject constructor(
     /** Charts already fetched this session, so switching chips back is instant. */
     private val chartCache = mutableMapOf<Int, List<DiscoverPodcastItem>>()
 
-    // Charts are region-specific; follow the device locale, falling back to the
-    // US chart when the locale carries no country.
-    private val chartCountry: String =
+    // Charts are region-specific. The stored preference wins; blank means
+    // "follow the device locale", falling back to the US chart when the locale
+    // carries no country. Resolved before the first chart load in init.
+    private var chartCountry: String = "us"
+
+    private fun defaultChartCountry(): String =
         java.util.Locale.getDefault().country.lowercase().ifBlank { "us" }
 
     init {
@@ -99,7 +110,22 @@ class DiscoverViewModel @Inject constructor(
             }
         }
 
-        loadChart(TOP_CHART_GENRE_ID)
+        viewModelScope.launch {
+            val stored = preferencesManager.chartCountry.first()
+            chartCountry = stored.ifBlank { defaultChartCountry() }
+            _uiState.update { it.copy(selectedChartCountry = chartCountry) }
+            loadChart(TOP_CHART_GENRE_ID)
+        }
+    }
+
+    fun selectChartRegion(countryCode: String) {
+        if (countryCode == chartCountry) return
+        chartCountry = countryCode
+        // Cached charts belong to the previous region.
+        chartCache.clear()
+        _uiState.update { it.copy(selectedChartCountry = countryCode, chartResults = emptyList()) }
+        viewModelScope.launch { preferencesManager.setChartCountry(countryCode) }
+        loadChart(_uiState.value.selectedChartGenreId)
     }
 
     fun selectChartCategory(genreId: Int) {
@@ -117,10 +143,11 @@ class DiscoverViewModel @Inject constructor(
             return
         }
 
+        val requestCountry = chartCountry
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingChart = true, chartError = null) }
             try {
-                val results = searchRepository.topPodcasts(chartCountry, genreId)
+                val results = searchRepository.topPodcasts(requestCountry, genreId)
                 val items = results.map { result ->
                     val existing = podcastDao.getByFeedUrl(result.feedUrl)
                     DiscoverPodcastItem(
@@ -131,14 +158,16 @@ class DiscoverViewModel @Inject constructor(
                         isSubscribed = existing?.subscribed == true,
                     )
                 }
+                // Only publish/cache if this chip and region are still selected; a
+                // slow response for a deselected category (or the previous region)
+                // must not overwrite or pollute the current chart.
+                if (chartCountry != requestCountry) return@launch
                 chartCache[genreId] = items
-                // Only publish if this chip is still selected; a slow response for a
-                // deselected category must not overwrite the current chart.
                 if (_uiState.value.selectedChartGenreId == genreId) {
                     _uiState.update { it.copy(chartResults = items, isLoadingChart = false) }
                 }
             } catch (e: Exception) {
-                if (_uiState.value.selectedChartGenreId == genreId) {
+                if (chartCountry == requestCountry && _uiState.value.selectedChartGenreId == genreId) {
                     _uiState.update {
                         it.copy(
                             isLoadingChart = false,
@@ -369,6 +398,30 @@ class DiscoverViewModel @Inject constructor(
     companion object {
         /** iTunes' root "Podcasts" genre — the overall chart. */
         const val TOP_CHART_GENRE_ID = 26
+
+        val CHART_REGIONS = listOf(
+            ChartRegion("ie", "Ireland"),
+            ChartRegion("gb", "United Kingdom"),
+            ChartRegion("us", "United States"),
+            ChartRegion("au", "Australia"),
+            ChartRegion("ca", "Canada"),
+            ChartRegion("nz", "New Zealand"),
+            ChartRegion("de", "Germany"),
+            ChartRegion("fr", "France"),
+            ChartRegion("es", "Spain"),
+            ChartRegion("it", "Italy"),
+            ChartRegion("nl", "Netherlands"),
+            ChartRegion("se", "Sweden"),
+            ChartRegion("no", "Norway"),
+            ChartRegion("dk", "Denmark"),
+            ChartRegion("pt", "Portugal"),
+            ChartRegion("pl", "Poland"),
+            ChartRegion("br", "Brazil"),
+            ChartRegion("mx", "Mexico"),
+            ChartRegion("jp", "Japan"),
+            ChartRegion("in", "India"),
+            ChartRegion("za", "South Africa"),
+        )
 
         val CHART_CATEGORIES = listOf(
             ChartCategory("Top", TOP_CHART_GENRE_ID),

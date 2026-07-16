@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 56
+    const val LATEST_VERSION_CODE = 58
 
     val changelog: Map<Int, List<String>> = mapOf(
+        57 to listOf(
+            "Discover is tidier: add-by-RSS now lives behind the feed button beside the search bar",
+            "Pick your chart region: tap the country chip next to the categories to browse another country's top podcasts",
+        ),
         54 to listOf(
             "Home-screen widget: see what's playing and control it without opening the app",
         ),

@@ -6,15 +6,18 @@ import coil.ImageLoader
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.PodcastEntity
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.network.model.RssEpisode
 import com.podbelly.core.network.model.RssFeed
 import com.podbelly.core.network.model.SearchResult
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -38,12 +41,15 @@ class DiscoverViewModelTest {
     private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
+    private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         // Default: no podcast exists in DB for subscribed checks
         coEvery { podcastDao.getByFeedUrl(any()) } returns null
+        // Blank stored region -> ViewModel falls back to the device locale.
+        every { preferencesManager.chartCountry } returns MutableStateFlow("")
     }
 
     @After
@@ -58,6 +64,7 @@ class DiscoverViewModelTest {
             searchRepository = searchRepository,
             podcastDao = podcastDao,
             episodeDao = episodeDao,
+            preferencesManager = preferencesManager,
         )
     }
 
@@ -438,5 +445,53 @@ class DiscoverViewModelTest {
         val state = viewModel.uiState.value
         assertNull(state.chartError)
         assertEquals(listOf("Recovered Show"), state.chartResults.map { it.title })
+    }
+
+    // -- Chart regions --
+
+    @Test
+    fun `stored chart region is used for the initial chart load`() = runTest {
+        every { preferencesManager.chartCountry } returns MutableStateFlow("gb")
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns emptyList()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals("gb", viewModel.uiState.value.selectedChartCountry)
+        coVerify { searchRepository.topPodcasts("gb", DiscoverViewModel.TOP_CHART_GENRE_ID, any()) }
+    }
+
+    @Test
+    fun `selecting a region persists it, clears the cache and refetches`() = runTest {
+        every { preferencesManager.chartCountry } returns MutableStateFlow("us")
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns listOf(
+            chartResult("https://feed.a", "Show A"),
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.selectChartRegion("ie")
+        advanceUntilIdle()
+
+        assertEquals("ie", viewModel.uiState.value.selectedChartCountry)
+        coVerify { preferencesManager.setChartCountry("ie") }
+        // Fetched once per region for the same genre - the cache was cleared.
+        coVerify(exactly = 1) { searchRepository.topPodcasts("us", DiscoverViewModel.TOP_CHART_GENRE_ID, any()) }
+        coVerify(exactly = 1) { searchRepository.topPodcasts("ie", DiscoverViewModel.TOP_CHART_GENRE_ID, any()) }
+    }
+
+    @Test
+    fun `selecting the already-active region does nothing`() = runTest {
+        every { preferencesManager.chartCountry } returns MutableStateFlow("ie")
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns emptyList()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.selectChartRegion("ie")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { preferencesManager.setChartCountry(any()) }
     }
 }

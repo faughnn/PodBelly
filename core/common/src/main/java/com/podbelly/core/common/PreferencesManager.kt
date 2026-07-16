@@ -95,6 +95,7 @@ class PreferencesManager @Inject constructor(
         val HOME_NEW_EPISODES_CUTOFF = longPreferencesKey("home_new_episodes_cutoff")
         val HOME_NEW_DISMISSED_AT = longPreferencesKey("home_new_dismissed_at")
         val LAST_FEED_REFRESH_AT = longPreferencesKey("last_feed_refresh_at")
+        val CHART_COUNTRY = stringPreferencesKey("chart_country")
     }
 
     // ── Flows ────────────────────────────────────────────────────────────
@@ -178,6 +179,14 @@ class PreferencesManager @Inject constructor(
      */
     val homeNewDismissedAt: Flow<Long> = dataStore.data.map { prefs ->
         prefs[Keys.HOME_NEW_DISMISSED_AT] ?: 0L
+    }
+
+    /**
+     * ISO country code for the Discover top charts ("ie", "us", ...). Blank means
+     * "follow the device locale".
+     */
+    val chartCountry: Flow<String> = dataStore.data.map { prefs ->
+        prefs[Keys.CHART_COUNTRY] ?: ""
     }
 
     /** When feeds last refreshed successfully (epoch ms, 0 = never). */
@@ -293,6 +302,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setHomeNewEpisodesCutoff(timestamp: Long) {
         dataStore.edit { prefs ->
             prefs[Keys.HOME_NEW_EPISODES_CUTOFF] = timestamp
+        }
+    }
+
+    suspend fun setChartCountry(countryCode: String) {
+        dataStore.edit { prefs ->
+            prefs[Keys.CHART_COUNTRY] = countryCode
         }
     }
 
