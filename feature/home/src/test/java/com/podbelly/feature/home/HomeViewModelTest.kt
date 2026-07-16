@@ -9,6 +9,7 @@ import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.playback.PlaybackController
+import com.podbelly.core.playback.PlaybackState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -47,10 +48,12 @@ class HomeViewModelTest {
     private val inProgressFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
     private val newEpisodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
+    private val playbackStateFlow = MutableStateFlow(PlaybackState())
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        every { playbackController.playbackState } returns playbackStateFlow
         every { episodeDao.getRecentEpisodes(50) } returns episodesFlow
         every { episodeDao.getInProgressEpisodes() } returns inProgressFlow
         every { episodeDao.getEpisodesAddedSince(any()) } returns newEpisodesFlow
@@ -391,6 +394,63 @@ class HomeViewModelTest {
                 startPosition = 0L,
                 podcastId = 1L,
             )
+        }
+    }
+
+    @Test
+    fun `playEpisode pauses when the tapped episode is already playing`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = true)
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(5L)
+        advanceUntilIdle()
+
+        verify { playbackController.pause() }
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.resume() }
+    }
+
+    @Test
+    fun `playEpisode resumes when the tapped episode is loaded but paused`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = false)
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(5L)
+        advanceUntilIdle()
+
+        verify { playbackController.resume() }
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.pause() }
+    }
+
+    @Test
+    fun `playEpisode starts a different episode even while another is playing`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 99L, isPlaying = true)
+        val podcast = makePodcast(id = 1L)
+        val episode = makeEpisode(id = 5L, podcastId = 1L)
+        coEvery { podcastDao.getByIdOnce(1L) } returns podcast
+        coEvery { episodeDao.getByIdOnce(5L) } returns episode
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(5L)
+        advanceUntilIdle()
+
+        verify { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.pause() }
+    }
+
+    @Test
+    fun `nowPlaying mirrors the playback state`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.nowPlaying.test {
+            assertEquals(NowPlayingState(), awaitItem())
+
+            playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = true)
+            assertEquals(NowPlayingState(episodeId = 5L, isPlaying = true), awaitItem())
+
+            playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = false)
+            assertEquals(NowPlayingState(episodeId = 5L, isPlaying = false), awaitItem())
         }
     }
 

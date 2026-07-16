@@ -19,11 +19,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -39,6 +41,12 @@ data class HomeEpisodeItem(
     val played: Boolean,
     val downloadPath: String,
     val playbackPosition: Long = 0L,
+)
+
+/** Which episode is loaded in the player right now, and whether it's audibly playing. */
+data class NowPlayingState(
+    val episodeId: Long = 0L,
+    val isPlaying: Boolean = false,
 )
 
 data class HomeUiState(
@@ -70,6 +78,15 @@ class HomeViewModel @Inject constructor(
 
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
+
+    /**
+     * Follows the player so episode cards can show a pause button for the episode
+     * that's currently playing (and toggle it instead of restarting playback).
+     */
+    val nowPlaying: StateFlow<NowPlayingState> = playbackController.playbackState
+        .map { NowPlayingState(episodeId = it.episodeId, isPlaying = it.isPlaying) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NowPlayingState())
 
     // The "New" section shows episodes discovered after the persisted cutoff. The
     // cutoff is snapshotted per *visit* so the section doesn't dissolve while the
@@ -213,6 +230,13 @@ class HomeViewModel @Inject constructor(
     }
 
     fun playEpisode(episodeId: Long) {
+        // Tapping the episode that's already loaded toggles pause/resume instead of
+        // restarting it from its saved position.
+        val current = playbackController.playbackState.value
+        if (current.episodeId == episodeId) {
+            if (current.isPlaying) playbackController.pause() else playbackController.resume()
+            return
+        }
         viewModelScope.launch {
             val episode = episodeDao.getByIdOnce(episodeId) ?: return@launch
             val podcast = podcastDao.getByIdOnce(episode.podcastId)

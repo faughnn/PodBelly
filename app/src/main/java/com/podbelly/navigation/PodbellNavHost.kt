@@ -177,15 +177,27 @@ fun PodbellNavHost(
                             NavigationBarItem(
                                 selected = selected,
                                 onClick = {
-                                    navController.navigate(item.route) {
-                                        // Save/restore each tab's back stack + state so
-                                        // switching tabs doesn't reset scroll position,
-                                        // search text, or screen-scoped ViewModels.
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
+                                    if (selected) {
+                                        // Re-tapping the current tab (the second tap of a
+                                        // quick double-tap) resets it to a fresh root —
+                                        // scroll back to top, search cleared — the
+                                        // "pop to root on reselect" pattern from
+                                        // Pocket Casts' bottom navigation.
+                                        navController.navigate(item.route) {
+                                            popUpTo(item.route) { inclusive = true }
+                                            launchSingleTop = true
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                    } else {
+                                        navController.navigate(item.route) {
+                                            // Save/restore each tab's back stack + state so
+                                            // switching tabs doesn't reset scroll position,
+                                            // search text, or screen-scoped ViewModels.
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
                                 },
                                 icon = {
@@ -330,6 +342,9 @@ fun PodbellNavHost(
                 PlayerScreen(
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPodcast = { podcastId ->
+                        navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     }
                 )
             }

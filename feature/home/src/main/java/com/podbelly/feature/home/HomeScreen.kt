@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
@@ -96,6 +97,7 @@ fun HomeScreen(
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
     val lastRefreshedAt by viewModel.lastRefreshedAt.collectAsStateWithLifecycle()
+    val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -170,6 +172,7 @@ fun HomeScreen(
                     newEpisodes = uiState.newEpisodes,
                     inProgressEpisodes = uiState.inProgressEpisodes,
                     downloadProgress = downloadProgress,
+                    nowPlaying = nowPlaying,
                     onEpisodeClick = onEpisodeClick,
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
                     onDownloadClick = { episodeId -> viewModel.downloadEpisode(episodeId) },
@@ -232,6 +235,7 @@ internal fun EpisodeList(
     newEpisodes: List<HomeEpisodeItem> = emptyList(),
     inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
     downloadProgress: Map<Long, Float>,
+    nowPlaying: NowPlayingState = NowPlayingState(),
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
     onDownloadClick: (Long) -> Unit,
@@ -333,6 +337,8 @@ internal fun EpisodeList(
                 EpisodeCard(
                     episode = episode,
                     downloadProgress = downloadProgress[episode.episodeId],
+                    isCurrentlyPlaying = nowPlaying.isPlaying &&
+                        nowPlaying.episodeId == episode.episodeId,
                     onClick = { onEpisodeClick(episode.episodeId) },
                     onPlay = { onPlayClick(episode.episodeId) },
                     onDownload = { onDownloadClick(episode.episodeId) },
@@ -373,6 +379,8 @@ internal fun EpisodeList(
             EpisodeCard(
                 episode = episode,
                 downloadProgress = downloadProgress[episode.episodeId],
+                isCurrentlyPlaying = nowPlaying.isPlaying &&
+                    nowPlaying.episodeId == episode.episodeId,
                 onClick = { onEpisodeClick(episode.episodeId) },
                 onPlay = { onPlayClick(episode.episodeId) },
                 onDownload = { onDownloadClick(episode.episodeId) },
@@ -581,6 +589,7 @@ fun EpisodeCard(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onCancelDownload: () -> Unit = {},
+    isCurrentlyPlaying: Boolean = false,
     queueEnabled: Boolean = false,
     onPlayNext: () -> Unit = {},
     onPlayLast: () -> Unit = {},
@@ -703,6 +712,10 @@ fun EpisodeCard(
                         .size(40.dp)
                         .align(Alignment.CenterVertically),
                     colors = when {
+                        isDownloaded && isCurrentlyPlaying -> IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
                         isDownloaded && episode.played -> IconButtonDefaults.iconButtonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -732,6 +745,12 @@ fun EpisodeCard(
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
+                        }
+                        isDownloaded && isCurrentlyPlaying -> {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "Pause episode",
+                            )
                         }
                         isDownloaded && episode.played -> {
                             Icon(

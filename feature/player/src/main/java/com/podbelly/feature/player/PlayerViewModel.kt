@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.dao.PodcastSkipSettings
 import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.network.transcript.TranscriptParser
@@ -95,6 +96,32 @@ class PlayerViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
+            initialValue = null,
+        )
+
+    /**
+     * Intro/outro auto-skip settings of the playing episode's podcast, followed via
+     * the database so edits made anywhere (here or the podcast page) stay in sync.
+     * Null while nothing is playing.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val skipSettings: StateFlow<PodcastSkipSettings?> = playbackController.playbackState
+        .map { it.podcastId }
+        .distinctUntilChanged()
+        .flatMapLatest { podcastId ->
+            if (podcastId == 0L) flowOf(null) else podcastDao.getById(podcastId)
+        }
+        .map { podcast ->
+            podcast?.let {
+                PodcastSkipSettings(
+                    skipIntroSeconds = it.skipIntroSeconds,
+                    skipOutroSeconds = it.skipOutroSeconds,
+                )
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
             initialValue = null,
         )
 
@@ -248,6 +275,22 @@ class PlayerViewModel @Inject constructor(
         sleepTimer.cancel()
         viewModelScope.launch {
             preferencesManager.setSleepTimerMinutes(0)
+        }
+    }
+
+    fun setSkipIntroSeconds(seconds: Int) {
+        val podcastId = playbackController.playbackState.value.podcastId
+        if (podcastId == 0L) return
+        viewModelScope.launch {
+            podcastDao.updateSkipIntroSeconds(podcastId, seconds)
+        }
+    }
+
+    fun setSkipOutroSeconds(seconds: Int) {
+        val podcastId = playbackController.playbackState.value.podcastId
+        if (podcastId == 0L) return
+        viewModelScope.launch {
+            podcastDao.updateSkipOutroSeconds(podcastId, seconds)
         }
     }
 
