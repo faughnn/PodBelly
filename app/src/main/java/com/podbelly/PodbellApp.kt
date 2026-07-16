@@ -11,6 +11,7 @@ import coil.Coil
 import coil.ImageLoader
 import com.podbelly.core.common.CrashLogStore
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.playback.PlaybackController
 import com.podbelly.worker.WorkManagerSetup
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,9 @@ class PodbellApp : Application(), Configuration.Provider {
     @Inject
     lateinit var preferencesManager: PreferencesManager
 
+    @Inject
+    lateinit var playbackController: PlaybackController
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override val workManagerConfiguration: Configuration
@@ -48,6 +52,13 @@ class PodbellApp : Application(), Configuration.Provider {
         installCrashLogHandler()
         createNotificationChannels()
         scheduleFeedRefresh()
+        // Connect the PlaybackController at process start, not only from MainActivity:
+        // when Android Auto cold-starts the process by binding to PlaybackService, no
+        // Activity ever runs, and without this connection the controller's position
+        // loop (position saving, mark-played, outro-skip, queue auto-advance) would
+        // never observe Auto-initiated playback. connectToService is idempotent, so
+        // MainActivity's existing call remains a harmless no-op.
+        playbackController.connectToService(this)
     }
 
     /**

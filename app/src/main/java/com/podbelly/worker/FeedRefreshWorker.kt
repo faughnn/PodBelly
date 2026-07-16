@@ -69,6 +69,8 @@ class FeedRefreshWorker @AssistedInject constructor(
                                     artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
                                     fileSize = rssEpisode.fileSize,
                                     addedAt = System.currentTimeMillis(),
+                                    transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                    transcriptType = rssEpisode.transcriptType ?: "",
                                 )
                             )
                         } else {
@@ -82,6 +84,8 @@ class FeedRefreshWorker @AssistedInject constructor(
                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                 artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
                                 fileSize = rssEpisode.fileSize,
+                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                transcriptType = rssEpisode.transcriptType ?: "",
                             )
                         }
                     }

@@ -1,9 +1,28 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 49
+    const val LATEST_VERSION_CODE = 56
 
     val changelog: Map<Int, List<String>> = mapOf(
+        54 to listOf(
+            "Home-screen widget: see what's playing and control it without opening the app",
+        ),
+        53 to listOf(
+            "Chromecast support: tap the cast button on the player to send your episode to a TV or speaker",
+            "Casting plays the show's stream; switching back to your phone resumes your downloaded copy where you left off",
+        ),
+        52 to listOf(
+            "Android Auto support: browse your queue and downloaded episodes from the car screen",
+            "Playback started in the car picks up where you left off, with your per-podcast speed and intro skip",
+        ),
+        51 to listOf(
+            "Read along with episode transcripts: tap the transcript button on the player for shows that provide them",
+            "Tap any line in the transcript to jump straight to that moment",
+        ),
+        50 to listOf(
+            "Skip intros and outros automatically: set per-podcast skip times from the podcast page menu (Skip intro & outro)",
+            "Episodes start past the intro and finish before the outro, then move on to your queue as usual",
+        ),
         49 to listOf(
             "Fixed feeds with special characters (accents, smart quotes) potentially displaying incorrectly on some devices",
             "Fixed feeds that start with a byte-order mark failing to load",

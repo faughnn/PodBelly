@@ -33,3 +33,9 @@
 
 # Suppress warnings for Media3 internal classes
 -dontwarn androidx.media3.**
+
+# ── Chromecast ─────────────────────────────────────────────────────────
+# The Cast framework instantiates the options provider via reflection from
+# the manifest meta-data entry; keep media3's cast classes so it (and the
+# CastPlayer converters) survive minification.
+-keep class androidx.media3.cast.** { *; }

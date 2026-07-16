@@ -55,7 +55,9 @@ interface EpisodeDao {
             publicationDate = :publicationDate,
             durationSeconds = :durationSeconds,
             artworkUrl = :artworkUrl,
-            fileSize = CASE WHEN downloadPath != '' THEN fileSize ELSE :fileSize END
+            fileSize = CASE WHEN downloadPath != '' THEN fileSize ELSE :fileSize END,
+            transcriptUrl = :transcriptUrl,
+            transcriptType = :transcriptType
         WHERE podcastId = :podcastId AND guid = :guid
         """
     )
@@ -69,6 +71,8 @@ interface EpisodeDao {
         durationSeconds: Int,
         artworkUrl: String,
         fileSize: Long,
+        transcriptUrl: String,
+        transcriptType: String,
     )
 
     @Query(
@@ -90,6 +94,14 @@ interface EpisodeDao {
 
     @Query("SELECT * FROM episodes WHERE downloadPath != ''")
     suspend fun getDownloadedEpisodesOnce(): List<EpisodeEntity>
+
+    /** Downloaded episodes of one podcast, newest first. Powers the Android Auto browse tree. */
+    @Query("SELECT * FROM episodes WHERE podcastId = :podcastId AND downloadPath != '' ORDER BY publicationDate DESC")
+    suspend fun getDownloadedByPodcastIdOnce(podcastId: Long): List<EpisodeEntity>
+
+    /** Ids of podcasts that have at least one downloaded episode (Android Auto browse tree). */
+    @Query("SELECT DISTINCT podcastId FROM episodes WHERE downloadPath != ''")
+    suspend fun getPodcastIdsWithDownloads(): List<Long>
 
     @Query("SELECT COALESCE(SUM(fileSize), 0) FROM episodes WHERE downloadPath != ''")
     fun getTotalDownloadedBytes(): Flow<Long>

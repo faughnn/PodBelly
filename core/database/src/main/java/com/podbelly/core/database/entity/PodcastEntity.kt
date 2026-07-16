@@ -54,4 +54,18 @@ data class PodcastEntity(
 
     @ColumnInfo(name = "playbackSpeed", defaultValue = "0.0")
     val playbackSpeed: Float = 0.0f,
+
+    /**
+     * Seconds to auto-skip at the start of every episode of this podcast
+     * (per-feed intro skip, AntennaPod pattern). 0 = disabled.
+     */
+    @ColumnInfo(name = "skipIntroSeconds", defaultValue = "0")
+    val skipIntroSeconds: Int = 0,
+
+    /**
+     * Seconds to cut off the end of every episode of this podcast
+     * (per-feed outro/ending skip, AntennaPod pattern). 0 = disabled.
+     */
+    @ColumnInfo(name = "skipOutroSeconds", defaultValue = "0")
+    val skipOutroSeconds: Int = 0,
 )

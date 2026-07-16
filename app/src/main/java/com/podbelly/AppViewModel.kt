@@ -154,7 +154,9 @@ class AppViewModel @Inject constructor(
                                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                                 artworkUrl = rssEpisode.artworkUrl ?: "",
                                                 fileSize = rssEpisode.fileSize,
-                                                addedAt = System.currentTimeMillis()
+                                                addedAt = System.currentTimeMillis(),
+                                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                                transcriptType = rssEpisode.transcriptType ?: "",
                                             )
                                         )
                                     } else {
@@ -168,6 +170,8 @@ class AppViewModel @Inject constructor(
                                             durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                             artworkUrl = rssEpisode.artworkUrl ?: "",
                                             fileSize = rssEpisode.fileSize,
+                                            transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                            transcriptType = rssEpisode.transcriptType ?: "",
                                         )
                                     }
                                 }

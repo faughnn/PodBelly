@@ -537,6 +537,144 @@ class RssParserTest {
         assertEquals("Séance Café", feed.title)
     }
 
+    // -------------------------------------------------------------------------
+    // Podcasting 2.0 transcript (<podcast:transcript>)
+    // -------------------------------------------------------------------------
+
+    // The injected tags are collapsed onto one line BEFORE interpolation: a
+    // multi-line argument would contribute column-0 lines to the raw string,
+    // turning the outer trimIndent() into a no-op and leaving whitespace before
+    // the XML declaration — which strict parsers (MXParser on the unit-test
+    // classpath) reject even though lenient ones (kxml2) accept it.
+    private fun transcriptFeedXml(transcriptTags: String): String = transcriptFeedXmlTemplate(
+        transcriptTags.lines().joinToString(" ") { it.trim() }
+    )
+
+    private fun transcriptFeedXmlTemplate(transcriptTagsOneLine: String): String = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"
+             xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+             xmlns:podcast="https://podcastindex.org/namespace/1.0">
+          <channel>
+            <title>Transcript Podcast</title>
+            <description>Desc</description>
+            <item>
+              <title>Episode 1</title>
+              <guid>guid-1</guid>
+              <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="100"/>
+              $transcriptTagsOneLine
+            </item>
+          </channel>
+        </rss>
+    """.trimIndent()
+
+    @Test
+    fun `parse extracts podcast transcript url and type`() = runTest {
+        val xml = transcriptFeedXml(
+            """<podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>"""
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        val episode = feed.episodes[0]
+        assertEquals("https://example.com/ep1.vtt", episode.transcriptUrl)
+        assertEquals("text/vtt", episode.transcriptType)
+    }
+
+    @Test
+    fun `episode without transcript has null transcript fields`() = runTest {
+        val xml = transcriptFeedXml("")
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertNull(feed.episodes[0].transcriptUrl)
+        assertNull(feed.episodes[0].transcriptType)
+    }
+
+    @Test
+    fun `multiple transcripts prefer JSON over VTT and SRT`() = runTest {
+        val xml = transcriptFeedXml(
+            """
+            <podcast:transcript url="https://example.com/ep1.srt" type="application/x-subrip"/>
+            <podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>
+            <podcast:transcript url="https://example.com/ep1.json" type="application/json"/>
+            """.trimIndent()
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        val episode = feed.episodes[0]
+        assertEquals("https://example.com/ep1.json", episode.transcriptUrl)
+        assertEquals("application/json", episode.transcriptType)
+    }
+
+    @Test
+    fun `multiple transcripts prefer VTT over SRT and HTML`() = runTest {
+        val xml = transcriptFeedXml(
+            """
+            <podcast:transcript url="https://example.com/ep1.html" type="text/html"/>
+            <podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>
+            <podcast:transcript url="https://example.com/ep1.srt" type="application/srt"/>
+            """.trimIndent()
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("https://example.com/ep1.vtt", feed.episodes[0].transcriptUrl)
+        assertEquals("text/vtt", feed.episodes[0].transcriptType)
+    }
+
+    @Test
+    fun `unpreferred transcript type is still kept when it is the only one`() = runTest {
+        val xml = transcriptFeedXml(
+            """<podcast:transcript url="https://example.com/ep1.html" type="text/html"/>"""
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("https://example.com/ep1.html", feed.episodes[0].transcriptUrl)
+        assertEquals("text/html", feed.episodes[0].transcriptType)
+    }
+
+    @Test
+    fun `transcript without url is ignored`() = runTest {
+        val xml = transcriptFeedXml("""<podcast:transcript type="text/vtt"/>""")
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertNull(feed.episodes[0].transcriptUrl)
+    }
+
+    @Test
+    fun `transcript does not leak into the next item`() = runTest {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0"
+                 xmlns:podcast="https://podcastindex.org/namespace/1.0">
+              <channel>
+                <title>Transcript Podcast</title>
+                <item>
+                  <title>Episode 1</title>
+                  <guid>guid-1</guid>
+                  <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg"/>
+                  <podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>
+                </item>
+                <item>
+                  <title>Episode 2</title>
+                  <guid>guid-2</guid>
+                  <enclosure url="https://example.com/ep2.mp3" type="audio/mpeg"/>
+                </item>
+              </channel>
+            </rss>
+        """.trimIndent()
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals(2, feed.episodes.size)
+        assertEquals("https://example.com/ep1.vtt", feed.episodes[0].transcriptUrl)
+        assertNull(feed.episodes[1].transcriptUrl)
+    }
+
     @Test
     fun `streaming parse strips a UTF-8 byte-order mark`() = runTest {
         // A BOM decoded as ordinary text yields U+FEFF before the prolog, which

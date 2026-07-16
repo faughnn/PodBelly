@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -80,6 +82,7 @@ fun PodcastDetailScreen(
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showSkipSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.downloadErrors.collect { error ->
@@ -99,6 +102,7 @@ fun PodcastDetailScreen(
                 notifyNewEpisodes = uiState.podcast?.notifyNewEpisodes ?: true,
                 onNavigateBack = onNavigateBack,
                 onToggleNotifications = { viewModel.toggleNotifications() },
+                onSkipSettings = { showSkipSettings = true },
                 onUnsubscribe = {
                     viewModel.unsubscribe()
                     onNavigateBack()
@@ -153,6 +157,16 @@ fun PodcastDetailScreen(
             }
         }
     }
+
+    if (showSkipSettings) {
+        SkipIntroOutroDialog(
+            skipIntroSeconds = uiState.podcast?.skipIntroSeconds ?: 0,
+            skipOutroSeconds = uiState.podcast?.skipOutroSeconds ?: 0,
+            onSetSkipIntro = { viewModel.setSkipIntroSeconds(it) },
+            onSetSkipOutro = { viewModel.setSkipOutroSeconds(it) },
+            onDismiss = { showSkipSettings = false },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,6 +176,7 @@ private fun PodcastDetailTopBar(
     notifyNewEpisodes: Boolean,
     onNavigateBack: () -> Unit,
     onToggleNotifications: () -> Unit,
+    onSkipSettings: () -> Unit,
     onUnsubscribe: () -> Unit,
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -214,6 +229,13 @@ private fun PodcastDetailTopBar(
                         onClick = {
                             showOverflowMenu = false
                             onToggleNotifications()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Skip intro & outro") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onSkipSettings()
                         }
                     )
                     DropdownMenuItem(
@@ -325,6 +347,84 @@ private fun PodcastHeader(
                         .padding(vertical = 2.dp)
                 )
             }
+        }
+    }
+}
+
+/**
+ * Per-podcast "Skip intro" / "Skip outro" settings (AntennaPod's per-feed skip
+ * pattern). Preset choices persist immediately, like the per-podcast speed presets.
+ */
+@Composable
+internal fun SkipIntroOutroDialog(
+    skipIntroSeconds: Int,
+    skipOutroSeconds: Int,
+    onSetSkipIntro: (Int) -> Unit,
+    onSetSkipOutro: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Skip intro & outro") },
+        text = {
+            Column {
+                Text(
+                    text = "Automatically skip the first and last seconds of every episode of this podcast.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Skip intro",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                SkipSecondsChipsRow(
+                    selectedSeconds = skipIntroSeconds,
+                    onSelect = onSetSkipIntro,
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Skip outro",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                SkipSecondsChipsRow(
+                    selectedSeconds = skipOutroSeconds,
+                    onSelect = onSetSkipOutro,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        },
+    )
+}
+
+@Composable
+private fun SkipSecondsChipsRow(
+    selectedSeconds: Int,
+    onSelect: (Int) -> Unit,
+) {
+    val presets = listOf(0, 15, 30, 45, 60)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        presets.forEach { seconds ->
+            FilterChip(
+                selected = selectedSeconds == seconds,
+                onClick = { onSelect(seconds) },
+                label = {
+                    Text(text = if (seconds == 0) "Off" else "${seconds}s")
+                },
+            )
         }
     }
 }

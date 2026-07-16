@@ -76,5 +76,16 @@ data class EpisodeEntity(
      * podcast, so a new subscription's backlog never shows up as "new" on Home.
      */
     @ColumnInfo(name = "addedAt")
-    val addedAt: Long = 0L
+    val addedAt: Long = 0L,
+
+    /**
+     * Podcasting 2.0 `<podcast:transcript>` URL for this episode; empty when the
+     * feed doesn't provide one. Refreshes keep it up to date via updateFeedFields.
+     */
+    @ColumnInfo(name = "transcriptUrl", defaultValue = "")
+    val transcriptUrl: String = "",
+
+    /** MIME type declared for [transcriptUrl] (e.g. "text/vtt"); empty when unknown. */
+    @ColumnInfo(name = "transcriptType", defaultValue = "")
+    val transcriptType: String = "",
 )

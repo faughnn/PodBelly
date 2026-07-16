@@ -37,6 +37,8 @@ data class PodcastUiModel(
     val artworkUrl: String,
     val episodeCount: Int,
     val notifyNewEpisodes: Boolean = true,
+    val skipIntroSeconds: Int = 0,
+    val skipOutroSeconds: Int = 0,
 )
 
 data class EpisodeUiModel(
@@ -99,6 +101,8 @@ class PodcastDetailViewModel @Inject constructor(
                 artworkUrl = it.artworkUrl,
                 episodeCount = it.episodeCount,
                 notifyNewEpisodes = it.notifyNewEpisodes,
+                skipIntroSeconds = it.skipIntroSeconds,
+                skipOutroSeconds = it.skipOutroSeconds,
             )
         }
 
@@ -155,6 +159,8 @@ class PodcastDetailViewModel @Inject constructor(
                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                 artworkUrl = rssEpisode.artworkUrl ?: "",
                                 addedAt = System.currentTimeMillis(),
+                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                transcriptType = rssEpisode.transcriptType ?: "",
                             )
                         )
                     } else {
@@ -169,6 +175,8 @@ class PodcastDetailViewModel @Inject constructor(
                             durationSeconds = (rssEpisode.duration / 1000).toInt(),
                             artworkUrl = rssEpisode.artworkUrl ?: "",
                             fileSize = rssEpisode.fileSize,
+                            transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                            transcriptType = rssEpisode.transcriptType ?: "",
                         )
                     }
                 }
@@ -253,6 +261,20 @@ class PodcastDetailViewModel @Inject constructor(
     fun unsubscribe() {
         viewModelScope.launch {
             podcastDao.unsubscribe(podcastId)
+        }
+    }
+
+    /** Persists the per-podcast intro auto-skip (seconds; 0 disables it). */
+    fun setSkipIntroSeconds(seconds: Int) {
+        viewModelScope.launch {
+            podcastDao.updateSkipIntroSeconds(podcastId, seconds.coerceAtLeast(0))
+        }
+    }
+
+    /** Persists the per-podcast outro auto-skip (seconds; 0 disables it). */
+    fun setSkipOutroSeconds(seconds: Int) {
+        viewModelScope.launch {
+            podcastDao.updateSkipOutroSeconds(podcastId, seconds.coerceAtLeast(0))
         }
     }
 

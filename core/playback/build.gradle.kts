@@ -38,10 +38,13 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.media3.ui)
+    implementation(libs.media3.cast)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
+    // Bridges suspend browse-tree queries to the ListenableFutures Media3 callbacks require
+    implementation(libs.coroutines.guava)
     implementation(libs.androidx.core.ktx)
 
     testImplementation(libs.junit)

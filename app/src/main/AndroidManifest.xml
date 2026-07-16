@@ -34,6 +34,31 @@
 
         <!-- PlaybackService is declared in core:playback's manifest and merged automatically -->
 
+        <!-- Android Auto: declares this app as a media app to the car system. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <!-- Home-screen playback widget. State updates arrive as explicit
+             broadcasts from PlaybackService (ACTION_WIDGET_STATE). -->
+        <receiver
+            android:name=".widget.PlaybackWidgetProvider"
+            android:exported="false"
+            android:label="Podbelly playback">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_playback_info" />
+        </receiver>
+
+        <!-- Chromecast: media3's default provider targets the default media receiver
+             (the same receiver app the media3 cast demo uses). -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="androidx.media3.cast.DefaultCastOptionsProvider" />
+
         <!--
             WorkManager's SystemForegroundService must declare foregroundServiceType
             so that DownloadWorker can run as a DATA_SYNC foreground service on API 34+.

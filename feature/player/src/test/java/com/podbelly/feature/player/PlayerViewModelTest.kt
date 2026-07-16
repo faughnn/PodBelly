@@ -5,6 +5,7 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.QueueDao
+import com.podbelly.core.network.transcript.TranscriptParser
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState
 import com.podbelly.core.playback.SleepTimer
@@ -39,6 +40,7 @@ class PlayerViewModelTest {
     private val queueDao = mockk<QueueDao>(relaxed = true)
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
     private val sleepTimer = mockk<SleepTimer>(relaxed = true)
+    private val transcriptParser = mockk<TranscriptParser>(relaxed = true)
 
     private val playbackStateFlow = MutableStateFlow(PlaybackState())
     private val sleepTimerRemainingFlow = MutableStateFlow(0L)
@@ -68,6 +70,7 @@ class PlayerViewModelTest {
             queueDao = queueDao,
             preferencesManager = preferencesManager,
             sleepTimer = sleepTimer,
+            transcriptParser = transcriptParser,
         )
     }
 
