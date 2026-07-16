@@ -169,9 +169,6 @@ fun DiscoverScreen(
                         subscribingFeedUrls = uiState.subscribingFeedUrls,
                         onSubscribe = viewModel::subscribeToPodcast,
                         onPodcastClick = viewModel::onPodcastClick,
-                        regions = uiState.chartRegions,
-                        selectedCountry = uiState.selectedChartCountry,
-                        onRegionSelected = viewModel::selectChartRegion,
                         modifier = Modifier.weight(1f),
                     )
                 }
