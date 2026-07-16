@@ -536,4 +536,22 @@ class RssParserTest {
 
         assertEquals("Séance Café", feed.title)
     }
+
+    @Test
+    fun `streaming parse strips a UTF-8 byte-order mark`() = runTest {
+        // A BOM decoded as ordinary text yields U+FEFF before the prolog, which
+        // XML parsers reject ("PI must not start with xml") — resolveCharset must
+        // consume it. The old buffered implementation failed on such feeds.
+        val xml = streamFeedXml("Séance Café", "UTF-8")
+        val bytes = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) +
+            xml.toByteArray(Charsets.UTF_8)
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            bytes.inputStream(),
+            null,
+        )
+
+        assertEquals("Séance Café", feed.title)
+    }
 }
