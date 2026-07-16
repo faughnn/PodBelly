@@ -153,6 +153,11 @@ fun PlayerScreen(
                         )
                     }
                 },
+                actions = {
+                    // Chromecast device picker; renders nothing on devices without
+                    // Google Play services.
+                    CastButton(modifier = Modifier.padding(end = 8.dp))
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                 ),

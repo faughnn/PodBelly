@@ -210,6 +210,35 @@ class BrowseTreeTest {
     }
 
     // -------------------------------------------------------------------------
+    // Cast items (Chromecast receiver)
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `cast item always uses the remote url even when downloaded`() {
+        val item = BrowseTree.castEpisodeItem(episode(), "Test Show")!!
+        assertEquals("https://example.com/ep42.mp3", item.localConfiguration?.uri.toString())
+    }
+
+    @Test
+    fun `cast item is null when the feed has no remote url`() {
+        assertNull(BrowseTree.castEpisodeItem(episode(audioUrl = ""), "Test Show"))
+    }
+
+    @Test
+    fun `cast item carries the mime type the receiver requires`() {
+        val item = BrowseTree.castEpisodeItem(episode(), "Test Show")!!
+        assertEquals("audio/mpeg", item.localConfiguration?.mimeType)
+    }
+
+    @Test
+    fun `cast item keeps the plain numeric media id and episode metadata`() {
+        val item = BrowseTree.castEpisodeItem(episode(), "Test Show")!!
+        assertEquals("42", item.mediaId)
+        assertEquals("Episode 42", item.mediaMetadata.title.toString())
+        assertEquals("Test Show", item.mediaMetadata.artist.toString())
+    }
+
+    // -------------------------------------------------------------------------
     // Mime type inference
     // -------------------------------------------------------------------------
 
