@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -50,6 +51,8 @@ import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
@@ -104,6 +107,7 @@ import coil.request.ImageRequest
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import coil.request.SuccessResult
+import com.podbelly.core.common.SkipIntroOutroDialog
 import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.playback.Chapter
 import kotlinx.coroutines.Dispatchers
@@ -114,11 +118,14 @@ import kotlinx.coroutines.withContext
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
+    onNavigateToPodcast: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val skipSettings by viewModel.skipSettings.collectAsStateWithLifecycle()
     val playback = uiState.playbackState
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val speedPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showSkipSettings by remember { mutableStateOf(false) }
 
     // Extract dominant color from artwork for background tinting
     val dominantColor = rememberDominantColor(
@@ -157,6 +164,36 @@ fun PlayerScreen(
                     // Chromecast device picker; renders nothing on devices without
                     // Google Play services.
                     CastButton(modifier = Modifier.padding(end = 8.dp))
+                    if (playback.podcastId != 0L) {
+                        var showOverflowMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.MoreVert,
+                                    contentDescription = "More options",
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Skip intro & outro") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showSkipSettings = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Go to podcast") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onNavigateToPodcast(playback.podcastId)
+                                    },
+                                )
+                            }
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
@@ -232,14 +269,19 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // ── Podcast title ────────────────────────────────────────
+                // ── Podcast title (tap to open the show's episode list) ──
                 Text(
                     text = playback.podcastTitle,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            enabled = playback.podcastId != 0L,
+                            onClickLabel = "Go to podcast",
+                        ) { onNavigateToPodcast(playback.podcastId) },
                 )
 
                 // ── Current chapter title (if chapters exist) ─────────
@@ -303,6 +345,17 @@ fun PlayerScreen(
                 Spacer(modifier = Modifier.height(48.dp))
             }
         }
+    }
+
+    // ── Per-podcast skip intro/outro settings (same dialog as the podcast page)
+    if (showSkipSettings) {
+        SkipIntroOutroDialog(
+            skipIntroSeconds = skipSettings?.skipIntroSeconds ?: 0,
+            skipOutroSeconds = skipSettings?.skipOutroSeconds ?: 0,
+            onSetSkipIntro = { viewModel.setSkipIntroSeconds(it) },
+            onSetSkipOutro = { viewModel.setSkipOutroSeconds(it) },
+            onDismiss = { showSkipSettings = false },
+        )
     }
 
     // ── Speed picker bottom sheet ────────────────────────────────────────

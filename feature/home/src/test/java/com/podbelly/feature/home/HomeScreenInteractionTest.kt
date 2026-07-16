@@ -104,6 +104,49 @@ class HomeScreenInteractionTest {
     }
 
     @Test
+    fun `episode card shows pause button while its episode is playing`() {
+        var toggleClicked = false
+        val episode = createEpisode(downloadPath = "/downloads/episode.mp3")
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeCard(
+                    episode = episode,
+                    downloadProgress = null,
+                    isCurrentlyPlaying = true,
+                    onClick = {},
+                    onPlay = { toggleClicked = true },
+                    onDownload = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Pause episode").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Pause episode").performClick()
+        assertTrue(toggleClicked)
+    }
+
+    @Test
+    fun `pause button wins over the played checkmark while playing`() {
+        val episode = createEpisode(downloadPath = "/downloads/episode.mp3", played = true)
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeCard(
+                    episode = episode,
+                    downloadProgress = null,
+                    isCurrentlyPlaying = true,
+                    onClick = {},
+                    onPlay = {},
+                    onDownload = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Pause episode").assertIsDisplayed()
+    }
+
+    @Test
     fun `episode card click triggers callback`() {
         var cardClicked = false
         val episode = createEpisode()

@@ -1,9 +1,15 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 58
+    const val LATEST_VERSION_CODE = 59
 
     val changelog: Map<Int, List<String>> = mapOf(
+        59 to listOf(
+            "Tap the podcast name on the Now Playing screen to jump to that show's episodes",
+            "Skip intro & outro can now be set right from the Now Playing screen (⋮ menu)",
+            "Tap the tab you're already on to jump back to the top of that screen",
+            "The playing episode now shows a pause button on its card in Home, and tapping it pauses instead of restarting",
+        ),
         57 to listOf(
             "Discover is tidier: add-by-RSS now lives behind the feed button beside the search bar",
             "Pick your chart region: tap the country chip next to the categories to browse another country's top podcasts",
