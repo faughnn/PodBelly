@@ -1,7 +1,7 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 54
+    const val LATEST_VERSION_CODE = 55
 
     val changelog: Map<Int, List<String>> = mapOf(
         54 to listOf(

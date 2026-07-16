@@ -541,7 +541,16 @@ class RssParserTest {
     // Podcasting 2.0 transcript (<podcast:transcript>)
     // -------------------------------------------------------------------------
 
-    private fun transcriptFeedXml(transcriptTags: String): String = """
+    // The injected tags are collapsed onto one line BEFORE interpolation: a
+    // multi-line argument would contribute column-0 lines to the raw string,
+    // turning the outer trimIndent() into a no-op and leaving whitespace before
+    // the XML declaration — which strict parsers (MXParser on the unit-test
+    // classpath) reject even though lenient ones (kxml2) accept it.
+    private fun transcriptFeedXml(transcriptTags: String): String = transcriptFeedXmlTemplate(
+        transcriptTags.lines().joinToString(" ") { it.trim() }
+    )
+
+    private fun transcriptFeedXmlTemplate(transcriptTagsOneLine: String): String = """
         <?xml version="1.0" encoding="UTF-8"?>
         <rss version="2.0"
              xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
@@ -553,7 +562,7 @@ class RssParserTest {
               <title>Episode 1</title>
               <guid>guid-1</guid>
               <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="100"/>
-              $transcriptTags
+              $transcriptTagsOneLine
             </item>
           </channel>
         </rss>
