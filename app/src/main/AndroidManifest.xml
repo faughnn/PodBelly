@@ -39,6 +39,20 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
+        <!-- Home-screen playback widget. State updates arrive as explicit
+             broadcasts from PlaybackService (ACTION_WIDGET_STATE). -->
+        <receiver
+            android:name=".widget.PlaybackWidgetProvider"
+            android:exported="false"
+            android:label="Podbelly playback">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_playback_info" />
+        </receiver>
+
         <!-- Chromecast: media3's default provider targets the default media receiver
              (the same receiver app the media3 cast demo uses). -->
         <meta-data

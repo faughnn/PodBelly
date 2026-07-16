@@ -1,9 +1,12 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 53
+    const val LATEST_VERSION_CODE = 54
 
     val changelog: Map<Int, List<String>> = mapOf(
+        54 to listOf(
+            "Home-screen widget: see what's playing and control it without opening the app",
+        ),
         53 to listOf(
             "Chromecast support: tap the cast button on the player to send your episode to a TV or speaker",
             "Casting plays the show's stream; switching back to your phone resumes your downloaded copy where you left off",

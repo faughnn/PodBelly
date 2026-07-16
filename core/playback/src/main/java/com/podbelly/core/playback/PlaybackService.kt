@@ -70,6 +70,16 @@ class PlaybackService : MediaLibraryService() {
         const val CUSTOM_COMMAND_REWIND = "REWIND_10S"
         const val CUSTOM_COMMAND_FAST_FORWARD = "FAST_FORWARD_30S"
         private const val NOTIFICATION_CHANNEL_ID = "podbelly_playback"
+
+        // Home-screen widget state pushes (received by the app module's
+        // PlaybackWidgetProvider, addressed by class name because core:playback
+        // cannot depend on the app module).
+        const val ACTION_WIDGET_STATE = "com.podbelly.action.WIDGET_STATE"
+        const val EXTRA_WIDGET_HAS_ITEM = "hasItem"
+        const val EXTRA_WIDGET_IS_PLAYING = "isPlaying"
+        const val EXTRA_WIDGET_TITLE = "title"
+        const val EXTRA_WIDGET_PODCAST = "podcast"
+        private const val WIDGET_PROVIDER_CLASS = "com.podbelly.widget.PlaybackWidgetProvider"
     }
 
     @Inject
@@ -142,7 +152,45 @@ class PlaybackService : MediaLibraryService() {
             }
             .build()
 
+        player.addListener(widgetStateListener)
+
         initializeCast()
+    }
+
+    // -------------------------------------------------------------------------
+    // Home-screen widget state pushes
+    // -------------------------------------------------------------------------
+
+    /**
+     * Mirrors play/pause and episode changes to the home-screen widget. Attached
+     * to BOTH players (local and Cast) so the widget stays honest across handoffs;
+     * inactive-player events are harmless duplicates of the active state.
+     */
+    private val widgetStateListener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) = broadcastWidgetState()
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) =
+            broadcastWidgetState()
+        override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) =
+            broadcastWidgetState()
+    }
+
+    private fun broadcastWidgetState() {
+        val player = mediaLibrarySession?.player ?: return
+        val metadata = player.mediaMetadata
+        val intent = Intent(ACTION_WIDGET_STATE)
+            // Explicit component: implicit broadcasts don't reach manifest
+            // receivers on O+. Class-name string because core:playback cannot
+            // reference the app module's provider class.
+            .setClassName(packageName, WIDGET_PROVIDER_CLASS)
+            .putExtra(EXTRA_WIDGET_HAS_ITEM, player.currentMediaItem != null)
+            .putExtra(EXTRA_WIDGET_IS_PLAYING, player.isPlaying)
+            .putExtra(EXTRA_WIDGET_TITLE, metadata.title?.toString() ?: "")
+            .putExtra(EXTRA_WIDGET_PODCAST, metadata.artist?.toString() ?: "")
+        try {
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to push widget state", e)
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -173,6 +221,7 @@ class PlaybackService : MediaLibraryService() {
                     override fun onCastSessionAvailable() = switchToCastPlayer()
                     override fun onCastSessionUnavailable() = switchToLocalPlayer()
                 })
+                addListener(widgetStateListener)
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to create CastPlayer; continuing without Chromecast", e)
