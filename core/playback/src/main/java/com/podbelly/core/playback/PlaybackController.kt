@@ -452,6 +452,30 @@ class PlaybackController @Inject constructor(
     }
 
     /**
+     * Re-reads the playing podcast's skip settings from the database so an outro
+     * edited mid-episode (e.g. "everything after now is ads" from the player)
+     * applies to the episode that's already playing, not just the next one. The
+     * intro skip is deliberately not re-applied — playback is already past the
+     * start and must not jump.
+     */
+    fun refreshSkipSettings() {
+        val podcastId = currentPodcastId
+        val episodeId = currentEpisodeId
+        if (podcastId == 0L || episodeId == 0L) return
+        scope.launch {
+            try {
+                val skip = podcastDao.getSkipSettings(podcastId) ?: return@launch
+                // Playback may have moved on while we were reading.
+                if (currentEpisodeId != episodeId) return@launch
+                currentSkipOutroSeconds = skip.skipOutroSeconds
+                outroEndFired = false
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to refresh skip settings", e)
+            }
+        }
+    }
+
+    /**
      * Pauses the current playback and records the pause timestamp for auto-rewind.
      */
     fun pause() {

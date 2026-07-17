@@ -282,7 +282,8 @@ class PlayerViewModel @Inject constructor(
         val podcastId = playbackController.playbackState.value.podcastId
         if (podcastId == 0L) return
         viewModelScope.launch {
-            podcastDao.updateSkipIntroSeconds(podcastId, seconds)
+            podcastDao.updateSkipIntroSeconds(podcastId, seconds.coerceAtLeast(0))
+            playbackController.refreshSkipSettings()
         }
     }
 
@@ -290,7 +291,10 @@ class PlayerViewModel @Inject constructor(
         val podcastId = playbackController.playbackState.value.podcastId
         if (podcastId == 0L) return
         viewModelScope.launch {
-            podcastDao.updateSkipOutroSeconds(podcastId, seconds)
+            podcastDao.updateSkipOutroSeconds(podcastId, seconds.coerceAtLeast(0))
+            // Re-arm the playing episode's outro so "after now is ads" takes
+            // effect immediately, not on the next episode.
+            playbackController.refreshSkipSettings()
         }
     }
 

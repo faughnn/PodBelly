@@ -268,6 +268,7 @@ class PodcastDetailViewModel @Inject constructor(
     fun setSkipIntroSeconds(seconds: Int) {
         viewModelScope.launch {
             podcastDao.updateSkipIntroSeconds(podcastId, seconds.coerceAtLeast(0))
+            playbackController.refreshSkipSettings()
         }
     }
 
@@ -275,6 +276,8 @@ class PodcastDetailViewModel @Inject constructor(
     fun setSkipOutroSeconds(seconds: Int) {
         viewModelScope.launch {
             podcastDao.updateSkipOutroSeconds(podcastId, seconds.coerceAtLeast(0))
+            // If this podcast is playing, the outro applies to the current episode too.
+            playbackController.refreshSkipSettings()
         }
     }
 
