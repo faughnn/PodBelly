@@ -347,14 +347,23 @@ fun PlayerScreen(
         }
     }
 
-    // ── Per-podcast skip intro/outro settings (same dialog as the podcast page)
+    // ── Per-podcast skip intro/outro settings (same dialog as the podcast page).
+    // The player also offers "up to now" / "after now" shortcuts: pause where the
+    // ads end (or begin) and one tap fills the field from the playback position.
     if (showSkipSettings) {
+        val hasPosition = playback.duration > 0L
         SkipIntroOutroDialog(
             skipIntroSeconds = skipSettings?.skipIntroSeconds ?: 0,
             skipOutroSeconds = skipSettings?.skipOutroSeconds ?: 0,
             onSetSkipIntro = { viewModel.setSkipIntroSeconds(it) },
             onSetSkipOutro = { viewModel.setSkipOutroSeconds(it) },
             onDismiss = { showSkipSettings = false },
+            currentPositionSeconds = if (hasPosition) {
+                (playback.currentPosition / 1000L).toInt()
+            } else null,
+            remainingSeconds = if (hasPosition) {
+                ((playback.duration - playback.currentPosition) / 1000L).coerceAtLeast(0L).toInt()
+            } else null,
         )
     }
 

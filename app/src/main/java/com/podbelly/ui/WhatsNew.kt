@@ -1,9 +1,14 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 59
+    const val LATEST_VERSION_CODE = 60
 
     val changelog: Map<Int, List<String>> = mapOf(
+        60 to listOf(
+            "Skip intro & outro now takes an exact number of seconds instead of preset buttons",
+            "From the player, pause where the ads end and tap \"Up to now\" to set the intro — or where they begin and tap \"After now\" for the outro",
+            "An outro set mid-episode now applies to the episode you're listening to, not just the next one",
+        ),
         59 to listOf(
             "Tap the podcast name on the Now Playing screen to jump to that show's episodes",
             "Skip intro & outro can now be set right from the Now Playing screen (⋮ menu)",
