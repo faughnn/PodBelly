@@ -1,9 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 63
+    // 65 is a test-stability fix with no user-facing changes; no changelog entry.
+    const val LATEST_VERSION_CODE = 65
 
     val changelog: Map<Int, List<String>> = mapOf(
+        64 to listOf(
+            "Tap any podcast in Stats — the Podcasts tab cards or the Top lists — to open its page before deciding to unsubscribe",
+        ),
         63 to listOf(
             "Stats Overview redesigned: a big listening headline with today/week/month, a 30-day listening chart, and day-of-week and hour-of-day charts",
             "Time saved now adds up faster playback, silence trimming and skipped intros/outros in one card — skipped intro/outro time is tracked from now on",

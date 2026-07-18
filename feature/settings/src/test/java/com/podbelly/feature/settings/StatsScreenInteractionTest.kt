@@ -4,6 +4,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
 import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.PodcastListeningStat
 import org.junit.Rule
@@ -119,5 +121,30 @@ class StatsScreenInteractionTest {
         composeTestRule.onNodeWithText("First Place").assertIsDisplayed()
         composeTestRule.onNodeWithText("2").assertIsDisplayed()
         composeTestRule.onNodeWithText("Second Place").assertIsDisplayed()
+    }
+
+    @Test
+    fun `tapping a top podcast row opens the podcast`() {
+        var openedId = -1L
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                PodcastStatsList(
+                    stats = listOf(
+                        PodcastListeningStat(
+                            podcastId = 9L,
+                            podcastTitle = "Best Podcast",
+                            artworkUrl = "",
+                            totalListenedMs = 630_000L,
+                            episodeCount = 12L,
+                        ),
+                    ),
+                    onPodcastClick = { openedId = it },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Best Podcast").performClick()
+        assertEquals(9L, openedId)
     }
 }

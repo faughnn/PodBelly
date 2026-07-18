@@ -294,6 +294,9 @@ fun PodbellNavHost(
                 StatsScreen(
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPodcast = { podcastId ->
+                        navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     }
                 )
             }

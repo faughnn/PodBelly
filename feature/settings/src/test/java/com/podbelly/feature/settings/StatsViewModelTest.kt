@@ -437,7 +437,11 @@ class StatsViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.uiState.test {
-            awaitItem() // ALL_TIME collection started
+            awaitItem() // initial value from stateIn
+            // awaitItem() returns the StateFlow's initial value before the sharing
+            // coroutine necessarily collects, so run the scheduler dry to guarantee
+            // the ALL_TIME query fired before the period flips.
+            testDispatcher.scheduler.advanceUntilIdle()
             viewModel.setPeriod(StatsPeriod.LAST_30_DAYS)
             // The re-collected state can be identical (all stubs unchanged), so
             // drive the scheduler instead of awaiting a (deduped) emission.
@@ -445,6 +449,7 @@ class StatsViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
+        assertTrue(cutoffs.size >= 2)
         assertEquals(0L, cutoffs.first())
         assertTrue(cutoffs.last() > 0L)
     }

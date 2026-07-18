@@ -126,6 +126,43 @@ class StatsPodcastsTabTest {
     }
 
     @Test
+    fun `tapping a card opens the podcast`() {
+        var openedId = -1L
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                PodcastEngagementTab(
+                    stats = listOf(makeStat(podcastId = 7L, title = "Dusty Show")),
+                    onUnsubscribe = {},
+                    onPodcastClick = { openedId = it },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Dusty Show").performClick()
+        assertEquals(7L, openedId)
+    }
+
+    @Test
+    fun `tapping the unsubscribe button does not also open the podcast`() {
+        var opened = false
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                PodcastEngagementTab(
+                    stats = listOf(makeStat(title = "Dusty Show")),
+                    onUnsubscribe = {},
+                    onPodcastClick = { opened = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Unsubscribe from Dusty Show")
+            .performClick()
+        assertFalse(opened)
+    }
+
+    @Test
     fun `sort chips are shown`() {
         composeTestRule.setContent {
             MaterialTheme {
