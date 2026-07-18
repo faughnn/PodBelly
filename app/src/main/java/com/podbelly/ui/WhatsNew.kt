@@ -1,7 +1,8 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 64
+    // 65 is a test-stability fix with no user-facing changes; no changelog entry.
+    const val LATEST_VERSION_CODE = 65
 
     val changelog: Map<Int, List<String>> = mapOf(
         64 to listOf(
