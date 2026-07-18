@@ -2,9 +2,12 @@ package com.podbelly.ui
 
 object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
-    const val LATEST_VERSION_CODE = 66
+    const val LATEST_VERSION_CODE = 67
 
     val changelog: Map<Int, List<String>> = mapOf(
+        67 to listOf(
+            "Podcast and episode titles no longer show raw \"&amp;\" codes — existing titles correct themselves on the next feed refresh",
+        ),
         66 to listOf(
             "Stats now flags duplicate subscriptions — the same show added via different feeds — at the top of the Podcasts tab, with each copy's feed and listening so you can unsubscribe the spare",
         ),

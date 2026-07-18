@@ -334,6 +334,64 @@ class RssParserTest {
     }
 
     // -------------------------------------------------------------------------
+    // HTML entities in display fields
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `html entities inside CDATA titles are decoded`() = runTest {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0"
+                 xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+              <channel>
+                <title><![CDATA[Mike &amp; Vittorio's Guide to Parenting]]></title>
+                <itunes:author><![CDATA[Mike &amp; Vittorio]]></itunes:author>
+                <item>
+                  <title><![CDATA[Kids &#8217;n&#x2019; Chaos &amp; Fun]]></title>
+                  <guid>ep-1</guid>
+                  <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1"/>
+                </item>
+              </channel>
+            </rss>
+        """.trimIndent()
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("Mike & Vittorio's Guide to Parenting", feed.title)
+        assertEquals("Mike & Vittorio", feed.author)
+        assertEquals("Kids ’n’ Chaos & Fun", feed.episodes[0].title)
+    }
+
+    @Test
+    fun `plain xml-escaped titles decode exactly once`() = runTest {
+        // Outside CDATA the XML parser itself decodes &amp; — the entity pass
+        // must not mangle the already-decoded ampersand.
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0">
+              <channel>
+                <title>Salt &amp; Vinegar</title>
+              </channel>
+            </rss>
+        """.trimIndent()
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("Salt & Vinegar", feed.title)
+    }
+
+    @Test
+    fun `decodeHtmlEntities unescapes one level and leaves unknown entities alone`() {
+        assertEquals("A & B", decodeHtmlEntities("A &amp; B"))
+        assertEquals("&lt;", decodeHtmlEntities("&amp;lt;")) // one level only
+        assertEquals("’", decodeHtmlEntities("&#8217;"))
+        assertEquals("’", decodeHtmlEntities("&#x2019;"))
+        assertEquals("\"quoted\" 'apos' <tag>", decodeHtmlEntities("&quot;quoted&quot; &apos;apos&apos; &lt;tag&gt;"))
+        assertEquals("&bogus;", decodeHtmlEntities("&bogus;"))
+        assertEquals("no entities", decodeHtmlEntities("no entities"))
+    }
+
+    // -------------------------------------------------------------------------
     // Duration parsing
     // -------------------------------------------------------------------------
 
