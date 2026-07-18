@@ -23,7 +23,7 @@ import com.podbelly.core.database.entity.QueueItemEntity
         ListeningSessionEntity::class,
         DownloadErrorEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class PodbellDatabase : RoomDatabase() {
@@ -34,6 +34,17 @@ abstract class PodbellDatabase : RoomDatabase() {
     abstract fun downloadErrorDao(): DownloadErrorDao
 
     companion object {
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Time saved by per-podcast intro/outro auto-skip, accumulated onto
+                // the listening session it happened in (powers the Stats
+                // "Time saved" breakdown).
+                db.execSQL(
+                    "ALTER TABLE listening_sessions ADD COLUMN skipSavedMs INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Podcasting 2.0 episode transcripts (<podcast:transcript>). Existing

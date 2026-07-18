@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,6 +57,7 @@ import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.PodcastDownloadStat
 import com.podbelly.core.database.dao.PodcastListeningStat
 import kotlinx.coroutines.launch
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +66,7 @@ fun StatsScreen(
     onNavigateBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val period by viewModel.period.collectAsStateWithLifecycle()
     val engagementStats by viewModel.engagementStats.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -106,12 +111,22 @@ fun StatsScreen(
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
+                    text = { Text("Top") },
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
                     text = { Text("Podcasts") },
                 )
             }
 
             when (selectedTab) {
-                0 -> StatsOverviewTab(uiState = uiState)
+                0 -> StatsOverviewTab(
+                    uiState = uiState,
+                    period = period,
+                    onPeriodSelected = { viewModel.setPeriod(it) },
+                )
+                1 -> StatsTopTab(uiState = uiState)
                 else -> PodcastEngagementTab(
                     stats = engagementStats,
                     onUnsubscribe = { stat ->
@@ -132,22 +147,211 @@ fun StatsScreen(
     }
 }
 
+// =====================================================================
+// Overview tab
+// =====================================================================
+
 @Composable
 internal fun StatsOverviewTab(
     uiState: StatsUiState,
+    period: StatsPeriod = StatsPeriod.ALL_TIME,
+    onPeriodSelected: (StatsPeriod) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 8.dp,
-                bottom = 96.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            // ── Summary Cards (2-column grid) ─────────────────────────
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 8.dp,
+            bottom = 96.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        // ── Period selector ───────────────────────────────────────
+        item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(StatsPeriod.entries) { option ->
+                    FilterChip(
+                        selected = period == option,
+                        onClick = { onPeriodSelected(option) },
+                        label = { Text(option.label) },
+                    )
+                }
+            }
+        }
+
+        // ── Hero: total listened ──────────────────────────────────
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
+                shape = RoundedCornerShape(18.dp),
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Listened",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Text(
+                        text = formatDurationMs(uiState.totalListenedMs),
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    daysOfAudioLabel(uiState.totalListenedMs)?.let { label ->
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Today ${formatDurationMs(uiState.listenedTodayMs)} · " +
+                            "This week ${formatDurationMs(uiState.listenedThisWeekMs)} · " +
+                            "This month ${formatDurationMs(uiState.listenedThisMonthMs)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+        }
+
+        // ── Last 30 days chart ────────────────────────────────────
+        item {
+            StatsSection(title = "Last 30 Days") {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val tzOffsetMs = remember {
+                        TimeZone.getDefault().getOffset(System.currentTimeMillis()).toLong()
+                    }
+                    val buckets = bucketDailyListening(
+                        stats = uiState.dailyListening,
+                        todayEpochDay = (System.currentTimeMillis() + tzOffsetMs) / 86_400_000L,
+                    )
+                    BarRow(values = buckets)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = "30 days ago",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "Today",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Time saved ────────────────────────────────────────────
+        item {
+            val totalSaved = uiState.timeSavedBySpeedMs +
+                uiState.silenceTrimmedMs +
+                uiState.skipSavedMs
+            StatsSection(title = "Time Saved") {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = formatDurationMs(totalSaved),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    TimeSavedRow(label = "Faster playback speed", value = uiState.timeSavedBySpeedMs)
+                    TimeSavedRow(label = "Silence trimmed", value = uiState.silenceTrimmedMs)
+                    TimeSavedRow(label = "Intros & outros skipped", value = uiState.skipSavedMs)
+                }
+            }
+        }
+
+        // ── Streaks (lifetime) ────────────────────────────────────
+        if (uiState.currentStreak > 0 || uiState.longestStreak > 0) {
+            item { SectionHeader(title = "Streaks") }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    StatsSummaryCard(
+                        title = "Current Streak",
+                        value = "${uiState.currentStreak} day${if (uiState.currentStreak != 1) "s" else ""}",
+                        modifier = Modifier.weight(1f),
+                    )
+                    StatsSummaryCard(
+                        title = "Longest Streak",
+                        value = "${uiState.longestStreak} day${if (uiState.longestStreak != 1) "s" else ""}",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+
+        // ── Listening habits ──────────────────────────────────────
+        item { SectionHeader(title = "Listening Habits") }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                StatsSummaryCard(
+                    title = "Average Session",
+                    value = formatDurationMs(uiState.averageSessionLengthMs),
+                    modifier = Modifier.weight(1f),
+                )
+                StatsSummaryCard(
+                    title = "Average Speed",
+                    value = if (uiState.averageSpeed > 0f) {
+                        String.format("%.2fx", uiState.averageSpeed)
+                    } else "—",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        if (uiState.dayOfWeekStats.isNotEmpty()) {
+            item {
+                StatsSection(
+                    title = "By Day" +
+                        (uiState.mostActiveDay.takeIf { it.isNotEmpty() }
+                            ?.let { " · busiest $it" } ?: ""),
+                ) {
+                    DayOfWeekChart(
+                        stats = uiState.dayOfWeekStats,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+        }
+
+        if (uiState.hourOfDayStats.isNotEmpty()) {
+            item {
+                StatsSection(
+                    title = "By Hour" +
+                        (uiState.mostActiveHour.takeIf { it.isNotEmpty() }
+                            ?.let { " · peak $it" } ?: ""),
+                ) {
+                    HourOfDayChart(
+                        stats = uiState.hourOfDayStats,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+        }
+
+        // ── Sessions ──────────────────────────────────────────────
+        if (uiState.sessionCount > 0) {
+            item { SectionHeader(title = "Sessions") }
 
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -156,162 +360,208 @@ internal fun StatsOverviewTab(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         StatsSummaryCard(
-                            title = "Listened",
-                            value = formatDurationMs(uiState.totalListenedMs),
+                            title = "Sessions",
+                            value = "${uiState.sessionCount}",
                             modifier = Modifier.weight(1f),
                         )
                         StatsSummaryCard(
-                            title = "Saved by Speed",
-                            value = formatDurationMs(uiState.timeSavedBySpeedMs),
+                            title = "Longest Session",
+                            value = formatDurationMs(uiState.longestSessionMs),
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    StatsSummaryCard(
-                        title = "Silence Trimmed",
-                        value = formatDurationMs(uiState.silenceTrimmedMs),
-                        modifier = Modifier.fillMaxWidth(0.5f),
-                    )
-                }
-            }
-
-            // ── Streaks ────────────────────────────────────────────
-            if (uiState.currentStreak > 0 || uiState.longestStreak > 0) {
-                item { SectionHeader(title = "Streaks") }
-
-                item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         StatsSummaryCard(
-                            title = "Current Streak",
-                            value = "${uiState.currentStreak} day${if (uiState.currentStreak != 1) "s" else ""}",
+                            title = "Days Listened",
+                            value = "${uiState.daysListened}",
                             modifier = Modifier.weight(1f),
                         )
                         StatsSummaryCard(
-                            title = "Longest Streak",
-                            value = "${uiState.longestStreak} day${if (uiState.longestStreak != 1) "s" else ""}",
+                            title = "Avg per Active Day",
+                            value = formatDurationMs(uiState.averagePerActiveDayMs),
                             modifier = Modifier.weight(1f),
                         )
-                    }
-                }
-            }
-
-            // ── Recent Activity ────────────────────────────────────
-            if (uiState.listenedThisWeekMs > 0 || uiState.listenedThisMonthMs > 0) {
-                item { SectionHeader(title = "Recent Activity") }
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        StatsSummaryCard(
-                            title = "This Week",
-                            value = formatDurationMs(uiState.listenedThisWeekMs),
-                            modifier = Modifier.weight(1f),
-                        )
-                        StatsSummaryCard(
-                            title = "This Month",
-                            value = formatDurationMs(uiState.listenedThisMonthMs),
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-
-            // ── Listening Habits ───────────────────────────────────
-            if (uiState.averageSessionLengthMs > 0) {
-                item { SectionHeader(title = "Listening Habits") }
-
-                item {
-                    StatsSummaryCard(
-                        title = "Average Session",
-                        value = formatDurationMs(uiState.averageSessionLengthMs),
-                    )
-                }
-
-                if (uiState.mostActiveDay.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            StatsSummaryCard(
-                                title = "Most Active Day",
-                                value = uiState.mostActiveDay,
-                                modifier = Modifier.weight(1f),
-                            )
-                            StatsSummaryCard(
-                                title = "Peak Hour",
-                                value = uiState.mostActiveHour,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── Completion ─────────────────────────────────────────
-            if (uiState.averageCompletionPercent > 0) {
-                item { SectionHeader(title = "Completion") }
-
-                item {
-                    StatsSummaryCard(
-                        title = "Average Completion",
-                        value = "${uiState.averageCompletionPercent}%",
-                    )
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        StatsSummaryCard(
-                            title = "Finished",
-                            value = "${uiState.finishedEpisodes} episode${if (uiState.finishedEpisodes != 1) "s" else ""}",
-                            modifier = Modifier.weight(1f),
-                        )
-                        StatsSummaryCard(
-                            title = "Abandoned",
-                            value = "${uiState.abandonedEpisodes} episode${if (uiState.abandonedEpisodes != 1) "s" else ""}",
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-
-            // ── Most Listened Podcasts ───────────────────────────────
-
-            if (uiState.mostListenedPodcasts.isNotEmpty()) {
-                item {
-                    StatsSection(title = "Most Listened Podcasts") {
-                        PodcastStatsList(uiState.mostListenedPodcasts)
-                    }
-                }
-            }
-
-            // ── Most Listened Episodes ─────────────────────────────────
-
-            if (uiState.mostListenedEpisodes.isNotEmpty()) {
-                item {
-                    StatsSection(title = "Most Listened Episodes") {
-                        EpisodeStatsList(uiState.mostListenedEpisodes)
-                    }
-                }
-            }
-
-            // ── Most Downloaded Podcasts ────────────────────────────────
-
-            if (uiState.mostDownloadedPodcasts.isNotEmpty()) {
-                item {
-                    StatsSection(title = "Most Downloaded Podcasts") {
-                        DownloadStatsList(uiState.mostDownloadedPodcasts)
                     }
                 }
             }
         }
+
+        // ── Keeping up ────────────────────────────────────────────
+        if (uiState.keepUpTotal > 0) {
+            item {
+                val percent = uiState.keepUpPlayed * 100 / uiState.keepUpTotal
+                StatsSection(title = "Keeping Up") {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "$percent%",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "You played ${uiState.keepUpPlayed} of the " +
+                                "${uiState.keepUpTotal} episodes that arrived in the last 30 days.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Library ───────────────────────────────────────────────
+        item { SectionHeader(title = "Library") }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    StatsSummaryCard(
+                        title = "Subscriptions",
+                        value = "${uiState.subscriptionCount}",
+                        modifier = Modifier.weight(1f),
+                    )
+                    StatsSummaryCard(
+                        title = "Episodes",
+                        value = "${uiState.libraryEpisodeCount}",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    StatsSummaryCard(
+                        title = "Played",
+                        value = if (uiState.libraryEpisodeCount > 0) {
+                            "${uiState.libraryPlayedCount * 100 / uiState.libraryEpisodeCount}%"
+                        } else "0%",
+                        modifier = Modifier.weight(1f),
+                    )
+                    StatsSummaryCard(
+                        title = "Downloads",
+                        value = formatBytes(uiState.downloadedBytes),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+
+        // ── Completion ────────────────────────────────────────────
+        if (uiState.averageCompletionPercent > 0) {
+            item { SectionHeader(title = "Completion") }
+
+            item {
+                StatsSummaryCard(
+                    title = "Average Completion",
+                    value = "${uiState.averageCompletionPercent}%",
+                )
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    StatsSummaryCard(
+                        title = "Finished",
+                        value = "${uiState.finishedEpisodes} episode${if (uiState.finishedEpisodes != 1) "s" else ""}",
+                        modifier = Modifier.weight(1f),
+                    )
+                    StatsSummaryCard(
+                        title = "Abandoned",
+                        value = "${uiState.abandonedEpisodes} episode${if (uiState.abandonedEpisodes != 1) "s" else ""}",
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeSavedRow(label: String, value: Long) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = formatDurationMs(value),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+// =====================================================================
+// Top tab (the top-10 lists, moved off the Overview scroll)
+// =====================================================================
+
+@Composable
+internal fun StatsTopTab(
+    uiState: StatsUiState,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 8.dp,
+            bottom = 96.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        if (uiState.mostListenedPodcasts.isEmpty() &&
+            uiState.mostListenedEpisodes.isEmpty() &&
+            uiState.mostDownloadedPodcasts.isEmpty()
+        ) {
+            item {
+                Text(
+                    text = "Play some episodes and your most-listened shows will show up here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 24.dp),
+                )
+            }
+        }
+
+        if (uiState.mostListenedPodcasts.isNotEmpty()) {
+            item {
+                StatsSection(title = "Most Listened Podcasts") {
+                    PodcastStatsList(uiState.mostListenedPodcasts)
+                }
+            }
+        }
+
+        if (uiState.mostListenedEpisodes.isNotEmpty()) {
+            item {
+                StatsSection(title = "Most Listened Episodes") {
+                    EpisodeStatsList(uiState.mostListenedEpisodes)
+                }
+            }
+        }
+
+        if (uiState.mostDownloadedPodcasts.isNotEmpty()) {
+            item {
+                StatsSection(title = "Most Downloaded Podcasts") {
+                    DownloadStatsList(uiState.mostDownloadedPodcasts)
+                }
+            }
+        }
+    }
 }
 
 // =====================================================================
@@ -426,7 +676,7 @@ internal fun PodcastStatsList(stats: List<PodcastListeningStat>) {
                     Spacer(modifier = Modifier.height(2.dp))
                     val episodeLabel = if (stat.episodeCount == 1L) "episode" else "episodes"
                     Text(
-                        text = "${formatDurationMs(stat.totalListenedMs)} \u00b7 ${stat.episodeCount} $episodeLabel",
+                        text = "${formatDurationMs(stat.totalListenedMs)} · ${stat.episodeCount} $episodeLabel",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -558,4 +808,10 @@ private fun formatDurationMs(ms: Long): String {
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     return "${hours}h ${minutes}m"
+}
+
+/** "≈ 12.5 days of audio", or null below one day (where it adds nothing). */
+internal fun daysOfAudioLabel(ms: Long): String? {
+    val days = ms / 86_400_000.0
+    return if (days >= 1.0) "≈ ${String.format("%.1f", days)} days of audio" else null
 }

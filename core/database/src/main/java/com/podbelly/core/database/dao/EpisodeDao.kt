@@ -106,6 +106,32 @@ interface EpisodeDao {
     @Query("SELECT COALESCE(SUM(fileSize), 0) FROM episodes WHERE downloadPath != ''")
     fun getTotalDownloadedBytes(): Flow<Long>
 
+    /**
+     * How well the user keeps up with incoming episodes: of the episodes a feed
+     * refresh discovered since [since], how many have been played. Rows with
+     * addedAt = 0 (a new subscription's imported backlog) are excluded — nobody
+     * "falls behind" on a backlog they never intended to clear.
+     */
+    @Query(
+        """
+        SELECT COUNT(*) AS totalCount,
+               COALESCE(SUM(played), 0) AS playedCount
+        FROM episodes
+        WHERE addedAt >= :since AND addedAt > 0
+        """
+    )
+    fun getKeepUpStats(since: Long): Flow<KeepUpStat>
+
+    /** Whole-library episode totals for the Stats library summary card. */
+    @Query(
+        """
+        SELECT COUNT(*) AS episodeCount,
+               COALESCE(SUM(played), 0) AS playedCount
+        FROM episodes
+        """
+    )
+    fun getLibraryStats(): Flow<LibraryStat>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(episodes: List<EpisodeEntity>): List<Long>
 
@@ -201,4 +227,16 @@ data class PodcastLatestEpisode(
 data class PodcastUnplayedCount(
     val podcastId: Long,
     val unplayedCount: Int,
+)
+
+/** Played-vs-arrived counts for the Stats keep-up rate. */
+data class KeepUpStat(
+    val totalCount: Int,
+    val playedCount: Int,
+)
+
+/** Whole-library episode totals. */
+data class LibraryStat(
+    val episodeCount: Int,
+    val playedCount: Int,
 )
