@@ -44,6 +44,27 @@ data class EpisodeCompletionStat(
     val durationMs: Long,
 )
 
+/**
+ * Engagement summary for one subscribed podcast, for the Stats "Podcasts" tab
+ * (least-listened first, so barely-touched subscriptions surface for pruning).
+ */
+data class PodcastEngagementStat(
+    val podcastId: Long,
+    val podcastTitle: String,
+    val artworkUrl: String,
+    val subscribedAt: Long,
+    val totalListenedMs: Long,
+    /** Start of the most recent listening session, 0 = never listened. */
+    val lastListenedAt: Long,
+    val episodeCount: Long,
+    val playedCount: Long,
+    val inProgressCount: Long,
+    val downloadedCount: Long,
+    val downloadedBytes: Long,
+    /** Publication date of the newest stored episode, 0 = none. */
+    val latestEpisodeAt: Long,
+)
+
 @Dao
 interface ListeningSessionDao {
 
@@ -155,4 +176,48 @@ interface ListeningSessionDao {
         """
     )
     fun getEpisodeCompletionStats(): Flow<List<EpisodeCompletionStat>>
+
+    /**
+     * One row per subscribed podcast with its engagement metrics, least listened
+     * first. Session and episode aggregates are pre-grouped in subqueries so the
+     * two LEFT JOINs can't fan out against each other.
+     */
+    @Query(
+        """
+        SELECT p.id AS podcastId,
+               p.title AS podcastTitle,
+               p.artworkUrl,
+               p.subscribedAt,
+               COALESCE(ls.totalListenedMs, 0) AS totalListenedMs,
+               COALESCE(ls.lastListenedAt, 0) AS lastListenedAt,
+               COALESCE(e.episodeCount, 0) AS episodeCount,
+               COALESCE(e.playedCount, 0) AS playedCount,
+               COALESCE(e.inProgressCount, 0) AS inProgressCount,
+               COALESCE(e.downloadedCount, 0) AS downloadedCount,
+               COALESCE(e.downloadedBytes, 0) AS downloadedBytes,
+               COALESCE(e.latestEpisodeAt, 0) AS latestEpisodeAt
+        FROM podcasts p
+        LEFT JOIN (
+            SELECT podcastId,
+                   SUM(listenedMs) AS totalListenedMs,
+                   MAX(startedAt) AS lastListenedAt
+            FROM listening_sessions
+            GROUP BY podcastId
+        ) ls ON ls.podcastId = p.id
+        LEFT JOIN (
+            SELECT podcastId,
+                   COUNT(*) AS episodeCount,
+                   SUM(CASE WHEN played = 1 THEN 1 ELSE 0 END) AS playedCount,
+                   SUM(CASE WHEN played = 0 AND playbackPosition > 0 THEN 1 ELSE 0 END) AS inProgressCount,
+                   SUM(CASE WHEN downloadPath != '' THEN 1 ELSE 0 END) AS downloadedCount,
+                   SUM(CASE WHEN downloadPath != '' THEN fileSize ELSE 0 END) AS downloadedBytes,
+                   MAX(publicationDate) AS latestEpisodeAt
+            FROM episodes
+            GROUP BY podcastId
+        ) e ON e.podcastId = p.id
+        WHERE p.subscribed = 1
+        ORDER BY totalListenedMs ASC, p.title COLLATE NOCASE ASC
+        """
+    )
+    fun getPodcastEngagementStats(): Flow<List<PodcastEngagementStat>>
 }

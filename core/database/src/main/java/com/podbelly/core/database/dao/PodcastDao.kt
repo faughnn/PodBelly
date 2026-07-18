@@ -40,6 +40,10 @@ interface PodcastDao {
     @Query("UPDATE podcasts SET subscribed = 0 WHERE id = :id")
     suspend fun unsubscribe(id: Long)
 
+    /** Reverses [unsubscribe]; used by the Stats tab's undo snackbar. */
+    @Query("UPDATE podcasts SET subscribed = 1 WHERE id = :id")
+    suspend fun resubscribe(id: Long)
+
     @Query("UPDATE podcasts SET notifyNewEpisodes = :enabled WHERE id = :id")
     suspend fun setNotifyNewEpisodes(id: Long, enabled: Boolean)
 

@@ -6,8 +6,11 @@ import com.podbelly.core.database.dao.EpisodeCompletionStat
 import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.HourOfDayStat
 import com.podbelly.core.database.dao.ListeningSessionDao
+import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastDownloadStat
+import com.podbelly.core.database.dao.PodcastEngagementStat
 import com.podbelly.core.database.dao.PodcastListeningStat
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +32,7 @@ class StatsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val listeningSessionDao = mockk<ListeningSessionDao>(relaxed = true)
+    private val podcastDao = mockk<PodcastDao>(relaxed = true)
 
     private val totalListenedFlow = MutableStateFlow(0L)
     private val timeSavedBySpeedFlow = MutableStateFlow(0L)
@@ -42,6 +46,7 @@ class StatsViewModelTest {
     private val dayOfWeekFlow = MutableStateFlow<List<DayOfWeekStat>>(emptyList())
     private val hourOfDayFlow = MutableStateFlow<List<HourOfDayStat>>(emptyList())
     private val completionStatsFlow = MutableStateFlow<List<EpisodeCompletionStat>>(emptyList())
+    private val engagementStatsFlow = MutableStateFlow<List<PodcastEngagementStat>>(emptyList())
 
     @Before
     fun setUp() {
@@ -58,6 +63,7 @@ class StatsViewModelTest {
         every { listeningSessionDao.getListeningMsByDayOfWeek(any()) } returns dayOfWeekFlow
         every { listeningSessionDao.getListeningMsByHourOfDay(any()) } returns hourOfDayFlow
         every { listeningSessionDao.getEpisodeCompletionStats() } returns completionStatsFlow
+        every { listeningSessionDao.getPodcastEngagementStats() } returns engagementStatsFlow
     }
 
     @After
@@ -68,8 +74,27 @@ class StatsViewModelTest {
     private fun createViewModel(): StatsViewModel {
         return StatsViewModel(
             listeningSessionDao = listeningSessionDao,
+            podcastDao = podcastDao,
         )
     }
+
+    private fun makeEngagementStat(
+        podcastId: Long = 1L,
+        totalListenedMs: Long = 0L,
+    ) = PodcastEngagementStat(
+        podcastId = podcastId,
+        podcastTitle = "Show $podcastId",
+        artworkUrl = "",
+        subscribedAt = 1_000L,
+        totalListenedMs = totalListenedMs,
+        lastListenedAt = 0L,
+        episodeCount = 10L,
+        playedCount = 0L,
+        inProgressCount = 0L,
+        downloadedCount = 0L,
+        downloadedBytes = 0L,
+        latestEpisodeAt = 0L,
+    )
 
     @Test
     fun `initial state has zero values and empty lists`() = runTest {
@@ -317,5 +342,44 @@ class StatsViewModelTest {
 
             assertEquals("8 AM", state.mostActiveHour)
         }
+    }
+
+    // -- Podcast engagement tab --
+
+    @Test
+    fun `engagementStats exposes the least-listened list from the dao`() = runTest {
+        val stats = listOf(
+            makeEngagementStat(podcastId = 1L, totalListenedMs = 0L),
+            makeEngagementStat(podcastId = 2L, totalListenedMs = 5_000L),
+        )
+        engagementStatsFlow.value = stats
+
+        val viewModel = createViewModel()
+
+        viewModel.engagementStats.test {
+            var value = awaitItem()
+            while (value.isEmpty()) value = awaitItem()
+            assertEquals(stats, value)
+        }
+    }
+
+    @Test
+    fun `unsubscribe delegates to the dao`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.unsubscribe(7L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { podcastDao.unsubscribe(7L) }
+    }
+
+    @Test
+    fun `undoUnsubscribe resubscribes via the dao`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.undoUnsubscribe(7L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { podcastDao.resubscribe(7L) }
     }
 }

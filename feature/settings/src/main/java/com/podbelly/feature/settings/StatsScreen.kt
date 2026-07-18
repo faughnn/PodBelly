@@ -24,11 +24,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +53,7 @@ import coil.compose.AsyncImage
 import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.PodcastDownloadStat
 import com.podbelly.core.database.dao.PodcastListeningStat
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,8 +62,13 @@ fun StatsScreen(
     onNavigateBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val engagementStats by viewModel.engagementStats.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -76,10 +92,53 @@ fun StatsScreen(
             )
         },
     ) { paddingValues ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
+        ) {
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("Overview") },
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Podcasts") },
+                )
+            }
+
+            when (selectedTab) {
+                0 -> StatsOverviewTab(uiState = uiState)
+                else -> PodcastEngagementTab(
+                    stats = engagementStats,
+                    onUnsubscribe = { stat ->
+                        viewModel.unsubscribe(stat.podcastId)
+                        scope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = "Unsubscribed from ${stat.podcastTitle}",
+                                actionLabel = "Undo",
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                viewModel.undoUnsubscribe(stat.podcastId)
+                            }
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun StatsOverviewTab(
+    uiState: StatsUiState,
+    modifier: Modifier = Modifier,
+) {
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
@@ -253,7 +312,6 @@ fun StatsScreen(
                 }
             }
         }
-    }
 }
 
 // =====================================================================
