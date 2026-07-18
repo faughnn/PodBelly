@@ -14,6 +14,7 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
+import com.podbelly.core.database.entity.hasSameFeedFields
 import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.assisted.Assisted
@@ -73,7 +74,19 @@ class FeedRefreshWorker @AssistedInject constructor(
                                     transcriptType = rssEpisode.transcriptType ?: "",
                                 )
                             )
-                        } else {
+                        } else if (!existing.hasSameFeedFields(
+                                title = rssEpisode.title,
+                                description = rssEpisode.description,
+                                audioUrl = rssEpisode.audioUrl,
+                                publicationDate = rssEpisode.publishedAt,
+                                durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
+                                fileSize = rssEpisode.fileSize,
+                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                transcriptType = rssEpisode.transcriptType ?: "",
+                            )
+                        ) {
+                            // Skip the write when nothing changed — see hasSameFeedFields.
                             episodeDao.updateFeedFields(
                                 podcastId = podcast.id,
                                 guid = rssEpisode.guid,

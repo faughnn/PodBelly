@@ -47,6 +47,11 @@ class AppViewModelTest {
         Dispatchers.setMain(testDispatcher)
         every { podcastDao.getAll() } returns podcastsFlow
 
+        // Staleness gate for the launch refresh: default to "never refreshed" with
+        // a 60-minute interval, so init's refreshIfStale() fires like before.
+        every { preferencesManager.feedRefreshIntervalMinutes } returns MutableStateFlow(60)
+        every { preferencesManager.lastFeedRefreshAt } returns MutableStateFlow(0L)
+
         val packageInfo = PackageInfo().apply {
             @Suppress("DEPRECATION")
             versionCode = 9
@@ -128,6 +133,105 @@ class AppViewModelTest {
 
         coVerify { searchRepository.fetchFeed("https://feed1.com/rss") }
         coVerify { episodeDao.insertAll(any()) }
+    }
+
+    @Test
+    fun `init skips the refresh when the last refresh is within the interval`() = runTest {
+        podcastsFlow.value = listOf(makePodcast())
+        every { preferencesManager.lastFeedRefreshAt } returns
+            MutableStateFlow(System.currentTimeMillis())
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `init skips the refresh when the interval is manual-only`() = runTest {
+        podcastsFlow.value = listOf(makePodcast())
+        every { preferencesManager.feedRefreshIntervalMinutes } returns MutableStateFlow(0)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `manual refreshFeeds runs even when the last refresh is recent`() = runTest {
+        podcastsFlow.value = listOf(makePodcast())
+        every { preferencesManager.lastFeedRefreshAt } returns
+            MutableStateFlow(System.currentTimeMillis())
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle() // init's staleness check completes without refreshing
+
+        viewModel.refreshFeeds()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `unchanged existing episode is not rewritten`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        podcastsFlow.value = listOf(podcast)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        // Mirror exactly what makeRssFeed's episode maps to in the database.
+        coEvery { episodeDao.getByPodcastAndGuid(1L, "guid-1") } returns
+            com.podbelly.core.database.entity.EpisodeEntity(
+                id = 10L,
+                podcastId = 1L,
+                guid = "guid-1",
+                title = "Episode 1",
+                description = "Desc",
+                audioUrl = "https://audio.com/ep1.mp3",
+                publicationDate = 1000L,
+                durationSeconds = 60,
+                artworkUrl = "",
+                fileSize = 5000L,
+            )
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            episodeDao.updateFeedFields(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            )
+        }
+    }
+
+    @Test
+    fun `changed existing episode is rewritten`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        podcastsFlow.value = listOf(podcast)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        // Same episode but the publisher fixed the title.
+        coEvery { episodeDao.getByPodcastAndGuid(1L, "guid-1") } returns
+            com.podbelly.core.database.entity.EpisodeEntity(
+                id = 10L,
+                podcastId = 1L,
+                guid = "guid-1",
+                title = "Old Title",
+                description = "Desc",
+                audioUrl = "https://audio.com/ep1.mp3",
+                publicationDate = 1000L,
+                durationSeconds = 60,
+                artworkUrl = "",
+                fileSize = 5000L,
+            )
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            episodeDao.updateFeedFields(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            )
+        }
     }
 
     @Test

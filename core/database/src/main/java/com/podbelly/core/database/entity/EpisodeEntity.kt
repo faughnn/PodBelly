@@ -89,3 +89,33 @@ data class EpisodeEntity(
     @ColumnInfo(name = "transcriptType", defaultValue = "")
     val transcriptType: String = "",
 )
+
+/**
+ * True when `EpisodeDao.updateFeedFields` with these values would be a no-op, so
+ * refreshes can skip the write. Most feed episodes never change, and each write
+ * invalidates every Room flow on the episodes table — skipping unchanged rows is
+ * what keeps the UI smooth while a large refresh runs.
+ *
+ * Mirrors updateFeedFields' semantics exactly, including fileSize being ignored
+ * once the episode is downloaded (the row then holds the real on-disk size).
+ */
+fun EpisodeEntity.hasSameFeedFields(
+    title: String,
+    description: String,
+    audioUrl: String,
+    publicationDate: Long,
+    durationSeconds: Int,
+    artworkUrl: String,
+    fileSize: Long,
+    transcriptUrl: String,
+    transcriptType: String,
+): Boolean =
+    this.title == title &&
+        this.description == description &&
+        this.audioUrl == audioUrl &&
+        this.publicationDate == publicationDate &&
+        this.durationSeconds == durationSeconds &&
+        this.artworkUrl == artworkUrl &&
+        this.transcriptUrl == transcriptUrl &&
+        this.transcriptType == transcriptType &&
+        (downloadPath.isNotBlank() || this.fileSize == fileSize)
