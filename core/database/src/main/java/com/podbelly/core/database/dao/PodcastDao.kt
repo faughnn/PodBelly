@@ -44,6 +44,9 @@ interface PodcastDao {
     @Query("UPDATE podcasts SET subscribed = 1 WHERE id = :id")
     suspend fun resubscribe(id: Long)
 
+    @Query("SELECT COUNT(*) FROM podcasts WHERE subscribed = 1")
+    fun getSubscribedCount(): Flow<Int>
+
     @Query("UPDATE podcasts SET notifyNewEpisodes = :enabled WHERE id = :id")
     suspend fun setNotifyNewEpisodes(id: Long, enabled: Boolean)
 

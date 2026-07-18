@@ -124,6 +124,7 @@ class PlaybackController @Inject constructor(
         var ended: Boolean = false
         var endTime: Long = 0L
         var listenedMs: Long = 0L
+        var skipSavedMs: Long = 0L
     }
 
     /** Listening session tracking */
@@ -131,6 +132,14 @@ class PlaybackController @Inject constructor(
     private var sessionStartTime: Long = 0L
     private var pendingSession: PendingSession? = null
     private var lastSessionSaveTime: Long = 0L
+
+    /**
+     * Intro/outro auto-skip savings not yet written to a session row. Accumulated
+     * in memory (the intro skip can happen before the session insert lands) and
+     * flushed as a delta by [flushSkipSaved], so nothing is ever double-counted.
+     */
+    @Volatile
+    private var sessionSkipSavedMs: Long = 0L
 
     /** Timestamp of last periodic position save to the database */
     private var lastPositionSaveTime: Long = 0L
@@ -449,6 +458,8 @@ class PlaybackController @Inject constructor(
         if (durationMs > 0L && skipIntroMs >= durationMs) return
         controller.seekTo(skipIntroMs)
         _playbackState.update { it.copy(currentPosition = skipIntroMs) }
+        // Stats: the jump over the intro is time the user didn't have to sit through.
+        sessionSkipSavedMs += skipIntroMs - startPosition
     }
 
     /**
@@ -918,6 +929,9 @@ class PlaybackController @Inject constructor(
                     // own row now so endedAt/listenedMs are not lost (previously this
                     // could leave an orphaned, never-updated session).
                     listeningSessionDao.updateSession(insertedId, pending.endTime, pending.listenedMs)
+                    if (pending.skipSavedMs > 0L) {
+                        listeningSessionDao.addSkipSavedMs(insertedId, pending.skipSavedMs)
+                    }
                 } else if (pendingSession === pending) {
                     // Still the active session — record its id. The identity check guards
                     // against a newer session having superseded this one in the meantime.
@@ -938,6 +952,7 @@ class PlaybackController @Inject constructor(
         lastSessionSaveTime = 0L
         if (sessionId != 0L) {
             currentSessionId = 0L
+            flushSkipSaved(sessionId)
             scope.launch {
                 try {
                     listeningSessionDao.updateSession(sessionId, endTime, listenedMs)
@@ -952,6 +967,27 @@ class PlaybackController @Inject constructor(
                 it.ended = true
                 it.endTime = endTime
                 it.listenedMs = listenedMs
+                it.skipSavedMs = sessionSkipSavedMs
+                sessionSkipSavedMs = 0L
+            }
+        }
+    }
+
+    /**
+     * Writes the intro/outro savings accumulated since the last flush onto the
+     * given session row. Written as a delta (`skipSavedMs = skipSavedMs + n`) with
+     * the accumulator zeroed first, so periodic flushes and the end-of-session
+     * flush can never double-count.
+     */
+    private fun flushSkipSaved(sessionId: Long) {
+        val amount = sessionSkipSavedMs
+        if (amount <= 0L || sessionId == 0L) return
+        sessionSkipSavedMs = 0L
+        scope.launch {
+            try {
+                listeningSessionDao.addSkipSavedMs(sessionId, amount)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to record skip savings", e)
             }
         }
     }
@@ -969,6 +1005,7 @@ class PlaybackController @Inject constructor(
         if (now - lastSessionSaveTime < 30_000L) return
         lastSessionSaveTime = now
         val listenedMs = now - startTime
+        flushSkipSaved(sessionId)
         scope.launch {
             try {
                 listeningSessionDao.updateSession(sessionId, now, listenedMs)
@@ -1076,6 +1113,8 @@ class PlaybackController @Inject constructor(
                     // outroEndFired guards against firing more than once per episode.
                     if (shouldEndForOutro(pos, durationMs, currentSkipOutroSeconds, outroEndFired)) {
                         outroEndFired = true
+                        // Stats: the cut-off tail is time saved by the outro skip.
+                        sessionSkipSavedMs += (durationMs - pos).coerceAtLeast(0L)
                         handleEpisodeFinished()
                     }
                 }

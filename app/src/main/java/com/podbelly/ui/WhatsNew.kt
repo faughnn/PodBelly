@@ -1,9 +1,16 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 62
+    const val LATEST_VERSION_CODE = 63
 
     val changelog: Map<Int, List<String>> = mapOf(
+        63 to listOf(
+            "Stats Overview redesigned: a big listening headline with today/week/month, a 30-day listening chart, and day-of-week and hour-of-day charts",
+            "Time saved now adds up faster playback, silence trimming and skipped intros/outros in one card — skipped intro/outro time is tracked from now on",
+            "New stats: average playback speed, session counts, days listened, keep-up rate for new arrivals, and a library summary",
+            "Filter the Overview by All time, This year or Last 30 days",
+            "Most-listened podcasts and episodes moved to their own Top tab",
+        ),
         62 to listOf(
             "Stats has a new Podcasts tab: every subscription ranked least-listened first, with played counts, last-listened dates, downloads and more",
             "Unsubscribe from neglected shows right from the list (with undo)",
