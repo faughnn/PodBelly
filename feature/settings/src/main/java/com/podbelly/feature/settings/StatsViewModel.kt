@@ -7,7 +7,9 @@ import com.podbelly.core.database.dao.EpisodeCompletionStat
 import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.HourOfDayStat
 import com.podbelly.core.database.dao.ListeningSessionDao
+import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastDownloadStat
+import com.podbelly.core.database.dao.PodcastEngagementStat
 import com.podbelly.core.database.dao.PodcastListeningStat
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.util.TimeZone
 import javax.inject.Inject
 
@@ -41,10 +44,36 @@ data class StatsUiState(
 @HiltViewModel
 class StatsViewModel @Inject constructor(
     listeningSessionDao: ListeningSessionDao,
+    private val podcastDao: PodcastDao,
 ) : ViewModel() {
 
     // Bucket day/hour/streak stats in the device's local time, not UTC.
     private val tzOffsetMs = TimeZone.getDefault().getOffset(System.currentTimeMillis()).toLong()
+
+    /**
+     * Per-podcast engagement for the "Podcasts" tab, least listened first, so the
+     * subscriptions gathering dust are the first thing on screen.
+     */
+    val engagementStats: StateFlow<List<PodcastEngagementStat>> =
+        listeningSessionDao.getPodcastEngagementStats()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
+    fun unsubscribe(podcastId: Long) {
+        viewModelScope.launch {
+            podcastDao.unsubscribe(podcastId)
+        }
+    }
+
+    /** Undo for [unsubscribe] (the snackbar's Undo action). */
+    fun undoUnsubscribe(podcastId: Long) {
+        viewModelScope.launch {
+            podcastDao.resubscribe(podcastId)
+        }
+    }
 
     val uiState: StateFlow<StatsUiState> = combine(
         listeningSessionDao.getTotalListenedMs(),

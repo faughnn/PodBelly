@@ -1,9 +1,14 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 61
+    const val LATEST_VERSION_CODE = 62
 
     val changelog: Map<Int, List<String>> = mapOf(
+        62 to listOf(
+            "Stats has a new Podcasts tab: every subscription ranked least-listened first, with played counts, last-listened dates, downloads and more",
+            "Unsubscribe from neglected shows right from the list (with undo)",
+            "Sort the list by least listened, least played or longest idle",
+        ),
         61 to listOf(
             "Opening the app is much snappier: feeds only refresh when your refresh interval has actually elapsed, not on every launch",
             "Artwork loads immediately even while a refresh is running",
