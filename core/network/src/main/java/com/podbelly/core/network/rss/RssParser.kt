@@ -226,7 +226,7 @@ class RssParser @Inject constructor() {
                         insideItem -> {
                             when {
                                 tag == "title" && ns.isEmpty() -> {
-                                    itemTitle = readText(parser)
+                                    itemTitle = decodeHtmlEntities(readText(parser))
                                 }
                                 tag == "description" && ns.isEmpty() -> {
                                     itemDescription = readText(parser)
@@ -300,7 +300,7 @@ class RssParser @Inject constructor() {
                                 // image's title/link would clobber the real channel values
                                 // (since <image> normally appears after the channel's own).
                                 tag == "title" && ns.isEmpty() && !insideChannelImage -> {
-                                    channelTitle = readText(parser)
+                                    channelTitle = decodeHtmlEntities(readText(parser))
                                 }
                                 tag == "description" && ns.isEmpty() && !insideChannelImage -> {
                                     channelDescription = readText(parser)
@@ -311,7 +311,7 @@ class RssParser @Inject constructor() {
                                     }
                                 }
                                 tag == "author" && ns == NS_ITUNES -> {
-                                    channelAuthor = readText(parser)
+                                    channelAuthor = decodeHtmlEntities(readText(parser))
                                 }
                                 tag == "link" && ns.isEmpty() && !insideChannelImage -> {
                                     channelLink = readText(parser)
@@ -569,4 +569,40 @@ class RssParser @Inject constructor() {
         val hash = digest.digest(audioUrl.toByteArray(Charsets.UTF_8))
         return hash.joinToString("") { "%02x".format(it) }
     }
+}
+
+private val NUMERIC_ENTITY_REGEX = Regex("&#(\\d+|[xX][0-9a-fA-F]+);")
+
+/**
+ * Decodes HTML character entities that survive XML parsing. Publishers commonly
+ * HTML-encode display text inside CDATA (`<![CDATA[Mike &amp; Vittorio]]>`),
+ * where the XML parser correctly leaves the content literal — so "&amp;" would
+ * otherwise reach the UI as-is. Applied to short display fields (titles,
+ * author); descriptions are rendered as HTML by the UI, which decodes there.
+ *
+ * "&amp;" is decoded last so double-encoded text ("&amp;lt;") unescapes exactly
+ * one level, matching a real HTML decoder.
+ */
+internal fun decodeHtmlEntities(text: String): String {
+    if ('&' !in text) return text
+    var result = text
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&nbsp;", " ")
+    result = NUMERIC_ENTITY_REGEX.replace(result) { match ->
+        val body = match.groupValues[1]
+        val codePoint = if (body.startsWith("x", ignoreCase = true)) {
+            body.drop(1).toIntOrNull(16)
+        } else {
+            body.toIntOrNull()
+        }
+        if (codePoint != null && Character.isValidCodePoint(codePoint) && codePoint > 0) {
+            String(Character.toChars(codePoint))
+        } else {
+            match.value
+        }
+    }
+    return result.replace("&amp;", "&")
 }
