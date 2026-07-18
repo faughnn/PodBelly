@@ -10,6 +10,7 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
+import com.podbelly.core.database.entity.hasSameFeedFields
 import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.ui.WhatsNew
@@ -59,7 +60,11 @@ class AppViewModel @Inject constructor(
     val showWhatsNew: StateFlow<List<String>?> = _showWhatsNew.asStateFlow()
 
     init {
-        refreshFeeds()
+        // Refresh on launch only when the configured interval has elapsed since the
+        // last successful refresh. A cold open shortly after a background refresh
+        // used to kick off a full all-feeds refresh anyway, hammering the network
+        // and database exactly while the first screen is drawing.
+        refreshIfStale()
         checkWhatsNew()
     }
 
@@ -107,8 +112,14 @@ class AppViewModel @Inject constructor(
             val intervalMinutes = preferencesManager.feedRefreshIntervalMinutes.first()
             if (intervalMinutes <= 0) return@launch
 
-            val elapsed = System.currentTimeMillis() - lastRefreshTime
-            if (elapsed >= intervalMinutes * 60_000L) {
+            // lastRefreshTime only survives within this process; the persisted
+            // timestamp covers cold starts and refreshes done by the background
+            // worker, so a fresh launch doesn't always look stale.
+            val lastRefresh = maxOf(
+                lastRefreshTime,
+                preferencesManager.lastFeedRefreshAt.first(),
+            )
+            if (System.currentTimeMillis() - lastRefresh >= intervalMinutes * 60_000L) {
                 refreshFeeds()
             }
         }
@@ -159,7 +170,22 @@ class AppViewModel @Inject constructor(
                                                 transcriptType = rssEpisode.transcriptType ?: "",
                                             )
                                         )
-                                    } else {
+                                    } else if (!existing.hasSameFeedFields(
+                                            title = rssEpisode.title,
+                                            description = rssEpisode.description,
+                                            audioUrl = rssEpisode.audioUrl,
+                                            publicationDate = rssEpisode.publishedAt,
+                                            durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                            artworkUrl = rssEpisode.artworkUrl ?: "",
+                                            fileSize = rssEpisode.fileSize,
+                                            transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                            transcriptType = rssEpisode.transcriptType ?: "",
+                                        )
+                                    ) {
+                                        // Only write when a feed field actually changed;
+                                        // every write invalidates the home screen's Room
+                                        // flows, and 100+ feeds of no-op updates made the
+                                        // UI churn for the whole refresh.
                                         episodeDao.updateFeedFields(
                                             podcastId = podcast.id,
                                             guid = rssEpisode.guid,

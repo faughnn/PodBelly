@@ -8,6 +8,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
@@ -21,9 +23,17 @@ object CoilModule {
         @ApplicationContext context: Context,
         okHttpClient: OkHttpClient,
     ): ImageLoader {
+        // Artwork gets its own dispatcher and connection pool. Sharing the feed
+        // client meant image requests queued behind the 32-way feed refresh at app
+        // open, leaving the whole home screen on placeholder icons until the
+        // refresh wound down.
+        val imageClient = okHttpClient.newBuilder()
+            .dispatcher(Dispatcher())
+            .connectionPool(ConnectionPool())
+            .build()
         return ImageLoader.Builder(context)
             .crossfade(true)
-            .callFactory(okHttpClient)
+            .callFactory(imageClient)
             .diskCache {
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("ImageCache"))

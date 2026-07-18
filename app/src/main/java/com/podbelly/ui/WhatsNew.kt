@@ -1,9 +1,14 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 60
+    const val LATEST_VERSION_CODE = 61
 
     val changelog: Map<Int, List<String>> = mapOf(
+        61 to listOf(
+            "Opening the app is much snappier: feeds only refresh when your refresh interval has actually elapsed, not on every launch",
+            "Artwork loads immediately even while a refresh is running",
+            "The app stays smooth during large refreshes instead of stuttering while feeds update",
+        ),
         60 to listOf(
             "Skip intro & outro now takes an exact number of seconds instead of preset buttons",
             "From the player, pause where the ads end and tap \"Up to now\" to set the intro — or where they begin and tap \"After now\" for the outro",
