@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.common.DownloadErrorEvent
@@ -67,16 +66,12 @@ class PodcastDetailViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val searchRepository: PodcastSearchRepository,
     private val downloadManager: DownloadManager,
-    private val queueDao: QueueDao,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     /** Download progress map exposed for the UI (episodeId -> 0.0..1.0). */
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
     val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
-
-    val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
@@ -281,19 +276,4 @@ class PodcastDetailViewModel @Inject constructor(
         }
     }
 
-    fun addToQueueNext(episodeId: Long) {
-        viewModelScope.launch {
-            // addToFront shifts + inserts inside one @Transaction so an interruption or
-            // concurrent mutation can't leave the queue shifted with no head item.
-            queueDao.addToFront(episodeId, System.currentTimeMillis())
-        }
-    }
-
-    fun addToQueueLast(episodeId: Long) {
-        viewModelScope.launch {
-            // Read-max + insert atomically (single @Transaction) so two concurrent
-            // enqueues can't both land at the same position.
-            queueDao.addToEnd(episodeId, System.currentTimeMillis())
-        }
-    }
 }

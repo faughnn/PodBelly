@@ -4,10 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import com.podbelly.core.database.PodbellDatabase
 import com.podbelly.core.database.dao.DownloadErrorDao
+import com.podbelly.core.database.dao.DuplicateMergeDao
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -56,14 +56,14 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideQueueDao(database: PodbellDatabase): QueueDao {
-        return database.queueDao()
+    fun provideListeningSessionDao(database: PodbellDatabase): ListeningSessionDao {
+        return database.listeningSessionDao()
     }
 
     @Provides
     @Singleton
-    fun provideListeningSessionDao(database: PodbellDatabase): ListeningSessionDao {
-        return database.listeningSessionDao()
+    fun provideDuplicateMergeDao(database: PodbellDatabase): DuplicateMergeDao {
+        return database.duplicateMergeDao()
     }
 
     @Provides

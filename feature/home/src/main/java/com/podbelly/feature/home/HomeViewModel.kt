@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.DownloadErrorEvent
@@ -62,15 +61,11 @@ class HomeViewModel @Inject constructor(
     private val podcastDao: PodcastDao,
     private val playbackController: PlaybackController,
     private val downloadManager: DownloadManager,
-    private val queueDao: QueueDao,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
     val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
-
-    val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** When feeds last refreshed successfully (epoch ms, 0 = never). */
     val lastRefreshedAt: StateFlow<Long> = preferencesManager.lastFeedRefreshAt
@@ -252,22 +247,6 @@ class HomeViewModel @Inject constructor(
                 startPosition = episode.playbackPosition,
                 podcastId = episode.podcastId,
             )
-        }
-    }
-
-    fun addToQueueNext(episodeId: Long) {
-        viewModelScope.launch {
-            // Shift + insert atomically so an interruption can't leave the queue
-            // shifted with no item at the front.
-            queueDao.addToFront(episodeId, System.currentTimeMillis())
-        }
-    }
-
-    fun addToQueueLast(episodeId: Long) {
-        viewModelScope.launch {
-            // Read-max + insert atomically (single @Transaction) so two concurrent
-            // enqueues can't both land at the same position.
-            queueDao.addToEnd(episodeId, System.currentTimeMillis())
         }
     }
 

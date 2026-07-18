@@ -192,25 +192,19 @@ fun SettingsScreen(
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                     SwitchRow(
+                        title = "Skip ad chapters",
+                        subtitle = "Jump over chapters marked as ads or sponsors by the show",
+                        checked = uiState.skipAdChapters,
+                        onCheckedChange = { viewModel.setSkipAdChapters(it) },
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                    SwitchRow(
                         title = "Volume boost",
                         subtitle = "Extra-loud mode for noisy environments",
                         checked = uiState.volumeBoost,
                         onCheckedChange = { viewModel.setVolumeBoost(it) },
-                    )
-                }
-            }
-
-            // ── Queue ──────────────────────────────────────────────────
-
-            item { SectionHeader(title = "Queue") }
-
-            item {
-                SettingsCard {
-                    SwitchRow(
-                        title = "Show queue",
-                        subtitle = "Enable Up Next queue for continuous playback",
-                        checked = uiState.queueEnabled,
-                        onCheckedChange = { viewModel.setQueueEnabled(it) },
                     )
                 }
             }
@@ -252,10 +246,19 @@ fun SettingsScreen(
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                     SwitchRow(
-                        title = "Auto-delete played episodes",
-                        subtitle = "Remove downloaded files after playback completes",
-                        checked = uiState.autoDeletePlayed,
-                        onCheckedChange = { viewModel.setAutoDeletePlayed(it) },
+                        title = "Smart auto-download",
+                        subtitle = "Download new episodes from shows you've listened to in the last 30 days",
+                        checked = uiState.smartAutoDownload,
+                        onCheckedChange = { viewModel.setSmartAutoDownload(it) },
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                    DropdownRow(
+                        title = "Auto-delete played downloads",
+                        selectedValue = formatAutoDeleteDays(uiState.autoDeletePlayedAfterDays),
+                        options = listOf("Off", "After 1 day", "After 3 days", "After 7 days", "After 30 days"),
+                        onOptionSelected = { viewModel.setAutoDeletePlayedAfterDays(parseAutoDeleteDays(it)) },
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -767,6 +770,18 @@ private fun readTextFromUri(context: Context, uri: android.net.Uri): String? {
     } catch (_: Exception) {
         null
     }
+}
+
+internal fun formatAutoDeleteDays(days: Int): String = when (days) {
+    0 -> "Off"
+    1 -> "After 1 day"
+    else -> "After $days days"
+}
+
+internal fun parseAutoDeleteDays(option: String): Int = when (option) {
+    "Off" -> 0
+    "After 1 day" -> 1
+    else -> option.removePrefix("After ").removeSuffix(" days").toIntOrNull() ?: 0
 }
 
 private fun formatRefreshInterval(minutes: Int): String {

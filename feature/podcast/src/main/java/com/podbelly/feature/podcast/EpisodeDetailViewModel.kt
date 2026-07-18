@@ -8,7 +8,6 @@ import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +43,6 @@ class EpisodeDetailViewModel @Inject constructor(
     private val podcastDao: PodcastDao,
     private val playbackController: PlaybackController,
     private val downloadManager: DownloadManager,
-    private val queueDao: QueueDao,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
@@ -56,12 +54,6 @@ class EpisodeDetailViewModel @Inject constructor(
 
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
-
-    val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    val isInQueue: StateFlow<Boolean> = queueDao.isInQueueFlow(episodeId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val uiState: StateFlow<EpisodeDetailUiState> = episodeDao.getById(episodeId)
         .map { episode ->
@@ -131,25 +123,4 @@ class EpisodeDetailViewModel @Inject constructor(
         }
     }
 
-    fun addToQueueNext() {
-        viewModelScope.launch {
-            // addToFront shifts + inserts inside one @Transaction so an interruption or
-            // concurrent mutation can't leave the queue shifted with no head item.
-            queueDao.addToFront(episodeId, System.currentTimeMillis())
-        }
-    }
-
-    fun addToQueueLast() {
-        viewModelScope.launch {
-            // Read-max + insert atomically (single @Transaction) so two concurrent
-            // enqueues can't both land at the same position.
-            queueDao.addToEnd(episodeId, System.currentTimeMillis())
-        }
-    }
-
-    fun removeFromQueue() {
-        viewModelScope.launch {
-            queueDao.removeFromQueue(episodeId)
-        }
-    }
 }

@@ -10,8 +10,10 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.podbelly.PodbellApp
+import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.hasSameFeedFields
@@ -29,6 +31,8 @@ class FeedRefreshWorker @AssistedInject constructor(
     private val episodeDao: EpisodeDao,
     private val searchRepository: PodcastSearchRepository,
     private val preferencesManager: PreferencesManager,
+    private val listeningSessionDao: ListeningSessionDao,
+    private val downloadManager: DownloadManager,
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -44,6 +48,15 @@ class FeedRefreshWorker @AssistedInject constructor(
 
             var refreshedCount = 0
             var newEpisodeCount = 0
+
+            // Smart auto-download allowlist (see AppViewModel.refreshFeeds).
+            val smartDownload = preferencesManager.smartAutoDownload.first() &&
+                !downloadManager.isDownloadBlockedByWifiSetting()
+            val engagedPodcastIds = if (smartDownload) {
+                listeningSessionDao
+                    .getEngagedPodcastIds(System.currentTimeMillis() - 30L * 86_400_000L)
+                    .toSet()
+            } else emptySet()
 
             // Track podcasts with new episodes for notifications
             val podcastsWithNewEpisodes = mutableMapOf<String, Int>()
@@ -104,8 +117,12 @@ class FeedRefreshWorker @AssistedInject constructor(
                     }
 
                     if (newEpisodes.isNotEmpty()) {
-                        episodeDao.insertAll(newEpisodes)
+                        val insertedIds = episodeDao.insertAll(newEpisodes)
                         newEpisodeCount += newEpisodes.size
+                        if (smartDownload && podcast.id in engagedPodcastIds) {
+                            insertedIds.filter { it > 0L }
+                                .forEach { downloadManager.enqueueDownload(it) }
+                        }
 
                         // Track for notification if podcast has notifications enabled
                         if (podcast.notifyNewEpisodes) {
@@ -139,6 +156,8 @@ class FeedRefreshWorker @AssistedInject constructor(
                 preferencesManager.setLastFeedRefreshAt(System.currentTimeMillis())
             }
 
+            cleanUpPlayedDownloads()
+
             // Post notifications for new episodes
             if (podcastsWithNewEpisodes.isNotEmpty()) {
                 postNewEpisodesNotification(podcastsWithNewEpisodes)
@@ -150,6 +169,20 @@ class FeedRefreshWorker @AssistedInject constructor(
             Log.e(TAG, "Feed refresh failed", e)
             Result.retry()
         }
+    }
+
+    /**
+     * Deletes downloads of episodes that were finished more than the configured
+     * number of days ago (Settings > Downloads > Auto-delete played downloads).
+     */
+    private suspend fun cleanUpPlayedDownloads() {
+        val days = preferencesManager.autoDeletePlayedAfterDays.first()
+        if (days <= 0) return
+        val cutoff = System.currentTimeMillis() - days * 86_400_000L
+        val staleIds = episodeDao.getPlayedDownloadIdsOlderThan(cutoff)
+        if (staleIds.isEmpty()) return
+        staleIds.forEach { downloadManager.deleteDownload(it) }
+        Log.i(TAG, "Auto-deleted ${staleIds.size} played downloads older than $days days")
     }
 
     private fun postNewEpisodesNotification(podcastsWithNewEpisodes: Map<String, Int>) {

@@ -17,8 +17,8 @@ android {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 35
-        versionCode = 67
-        versionName = "1.6.19"
+        versionCode = 68
+        versionName = "1.6.20"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -84,7 +84,6 @@ dependencies {
     implementation(project(":feature:discover"))
     implementation(project(":feature:podcast"))
     implementation(project(":feature:player"))
-    implementation(project(":feature:queue"))
     implementation(project(":feature:settings"))
 
     implementation(libs.androidx.core.ktx)

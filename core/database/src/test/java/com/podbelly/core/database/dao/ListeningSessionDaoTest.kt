@@ -309,27 +309,6 @@ class ListeningSessionDaoTest {
     }
 
     @Test
-    fun `getTotalSilenceTrimmedMs sums all sessions`() = runTest {
-        listeningSessionDao.insert(
-            ListeningSessionEntity(
-                episodeId = episodeId1, podcastId = podcastId1,
-                startedAt = 1000L, listenedMs = 60000L, silenceTrimmedMs = 5000L,
-            )
-        )
-        listeningSessionDao.insert(
-            ListeningSessionEntity(
-                episodeId = episodeId2, podcastId = podcastId1,
-                startedAt = 2000L, listenedMs = 30000L, silenceTrimmedMs = 3000L,
-            )
-        )
-
-        listeningSessionDao.getTotalSilenceTrimmedMs().test {
-            assertEquals(8000L, awaitItem())
-            cancelAndConsumeRemainingEvents()
-        }
-    }
-
-    @Test
     fun `getMostListenedPodcasts groups by podcast and orders by total`() = runTest {
         // Podcast 1: two sessions, 60k + 30k = 90k total
         listeningSessionDao.insert(

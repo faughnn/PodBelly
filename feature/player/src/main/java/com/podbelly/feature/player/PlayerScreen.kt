@@ -81,6 +81,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -306,6 +310,8 @@ fun PlayerScreen(
                     currentPosition = playback.currentPosition,
                     duration = playback.duration,
                     onSeek = { viewModel.seekTo(it) },
+                    skipIntroMs = (skipSettings?.skipIntroSeconds ?: 0) * 1000L,
+                    skipOutroMs = (skipSettings?.skipOutroSeconds ?: 0) * 1000L,
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -476,6 +482,8 @@ private fun SeekBar(
     currentPosition: Long,
     duration: Long,
     onSeek: (Long) -> Unit,
+    skipIntroMs: Long = 0L,
+    skipOutroMs: Long = 0L,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isDragging by interactionSource.collectIsDraggedAsState()
@@ -550,39 +558,73 @@ private fun SeekBar(
             }
         }
 
-        Slider(
-            value = sliderPosition,
-            // Track the drag locally and commit a single seek on release, rather than
-            // firing a Media3 seek on every drag frame (dozens/sec). Mirrors the
-            // commit-on-finish pattern the speed slider already uses.
-            onValueChange = { fraction ->
-                localSlider = fraction
-            },
-            onValueChangeFinished = {
-                if (duration > 0L) onSeek((localSlider * duration).toLong())
-            },
-            modifier = Modifier.fillMaxWidth(),
-            interactionSource = interactionSource,
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-            ),
-            thumb = {
-                Box(
+        // Configured intro/outro auto-skip zones, shaded behind the track so the
+        // skipped stretches are visible at a glance.
+        Box(contentAlignment = Alignment.Center) {
+            if (duration > 0L && (skipIntroMs > 0L || skipOutroMs > 0L)) {
+                Canvas(
                     modifier = Modifier
-                        .size(thumbSize)
-                        .shadow(
-                            elevation = if (isDragging) 6.dp else 2.dp,
-                            shape = CircleShape,
+                        .matchParentSize()
+                        .padding(horizontal = 10.dp),
+                ) {
+                    val zoneColor = Color(0xFFE57373).copy(alpha = 0.35f)
+                    val barHeight = 12.dp.toPx()
+                    val top = (size.height - barHeight) / 2f
+                    val introFraction = (skipIntroMs.toFloat() / duration).coerceIn(0f, 1f)
+                    val outroFraction = (skipOutroMs.toFloat() / duration).coerceIn(0f, 1f)
+                    if (introFraction > 0f) {
+                        drawRoundRect(
+                            color = zoneColor,
+                            topLeft = Offset(0f, top),
+                            size = Size(size.width * introFraction, barHeight),
+                            cornerRadius = CornerRadius(4.dp.toPx()),
                         )
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape,
-                        ),
-                )
-            },
-        )
+                    }
+                    if (outroFraction > 0f) {
+                        val width = size.width * outroFraction
+                        drawRoundRect(
+                            color = zoneColor,
+                            topLeft = Offset(size.width - width, top),
+                            size = Size(width, barHeight),
+                            cornerRadius = CornerRadius(4.dp.toPx()),
+                        )
+                    }
+                }
+            }
+            Slider(
+                value = sliderPosition,
+                // Track the drag locally and commit a single seek on release, rather than
+                // firing a Media3 seek on every drag frame (dozens/sec). Mirrors the
+                // commit-on-finish pattern the speed slider already uses.
+                onValueChange = { fraction ->
+                    localSlider = fraction
+                },
+                onValueChangeFinished = {
+                    if (duration > 0L) onSeek((localSlider * duration).toLong())
+                },
+                modifier = Modifier.fillMaxWidth(),
+                interactionSource = interactionSource,
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+                thumb = {
+                    Box(
+                        modifier = Modifier
+                            .size(thumbSize)
+                            .shadow(
+                                elevation = if (isDragging) 6.dp else 2.dp,
+                                shape = CircleShape,
+                            )
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = CircleShape,
+                            ),
+                    )
+                },
+            )
+        }
 
         Row(
             modifier = Modifier

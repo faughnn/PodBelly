@@ -5,10 +5,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.podbelly.core.database.dao.DownloadErrorDao
+import com.podbelly.core.database.dao.DuplicateMergeDao
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.DownloadErrorEntity
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.ListeningSessionEntity
@@ -29,9 +29,9 @@ import com.podbelly.core.database.entity.QueueItemEntity
 abstract class PodbellDatabase : RoomDatabase() {
     abstract fun podcastDao(): PodcastDao
     abstract fun episodeDao(): EpisodeDao
-    abstract fun queueDao(): QueueDao
     abstract fun listeningSessionDao(): ListeningSessionDao
     abstract fun downloadErrorDao(): DownloadErrorDao
+    abstract fun duplicateMergeDao(): DuplicateMergeDao
 
     companion object {
         val MIGRATION_8_9 = object : Migration(8, 9) {

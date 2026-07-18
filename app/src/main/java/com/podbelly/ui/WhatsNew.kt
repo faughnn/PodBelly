@@ -2,9 +2,19 @@ package com.podbelly.ui
 
 object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
-    const val LATEST_VERSION_CODE = 67
+    const val LATEST_VERSION_CODE = 68
 
     val changelog: Map<Int, List<String>> = mapOf(
+        68 to listOf(
+            "Skip ad chapters: for shows that mark their ads as chapters, the player now jumps straight over them (Settings > Playback)",
+            "Chapters embedded in episodes now show up in the player — tap the chapter title for the full list",
+            "Merge duplicate subscriptions: Stats > Podcasts can now fold copies of the same show into one, moving your listening history and downloads over",
+            "Smart auto-download: only fetches new episodes from shows you've actually listened to in the last 30 days (Settings > Downloads)",
+            "Auto-delete played downloads after 1, 3, 7 or 30 days to free up space",
+            "The player's seek bar now shades the intro/outro stretches your skip settings jump over",
+            "Year in Review: a shareable summary of your listening year, at the top of Stats",
+            "The queue feature is gone — playback simply stops at the end of an episode",
+        ),
         67 to listOf(
             "Podcast and episode titles no longer show raw \"&amp;\" codes — existing titles correct themselves on the next feed refresh",
         ),

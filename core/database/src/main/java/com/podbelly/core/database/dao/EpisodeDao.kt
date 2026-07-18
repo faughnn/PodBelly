@@ -106,6 +106,16 @@ interface EpisodeDao {
     @Query("SELECT COALESCE(SUM(fileSize), 0) FROM episodes WHERE downloadPath != ''")
     fun getTotalDownloadedBytes(): Flow<Long>
 
+    /** Downloads of episodes finished before [cutoff], for auto-cleanup. */
+    @Query(
+        """
+        SELECT id FROM episodes
+        WHERE downloadPath != '' AND played = 1
+          AND lastPlayedAt > 0 AND lastPlayedAt < :cutoff
+        """
+    )
+    suspend fun getPlayedDownloadIdsOlderThan(cutoff: Long): List<Long>
+
     /**
      * How well the user keeps up with incoming episodes: of the episodes a feed
      * refresh discovered since [since], how many have been played. Rows with

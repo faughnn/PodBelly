@@ -6,7 +6,6 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastSkipSettings
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.network.transcript.TranscriptParser
 import com.podbelly.core.playback.PlaybackController
@@ -60,7 +59,6 @@ class PlayerViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val episodeDao: EpisodeDao,
     private val podcastDao: PodcastDao,
-    private val queueDao: QueueDao,
     private val preferencesManager: PreferencesManager,
     private val sleepTimer: SleepTimer,
     private val transcriptParser: TranscriptParser,

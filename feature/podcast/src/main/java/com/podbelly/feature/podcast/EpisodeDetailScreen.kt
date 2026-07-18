@@ -82,8 +82,6 @@ fun EpisodeDetailScreen(
     val episodeProgress = downloadProgress[viewModel.episodeId]
     val context = LocalContext.current
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
-    val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
-    val isInQueue by viewModel.isInQueue.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -336,63 +334,6 @@ fun EpisodeDetailScreen(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Share")
-            }
-
-            // Add to Queue / Remove from Queue (only when queue is enabled)
-            if (queueEnabled) {
-                if (isInQueue) {
-                    FilledTonalButton(
-                        onClick = { viewModel.removeFromQueue() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.RemoveCircleOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Remove from Queue")
-                    }
-                } else {
-                    var showQueueMenu by remember { mutableStateOf(false) }
-                    Box {
-                        FilledTonalButton(
-                            onClick = { showQueueMenu = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add to Queue")
-                        }
-                        DropdownMenu(
-                            expanded = showQueueMenu,
-                            onDismissRequest = { showQueueMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Play Next") },
-                                onClick = {
-                                    showQueueMenu = false
-                                    viewModel.addToQueueNext()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Play Last") },
-                                onClick = {
-                                    showQueueMenu = false
-                                    viewModel.addToQueueLast()
-                                }
-                            )
-                        }
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

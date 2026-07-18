@@ -1,5 +1,6 @@
 package com.podbelly.feature.settings
 
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Podcasts
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,11 +37,13 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,9 +51,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,6 +65,7 @@ import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.PodcastDownloadStat
 import com.podbelly.core.database.dao.PodcastListeningStat
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +81,27 @@ fun StatsScreen(
     val duplicateGroups by viewModel.duplicateGroups.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var showYearReview by rememberSaveable { mutableStateOf(false) }
+
+    if (showYearReview) {
+        // Collected only while the dialog is open — this drives the ViewModel's
+        // WhileSubscribed year-pinned stats pipeline.
+        val yearReview by viewModel.yearReview.collectAsStateWithLifecycle()
+        YearInReviewDialog(
+            stats = yearReview,
+            year = remember { Calendar.getInstance().get(Calendar.YEAR) },
+            onDismiss = { showYearReview = false },
+            onShare = { text ->
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }
+                context.startActivity(Intent.createChooser(sendIntent, "Share your year"))
+            },
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -128,6 +156,7 @@ fun StatsScreen(
                     uiState = uiState,
                     period = period,
                     onPeriodSelected = { viewModel.setPeriod(it) },
+                    onYearReviewClick = { showYearReview = true },
                 )
                 1 -> StatsTopTab(
                     uiState = uiState,
@@ -136,6 +165,14 @@ fun StatsScreen(
                 else -> PodcastEngagementTab(
                     stats = engagementStats,
                     duplicateGroups = duplicateGroups,
+                    onMergeDuplicates = { group ->
+                        viewModel.mergeDuplicates(group, keepPodcastId = group.first().podcastId)
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Merged ${group.size} copies of ${group.first().podcastTitle}",
+                            )
+                        }
+                    },
                     onPodcastClick = onNavigateToPodcast,
                     onUnsubscribe = { stat ->
                         viewModel.unsubscribe(stat.podcastId)
@@ -164,6 +201,7 @@ internal fun StatsOverviewTab(
     uiState: StatsUiState,
     period: StatsPeriod = StatsPeriod.ALL_TIME,
     onPeriodSelected: (StatsPeriod) -> Unit = {},
+    onYearReviewClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -184,6 +222,44 @@ internal fun StatsOverviewTab(
                         selected = period == option,
                         onClick = { onPeriodSelected(option) },
                         label = { Text(option.label) },
+                    )
+                }
+            }
+        }
+
+        // ── Year in Review ────────────────────────────────────────
+        item {
+            val year = remember { Calendar.getInstance().get(Calendar.YEAR) }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onYearReviewClick() },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                ),
+                shape = RoundedCornerShape(18.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "$year in Review",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                        Text(
+                            text = "Your listening year, ready to share",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
                     )
                 }
             }
@@ -263,9 +339,7 @@ internal fun StatsOverviewTab(
 
         // ── Time saved ────────────────────────────────────────────
         item {
-            val totalSaved = uiState.timeSavedBySpeedMs +
-                uiState.silenceTrimmedMs +
-                uiState.skipSavedMs
+            val totalSaved = uiState.timeSavedBySpeedMs + uiState.skipSavedMs
             StatsSection(title = "Time Saved") {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -275,7 +349,6 @@ internal fun StatsOverviewTab(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     TimeSavedRow(label = "Faster playback speed", value = uiState.timeSavedBySpeedMs)
-                    TimeSavedRow(label = "Silence trimmed", value = uiState.silenceTrimmedMs)
                     TimeSavedRow(label = "Intros & outros skipped", value = uiState.skipSavedMs)
                 }
             }
@@ -813,6 +886,117 @@ private fun DownloadStatsList(
             }
         }
     }
+}
+
+// =====================================================================
+// Year in Review
+// =====================================================================
+
+@Composable
+internal fun YearInReviewDialog(
+    stats: StatsUiState,
+    year: Int,
+    onDismiss: () -> Unit,
+    onShare: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "$year in Review",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (stats.totalListenedMs <= 0L) {
+                    Text(
+                        text = "Nothing tracked yet this year — play something and check back!",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    YearReviewRow(label = "Time listened", value = formatDurationMs(stats.totalListenedMs))
+                    stats.mostListenedPodcasts.firstOrNull()?.let {
+                        YearReviewRow(label = "Top show", value = it.podcastTitle)
+                    }
+                    if (stats.daysListened > 0) {
+                        YearReviewRow(label = "Days with a podcast", value = "${stats.daysListened}")
+                    }
+                    if (stats.longestStreak > 1) {
+                        YearReviewRow(label = "Longest streak", value = "${stats.longestStreak} days")
+                    }
+                    val saved = stats.timeSavedBySpeedMs + stats.skipSavedMs
+                    if (saved > 0L) {
+                        YearReviewRow(label = "Time saved", value = formatDurationMs(saved))
+                    }
+                    if (stats.finishedEpisodes > 0) {
+                        YearReviewRow(
+                            label = "Episodes finished",
+                            value = "${stats.finishedEpisodes}",
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onShare(buildYearReviewText(stats, year)) },
+                enabled = stats.totalListenedMs > 0L,
+            ) {
+                Text("Share")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
+}
+
+@Composable
+private fun YearReviewRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+/** The plain-text share card behind the Year in Review Share button. */
+internal fun buildYearReviewText(stats: StatsUiState, year: Int): String = buildString {
+    appendLine("My $year in podcasts 🎧")
+    append("• ").append(formatDurationMs(stats.totalListenedMs)).append(" listened")
+    daysOfAudioLabel(stats.totalListenedMs)?.let { append(" ($it)") }
+    appendLine()
+    stats.mostListenedPodcasts.firstOrNull()?.let {
+        appendLine("• Top show: ${it.podcastTitle}")
+    }
+    if (stats.daysListened > 0) {
+        appendLine("• ${stats.daysListened} days with a podcast in my ears")
+    }
+    if (stats.longestStreak > 1) {
+        appendLine("• Longest streak: ${stats.longestStreak} days")
+    }
+    val saved = stats.timeSavedBySpeedMs + stats.skipSavedMs
+    if (saved > 0L) {
+        appendLine("• ${formatDurationMs(saved)} saved by speed & skips")
+    }
+    if (stats.finishedEpisodes > 0) {
+        appendLine("• ${stats.finishedEpisodes} episodes finished")
+    }
+    append("Tracked with Podbelly")
 }
 
 // =====================================================================

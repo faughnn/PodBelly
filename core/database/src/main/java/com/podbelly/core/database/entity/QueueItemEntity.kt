@@ -6,6 +6,10 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * Dormant: the queue feature was removed, but the table stays in the schema so
+ * existing installs don't need a destructive migration.
+ */
 @Entity(
     tableName = "queue_items",
     indices = [

@@ -4,9 +4,11 @@ import android.app.Application
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.common.RefreshProgress
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
@@ -37,10 +39,9 @@ class AppViewModel @Inject constructor(
     private val podcastDao: PodcastDao,
     private val searchRepository: PodcastSearchRepository,
     private val preferencesManager: PreferencesManager,
+    private val listeningSessionDao: ListeningSessionDao,
+    private val downloadManager: DownloadManager,
 ) : ViewModel() {
-
-    val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private var lastRefreshTime = 0L
 
@@ -139,6 +140,16 @@ class AppViewModel @Inject constructor(
                 // safe now that feeds stream straight into the parser (memory per
                 // in-flight feed is just its parsed episodes, bounded by the 10MB
                 // read cap) — buffering whole documents was the old reason for 5.
+                // Smart auto-download: new arrivals from shows listened to in the
+                // last 30 days start downloading as soon as the refresh finds them.
+                val smartDownload = preferencesManager.smartAutoDownload.first() &&
+                    !downloadManager.isDownloadBlockedByWifiSetting()
+                val engagedPodcastIds = if (smartDownload) {
+                    listeningSessionDao
+                        .getEngagedPodcastIds(System.currentTimeMillis() - 30L * 86_400_000L)
+                        .toSet()
+                } else emptySet()
+
                 val semaphore = Semaphore(32)
                 val insertCounts = java.util.concurrent.atomic.AtomicInteger(0)
                 val successCounts = java.util.concurrent.atomic.AtomicInteger(0)
@@ -203,8 +214,12 @@ class AppViewModel @Inject constructor(
                                 }
 
                                 if (newEpisodes.isNotEmpty()) {
-                                    episodeDao.insertAll(newEpisodes)
+                                    val insertedIds = episodeDao.insertAll(newEpisodes)
                                     insertCounts.addAndGet(newEpisodes.size)
+                                    if (smartDownload && podcast.id in engagedPodcastIds) {
+                                        insertedIds.filter { it > 0L }
+                                            .forEach { downloadManager.enqueueDownload(it) }
+                                    }
                                 }
 
                                 podcastDao.update(
