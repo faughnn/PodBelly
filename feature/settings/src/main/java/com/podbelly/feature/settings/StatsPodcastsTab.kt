@@ -1,6 +1,7 @@
 package com.podbelly.feature.settings
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -62,6 +63,7 @@ internal enum class EngagementSort(val label: String) {
 internal fun PodcastEngagementTab(
     stats: List<PodcastEngagementStat>,
     onUnsubscribe: (PodcastEngagementStat) -> Unit,
+    onPodcastClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var sort by rememberSaveable { mutableStateOf(EngagementSort.LEAST_LISTENED) }
@@ -128,6 +130,7 @@ internal fun PodcastEngagementTab(
         ) { stat ->
             PodcastEngagementCard(
                 stat = stat,
+                onClick = { onPodcastClick(stat.podcastId) },
                 onUnsubscribeClick = { confirmTarget = stat },
             )
         }
@@ -166,11 +169,17 @@ internal fun PodcastEngagementTab(
 internal fun PodcastEngagementCard(
     stat: PodcastEngagementStat,
     onUnsubscribeClick: () -> Unit,
+    onClick: () -> Unit = {},
 ) {
     val podcastsFallback = rememberVectorPainter(Icons.Default.Podcasts)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                onClickLabel = "Open ${stat.podcastTitle}",
+                onClick = onClick,
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),

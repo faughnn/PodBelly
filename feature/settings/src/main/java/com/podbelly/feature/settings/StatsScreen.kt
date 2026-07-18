@@ -1,5 +1,6 @@
 package com.podbelly.feature.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,6 +65,7 @@ import java.util.TimeZone
 fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
+    onNavigateToPodcast: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
@@ -126,9 +128,13 @@ fun StatsScreen(
                     period = period,
                     onPeriodSelected = { viewModel.setPeriod(it) },
                 )
-                1 -> StatsTopTab(uiState = uiState)
+                1 -> StatsTopTab(
+                    uiState = uiState,
+                    onPodcastClick = onNavigateToPodcast,
+                )
                 else -> PodcastEngagementTab(
                     stats = engagementStats,
+                    onPodcastClick = onNavigateToPodcast,
                     onUnsubscribe = { stat ->
                         viewModel.unsubscribe(stat.podcastId)
                         scope.launch {
@@ -512,6 +518,7 @@ private fun TimeSavedRow(label: String, value: Long) {
 @Composable
 internal fun StatsTopTab(
     uiState: StatsUiState,
+    onPodcastClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -541,7 +548,7 @@ internal fun StatsTopTab(
         if (uiState.mostListenedPodcasts.isNotEmpty()) {
             item {
                 StatsSection(title = "Most Listened Podcasts") {
-                    PodcastStatsList(uiState.mostListenedPodcasts)
+                    PodcastStatsList(uiState.mostListenedPodcasts, onPodcastClick = onPodcastClick)
                 }
             }
         }
@@ -557,7 +564,7 @@ internal fun StatsTopTab(
         if (uiState.mostDownloadedPodcasts.isNotEmpty()) {
             item {
                 StatsSection(title = "Most Downloaded Podcasts") {
-                    DownloadStatsList(uiState.mostDownloadedPodcasts)
+                    DownloadStatsList(uiState.mostDownloadedPodcasts, onPodcastClick = onPodcastClick)
                 }
             }
         }
@@ -626,7 +633,10 @@ private fun StatsSection(
 }
 
 @Composable
-internal fun PodcastStatsList(stats: List<PodcastListeningStat>) {
+internal fun PodcastStatsList(
+    stats: List<PodcastListeningStat>,
+    onPodcastClick: (Long) -> Unit = {},
+) {
     val podcastsFallback = rememberVectorPainter(Icons.Default.Podcasts)
 
     Column {
@@ -640,6 +650,7 @@ internal fun PodcastStatsList(stats: List<PodcastListeningStat>) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onPodcastClick(stat.podcastId) }
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -739,7 +750,10 @@ internal fun EpisodeStatsList(stats: List<EpisodeListeningStat>) {
 }
 
 @Composable
-private fun DownloadStatsList(stats: List<PodcastDownloadStat>) {
+private fun DownloadStatsList(
+    stats: List<PodcastDownloadStat>,
+    onPodcastClick: (Long) -> Unit = {},
+) {
     val podcastsFallback = rememberVectorPainter(Icons.Default.Podcasts)
 
     Column {
@@ -753,6 +767,7 @@ private fun DownloadStatsList(stats: List<PodcastDownloadStat>) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onPodcastClick(stat.podcastId) }
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
