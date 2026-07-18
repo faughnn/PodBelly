@@ -105,10 +105,13 @@ class StatsViewModelTest {
     private fun makeEngagementStat(
         podcastId: Long = 1L,
         totalListenedMs: Long = 0L,
+        title: String = "Show $podcastId",
+        feedUrl: String = "https://feed$podcastId.example.com/rss",
     ) = PodcastEngagementStat(
         podcastId = podcastId,
-        podcastTitle = "Show $podcastId",
+        podcastTitle = title,
         artworkUrl = "",
+        feedUrl = feedUrl,
         subscribedAt = 1_000L,
         totalListenedMs = totalListenedMs,
         lastListenedAt = 0L,
@@ -479,6 +482,47 @@ class StatsViewModelTest {
             var value = awaitItem()
             while (value.isEmpty()) value = awaitItem()
             assertEquals(stats, value)
+        }
+    }
+
+    @Test
+    fun `findDuplicateGroups groups same titles ignoring case and whitespace`() {
+        val a = makeEngagementStat(podcastId = 1L, title = "The Daily Show", totalListenedMs = 100L)
+        val b = makeEngagementStat(podcastId = 2L, title = "  the daily  show ", totalListenedMs = 900L)
+        val unique = makeEngagementStat(podcastId = 3L, title = "Something Else")
+
+        val groups = StatsViewModel.findDuplicateGroups(listOf(a, b, unique))
+
+        assertEquals(1, groups.size)
+        // Most-listened copy leads the group
+        assertEquals(listOf(2L, 1L), groups[0].map { it.podcastId })
+    }
+
+    @Test
+    fun `findDuplicateGroups is empty when all titles are unique`() {
+        val stats = listOf(
+            makeEngagementStat(podcastId = 1L, title = "Show A"),
+            makeEngagementStat(podcastId = 2L, title = "Show B"),
+        )
+
+        assertTrue(StatsViewModel.findDuplicateGroups(stats).isEmpty())
+    }
+
+    @Test
+    fun `duplicateGroups flow surfaces duplicates from engagement stats`() = runTest {
+        engagementStatsFlow.value = listOf(
+            makeEngagementStat(podcastId = 1L, title = "Same Show"),
+            makeEngagementStat(podcastId = 2L, title = "Same Show"),
+            makeEngagementStat(podcastId = 3L, title = "Unique Show"),
+        )
+
+        val viewModel = createViewModel()
+
+        viewModel.duplicateGroups.test {
+            var value = awaitItem()
+            while (value.isEmpty()) value = awaitItem()
+            assertEquals(1, value.size)
+            assertEquals(setOf(1L, 2L), value[0].map { it.podcastId }.toSet())
         }
     }
 

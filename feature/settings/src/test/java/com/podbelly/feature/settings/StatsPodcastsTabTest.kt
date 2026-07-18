@@ -36,6 +36,7 @@ class StatsPodcastsTabTest {
         podcastId = podcastId,
         podcastTitle = title,
         artworkUrl = "",
+        feedUrl = "https://feeds.example.com/show$podcastId",
         subscribedAt = System.currentTimeMillis() - 90L * 86_400_000L,
         totalListenedMs = totalListenedMs,
         lastListenedAt = lastListenedAt,
@@ -190,6 +191,78 @@ class StatsPodcastsTabTest {
         }
 
         composeTestRule.onNodeWithText("No subscriptions yet.").assertIsDisplayed()
+    }
+
+    @Test
+    fun `duplicates section shows the copies with their feed hosts`() {
+        val copyA = makeStat(podcastId = 1L, title = "Same Show", totalListenedMs = 60_000L)
+            .copy(feedUrl = "https://feeds.megaphone.fm/sameshow")
+        val copyB = makeStat(podcastId = 2L, title = "Same Show")
+            .copy(feedUrl = "https://rss.art19.com/same-show")
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                PodcastEngagementTab(
+                    stats = listOf(copyA, copyB),
+                    duplicateGroups = listOf(listOf(copyA, copyB)),
+                    onUnsubscribe = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Duplicate subscriptions").assertIsDisplayed()
+        composeTestRule.onNodeWithText("2 copies · keep the one you listen to").assertIsDisplayed()
+        composeTestRule.onNodeWithText("feeds.megaphone.fm").assertIsDisplayed()
+        composeTestRule.onNodeWithText("rss.art19.com").assertIsDisplayed()
+    }
+
+    @Test
+    fun `duplicates section is hidden when there are none`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                PodcastEngagementTab(
+                    stats = listOf(makeStat()),
+                    duplicateGroups = emptyList(),
+                    onUnsubscribe = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Duplicate subscriptions").assertDoesNotExist()
+    }
+
+    @Test
+    fun `unsubscribing a duplicate copy goes through the confirm dialog`() {
+        var unsubscribedId = -1L
+        val copyA = makeStat(podcastId = 1L, title = "Same Show")
+            .copy(feedUrl = "https://feeds.megaphone.fm/sameshow")
+        val copyB = makeStat(podcastId = 2L, title = "Same Show")
+            .copy(feedUrl = "https://rss.art19.com/same-show")
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                PodcastEngagementTab(
+                    stats = listOf(copyA, copyB),
+                    duplicateGroups = listOf(listOf(copyA, copyB)),
+                    onUnsubscribe = { unsubscribedId = it.podcastId },
+                )
+            }
+        }
+
+        composeTestRule
+            .onNodeWithContentDescription("Unsubscribe from Same Show (rss.art19.com)")
+            .performClick()
+        assertEquals(-1L, unsubscribedId) // confirm dialog first
+
+        composeTestRule.onNodeWithText("Unsubscribe").performClick()
+        assertEquals(2L, unsubscribedId)
+    }
+
+    @Test
+    fun `feedHost strips scheme and path`() {
+        assertEquals("feeds.example.com", feedHost("https://feeds.example.com/rss/show.xml"))
+        assertEquals("example.com", feedHost("http://example.com"))
+        assertEquals("no-scheme.com", feedHost("no-scheme.com/feed"))
     }
 
     @Test

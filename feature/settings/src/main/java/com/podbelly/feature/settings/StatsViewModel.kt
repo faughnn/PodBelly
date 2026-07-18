@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -138,6 +139,21 @@ class StatsViewModel @Inject constructor(
      */
     val engagementStats: StateFlow<List<PodcastEngagementStat>> =
         listeningSessionDao.getPodcastEngagementStats()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
+    /**
+     * Groups of subscriptions that look like the same show (identical normalized
+     * title, different feed URL) — usually one show added twice via different
+     * feeds. Each group is sorted most-listened first, so the copy worth keeping
+     * leads.
+     */
+    val duplicateGroups: StateFlow<List<List<PodcastEngagementStat>>> =
+        engagementStats
+            .map { findDuplicateGroups(it) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
@@ -308,6 +324,20 @@ class StatsViewModel @Inject constructor(
 
     companion object {
         private const val DAY_MS = 86_400_000L
+
+        /**
+         * Same-show detection for duplicate subscriptions: normalized (trimmed,
+         * case- and whitespace-insensitive) titles that appear more than once.
+         */
+        fun findDuplicateGroups(
+            stats: List<PodcastEngagementStat>,
+        ): List<List<PodcastEngagementStat>> =
+            stats
+                .groupBy { it.podcastTitle.trim().lowercase().replace(Regex("\\s+"), " ") }
+                .values
+                .filter { it.size > 1 }
+                .map { group -> group.sortedByDescending { it.totalListenedMs } }
+                .sortedBy { it.first().podcastTitle.lowercase() }
 
         fun calculateStreaks(
             sortedDays: List<Long>,

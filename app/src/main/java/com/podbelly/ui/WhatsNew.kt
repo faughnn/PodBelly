@@ -1,10 +1,13 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    // 65 is a test-stability fix with no user-facing changes; no changelog entry.
-    const val LATEST_VERSION_CODE = 65
+    // 65 was a test-stability fix with no user-facing changes; no changelog entry.
+    const val LATEST_VERSION_CODE = 66
 
     val changelog: Map<Int, List<String>> = mapOf(
+        66 to listOf(
+            "Stats now flags duplicate subscriptions — the same show added via different feeds — at the top of the Podcasts tab, with each copy's feed and listening so you can unsubscribe the spare",
+        ),
         64 to listOf(
             "Tap any podcast in Stats — the Podcasts tab cards or the Top lists — to open its page before deciding to unsubscribe",
         ),
