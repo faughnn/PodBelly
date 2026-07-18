@@ -3,6 +3,7 @@ package com.podbelly.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.DailyListeningStat
+import com.podbelly.core.database.dao.DuplicateMergeDao
 import com.podbelly.core.database.dao.DayOfWeekStat
 import com.podbelly.core.database.dao.EpisodeCompletionStat
 import com.podbelly.core.database.dao.EpisodeDao
@@ -15,6 +16,7 @@ import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastDownloadStat
 import com.podbelly.core.database.dao.PodcastEngagementStat
 import com.podbelly.core.database.dao.PodcastListeningStat
+import com.podbelly.core.database.dao.normalizeTitleForMatch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -66,7 +68,6 @@ data class StatsUiState(
     val listenedThisMonthMs: Long = 0L,
     // Time saved breakdown
     val timeSavedBySpeedMs: Long = 0L,
-    val silenceTrimmedMs: Long = 0L,
     val skipSavedMs: Long = 0L,
     // Streaks are lifetime by definition
     val currentStreak: Int = 0,
@@ -109,6 +110,7 @@ class StatsViewModel @Inject constructor(
     private val listeningSessionDao: ListeningSessionDao,
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
+    private val duplicateMergeDao: DuplicateMergeDao,
 ) : ViewModel() {
 
     // Bucket day/hour/streak stats in the device's local time, not UTC.
@@ -132,6 +134,20 @@ class StatsViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = StatsUiState(),
         )
+
+    /**
+     * The Year in Review card's numbers: the same stats pipeline pinned to the
+     * current calendar year, independent of the Overview period filter. Only
+     * collected while the review dialog is on screen (WhileSubscribed), so it
+     * costs nothing the rest of the time.
+     */
+    val yearReview: StateFlow<StatsUiState> =
+        flow { emitAll(statsFlow(StatsPeriod.THIS_YEAR.cutoff())) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = StatsUiState(),
+            )
 
     /**
      * Per-podcast engagement for the "Podcasts" tab, least listened first, so the
@@ -173,6 +189,18 @@ class StatsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Merges every spare copy in a duplicate [group] into the copy the user
+     * keeps: play state, downloads and listening history move over, then the
+     * spares are unsubscribed. Not undoable (hence the confirm dialog in the UI).
+     */
+    fun mergeDuplicates(group: List<PodcastEngagementStat>, keepPodcastId: Long) {
+        viewModelScope.launch {
+            group.filter { it.podcastId != keepPodcastId }
+                .forEach { spare -> duplicateMergeDao.merge(spare.podcastId, keepPodcastId) }
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Flow assembly
     // -----------------------------------------------------------------------
@@ -180,7 +208,6 @@ class StatsViewModel @Inject constructor(
     private data class Totals(
         val totalListenedMs: Long,
         val speedSavedMs: Long,
-        val silenceSavedMs: Long,
         val skipSavedMs: Long,
         val averageSpeed: Double,
     )
@@ -226,7 +253,6 @@ class StatsViewModel @Inject constructor(
         val totals = combine(
             listeningSessionDao.getTotalListenedMs(since),
             listeningSessionDao.getTimeSavedBySpeed(since),
-            listeningSessionDao.getTotalSilenceTrimmedMs(since),
             listeningSessionDao.getTotalSkipSavedMs(since),
             listeningSessionDao.getWeightedAverageSpeed(since),
             ::Totals,
@@ -289,7 +315,6 @@ class StatsViewModel @Inject constructor(
                 listenedThisWeekMs = w.weekMs,
                 listenedThisMonthMs = w.monthMs,
                 timeSavedBySpeedMs = t.speedSavedMs,
-                silenceTrimmedMs = t.silenceSavedMs,
                 skipSavedMs = t.skipSavedMs,
                 currentStreak = currentStreak,
                 longestStreak = longestStreak,
@@ -333,7 +358,7 @@ class StatsViewModel @Inject constructor(
             stats: List<PodcastEngagementStat>,
         ): List<List<PodcastEngagementStat>> =
             stats
-                .groupBy { it.podcastTitle.trim().lowercase().replace(Regex("\\s+"), " ") }
+                .groupBy { normalizeTitleForMatch(it.podcastTitle) }
                 .values
                 .filter { it.size > 1 }
                 .map { group -> group.sortedByDescending { it.totalListenedMs } }

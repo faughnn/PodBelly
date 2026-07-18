@@ -3,11 +3,9 @@ package com.podbelly.feature.home
 import android.text.format.DateUtils
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,8 +34,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -95,7 +91,6 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
-    val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
     val lastRefreshedAt by viewModel.lastRefreshedAt.collectAsStateWithLifecycle()
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -177,9 +172,6 @@ fun HomeScreen(
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
                     onDownloadClick = { episodeId -> viewModel.downloadEpisode(episodeId) },
                     onCancelDownloadClick = { episodeId -> viewModel.cancelDownload(episodeId) },
-                    queueEnabled = queueEnabled,
-                    onPlayNext = { episodeId -> viewModel.addToQueueNext(episodeId) },
-                    onPlayLast = { episodeId -> viewModel.addToQueueLast(episodeId) },
                     onDismissNewSection = viewModel::dismissNewSection,
                 )
             }
@@ -240,9 +232,6 @@ internal fun EpisodeList(
     onPlayClick: (Long) -> Unit,
     onDownloadClick: (Long) -> Unit,
     onCancelDownloadClick: (Long) -> Unit = {},
-    queueEnabled: Boolean = false,
-    onPlayNext: (Long) -> Unit = {},
-    onPlayLast: (Long) -> Unit = {},
     onDismissNewSection: () -> Unit = {},
 ) {
     LazyColumn(
@@ -343,9 +332,6 @@ internal fun EpisodeList(
                     onPlay = { onPlayClick(episode.episodeId) },
                     onDownload = { onDownloadClick(episode.episodeId) },
                     onCancelDownload = { onCancelDownloadClick(episode.episodeId) },
-                    queueEnabled = queueEnabled,
-                    onPlayNext = { onPlayNext(episode.episodeId) },
-                    onPlayLast = { onPlayLast(episode.episodeId) },
                     modifier = Modifier
                         .animateItem(
                             fadeInSpec = spring(stiffness = Spring.StiffnessLow),
@@ -385,9 +371,6 @@ internal fun EpisodeList(
                 onPlay = { onPlayClick(episode.episodeId) },
                 onDownload = { onDownloadClick(episode.episodeId) },
                 onCancelDownload = { onCancelDownloadClick(episode.episodeId) },
-                queueEnabled = queueEnabled,
-                onPlayNext = { onPlayNext(episode.episodeId) },
-                onPlayLast = { onPlayLast(episode.episodeId) },
                 modifier = Modifier
                     .animateItem(
                         fadeInSpec = spring(stiffness = Spring.StiffnessLow),
@@ -580,7 +563,6 @@ private fun CarouselCard(
 // Episode card — Jukebox styling with color-coded duration tags
 // ------------------------------------------------------------------
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EpisodeCard(
     episode: HomeEpisodeItem,
@@ -590,16 +572,12 @@ fun EpisodeCard(
     onDownload: () -> Unit,
     onCancelDownload: () -> Unit = {},
     isCurrentlyPlaying: Boolean = false,
-    queueEnabled: Boolean = false,
-    onPlayNext: () -> Unit = {},
-    onPlayLast: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isDownloaded = episode.downloadPath.isNotBlank()
     val isDownloading = downloadProgress != null
     val hasProgress = episode.playbackPosition > 0L && !episode.played && episode.durationSeconds > 0
     val playedAlpha = if (episode.played) 0.5f else 1f
-    var showQueueMenu by remember { mutableStateOf(false) }
 
     val cardShape = RoundedCornerShape(14.dp)
 
@@ -611,10 +589,7 @@ fun EpisodeCard(
                 color = Color.White.copy(alpha = 0.024f),
                 shape = cardShape,
             )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = { if (queueEnabled) showQueueMenu = true }
-            ),
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
@@ -802,22 +777,6 @@ fun EpisodeCard(
                                     )
                                 )
                             )
-                    )
-                }
-            }
-
-            if (showQueueMenu) {
-                DropdownMenu(
-                    expanded = showQueueMenu,
-                    onDismissRequest = { showQueueMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Play Next") },
-                        onClick = { showQueueMenu = false; onPlayNext() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Play Last") },
-                        onClick = { showQueueMenu = false; onPlayLast() }
                     )
                 }
             }

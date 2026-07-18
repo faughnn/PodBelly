@@ -41,7 +41,6 @@ class NavigationTest {
                 composable(Screen.Home.route) { Text("Home") }
                 composable(Screen.Discover.route) { Text("Discover") }
                 composable(Screen.Library.route) { Text("Library") }
-                composable(Screen.Queue.route) { Text("Queue") }
                 composable(Screen.Settings.route) { Text("Settings") }
                 composable(Screen.Player.route) { Text("Player") }
                 composable(
@@ -82,16 +81,6 @@ class NavigationTest {
         }
         composeTestRule.runOnIdle {
             assertEquals(Screen.Library.route, navController.currentBackStackEntry?.destination?.route)
-        }
-    }
-
-    @Test
-    fun `navigate to Queue tab`() {
-        composeTestRule.runOnIdle {
-            navController.navigate(Screen.Queue.route)
-        }
-        composeTestRule.runOnIdle {
-            assertEquals(Screen.Queue.route, navController.currentBackStackEntry?.destination?.route)
         }
     }
 
@@ -191,7 +180,6 @@ class NavigationTest {
         val tabs = listOf(
             Screen.Discover.route,
             Screen.Library.route,
-            Screen.Queue.route,
             Screen.Settings.route
         )
 

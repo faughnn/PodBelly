@@ -5,7 +5,6 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastSkipSettings
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.network.transcript.TranscriptParser
 import com.podbelly.core.playback.PlaybackController
@@ -39,7 +38,6 @@ class PlayerViewModelTest {
     private val playbackController = mockk<PlaybackController>(relaxed = true)
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
-    private val queueDao = mockk<QueueDao>(relaxed = true)
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
     private val sleepTimer = mockk<SleepTimer>(relaxed = true)
     private val transcriptParser = mockk<TranscriptParser>(relaxed = true)
@@ -69,7 +67,6 @@ class PlayerViewModelTest {
             playbackController = playbackController,
             episodeDao = episodeDao,
             podcastDao = podcastDao,
-            queueDao = queueDao,
             preferencesManager = preferencesManager,
             sleepTimer = sleepTimer,
             transcriptParser = transcriptParser,

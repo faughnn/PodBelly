@@ -65,10 +65,12 @@ internal fun PodcastEngagementTab(
     onUnsubscribe: (PodcastEngagementStat) -> Unit,
     onPodcastClick: (Long) -> Unit = {},
     duplicateGroups: List<List<PodcastEngagementStat>> = emptyList(),
+    onMergeDuplicates: (List<PodcastEngagementStat>) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var sort by rememberSaveable { mutableStateOf(EngagementSort.LEAST_LISTENED) }
     var confirmTarget by remember { mutableStateOf<PodcastEngagementStat?>(null) }
+    var mergeTarget by remember { mutableStateOf<List<PodcastEngagementStat>?>(null) }
 
     val sortedStats = remember(stats, sort) {
         when (sort) {
@@ -130,6 +132,7 @@ internal fun PodcastEngagementTab(
                     group = group,
                     onPodcastClick = onPodcastClick,
                     onUnsubscribeClick = { confirmTarget = it },
+                    onMergeClick = { mergeTarget = group },
                 )
             }
         }
@@ -196,6 +199,37 @@ internal fun PodcastEngagementTab(
             },
         )
     }
+
+    mergeTarget?.let { group ->
+        val keep = group.first()
+        AlertDialog(
+            onDismissRequest = { mergeTarget = null },
+            title = { Text("Merge ${group.size} copies of ${keep.podcastTitle}?") },
+            text = {
+                Text(
+                    "The ${feedHost(keep.feedUrl)} copy is kept. Play history, " +
+                        "positions and downloads from the other " +
+                        "${if (group.size == 2) "copy" else "copies"} move onto it, " +
+                        "then the spares are unsubscribed. This can't be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        mergeTarget = null
+                        onMergeDuplicates(group)
+                    },
+                ) {
+                    Text("Merge")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mergeTarget = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
 }
 
 /**
@@ -207,6 +241,7 @@ internal fun DuplicateGroupCard(
     group: List<PodcastEngagementStat>,
     onPodcastClick: (Long) -> Unit,
     onUnsubscribeClick: (PodcastEngagementStat) -> Unit,
+    onMergeClick: () -> Unit = {},
 ) {
     val podcastsFallback = rememberVectorPainter(Icons.Default.Podcasts)
 
@@ -231,7 +266,7 @@ internal fun DuplicateGroupCard(
                     contentScale = ContentScale.Crop,
                 )
                 Spacer(modifier = Modifier.width(10.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = group.first().podcastTitle,
                         style = MaterialTheme.typography.bodyLarge,
@@ -244,6 +279,9 @@ internal fun DuplicateGroupCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                TextButton(onClick = onMergeClick) {
+                    Text("Merge")
                 }
             }
 

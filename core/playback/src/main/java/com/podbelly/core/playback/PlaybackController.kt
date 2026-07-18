@@ -12,6 +12,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.MetadataRetriever
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -23,7 +24,6 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.ListeningSessionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -54,7 +55,6 @@ import javax.inject.Singleton
  */
 @Singleton
 class PlaybackController @Inject constructor(
-    private val queueDao: QueueDao,
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
     private val preferencesManager: PreferencesManager,
@@ -70,6 +70,9 @@ class PlaybackController @Inject constructor(
     private var mediaController: MediaController? = null
     private var controllerFuture: ListenableFuture<MediaController>? = null
 
+    /** Application context, kept for [loadChapters]'s MetadataRetriever. */
+    private var appContext: Context? = null
+
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
@@ -79,13 +82,35 @@ class PlaybackController @Inject constructor(
 
     /**
      * When true, the player pauses at the end of the current episode instead of
-     * auto-advancing the queue. Set by the sleep timer's "end of episode" mode.
+     * Set by the sleep timer's "end of episode" mode (playback now always
+     * stops at episode end, so this only suppresses nothing extra).
      */
     @Volatile
     private var pauseAtEpisodeEnd: Boolean = false
 
     private var positionUpdateJob: Job? = null
     private var speedLoadJob: Job? = null
+    private var chapterLoadJob: Job? = null
+
+    /** Mirrors the "Skip ad chapters" preference (see the init block). */
+    @Volatile
+    private var skipAdChaptersEnabled: Boolean = false
+
+    /**
+     * Indices of ad chapters already auto-skipped in the current episode, so each
+     * fires at most once — a user who deliberately seeks back into an ad chapter
+     * isn't yanked out of it again. Reset whenever a new episode starts.
+     * Only touched from the main thread (position loop and play()).
+     */
+    private val skippedAdChapters = mutableSetOf<Int>()
+
+    init {
+        // Live "Skip ad chapters" setting; collected once for the singleton's lifetime
+        // so the position loop can check it without a suspend call every 250ms.
+        scope.launch {
+            preferencesManager.skipAdChapters.collect { skipAdChaptersEnabled = it }
+        }
+    }
 
     /**
      * Per-podcast outro auto-skip (seconds) for the currently playing podcast, loaded
@@ -186,7 +211,6 @@ class PlaybackController @Inject constructor(
                                 currentPosition = controller.currentPosition.coerceAtLeast(0L),
                             )
                         }
-                        refreshQueueFlags()
                     }
                 }
                 Player.STATE_ENDED -> {
@@ -223,6 +247,7 @@ class PlaybackController @Inject constructor(
             endListeningSession()
             currentSkipOutroSeconds = 0
             outroEndFired = false
+            skippedAdChapters.clear()
             currentAudioUrl = ""
             mediaController?.let { syncStateFromController(it) }
         }
@@ -255,6 +280,7 @@ class PlaybackController @Inject constructor(
      * or connected.
      */
     fun connectToService(context: Context) {
+        appContext = context.applicationContext
         if (mediaController != null || controllerFuture != null) return
 
         // Robolectric unit tests boot the real Application, which lands here. Its
@@ -361,6 +387,7 @@ class PlaybackController @Inject constructor(
         // so a stale value from the previous podcast can't end the new episode.
         currentSkipOutroSeconds = 0
         outroEndFired = false
+        skippedAdChapters.clear()
 
         currentEpisodeId = episodeId
         currentPodcastId = podcastId
@@ -400,7 +427,8 @@ class PlaybackController @Inject constructor(
         controller.setMediaItem(mediaItem, startPosition)
         controller.prepare()
         controller.play()
-        refreshQueueFlags()
+
+        loadChapters(episodeId, audioUrl)
 
         // Apply per-podcast speed immediately so it's correct from the first moment.
         // Cancel any prior speed-load and bail if the episode changed while loading,
@@ -418,8 +446,7 @@ class PlaybackController @Inject constructor(
             if (currentEpisodeId == episodeId) {
                 setPlaybackSpeed(speed)
                 // Same load path also applies the per-podcast intro/outro auto-skip.
-                // Living inside play() means both the direct play path and the queue
-                // auto-advance path get it for free.
+                // Living inside play() means every play path gets it for free.
                 applySkipSettings(podcastId, episodeId, startPosition)
             }
         }
@@ -484,6 +511,51 @@ class PlaybackController @Inject constructor(
                 Log.w(TAG, "Failed to refresh skip settings", e)
             }
         }
+    }
+
+    /**
+     * Loads embedded ID3 chapters (CHAP frames) from the episode's audio — the
+     * standard way MP3 podcasts ship chapter marks. Runs off the playback path via
+     * [MetadataRetriever], so a file with no chapters just yields an empty list.
+     * Populates [PlaybackState.chapters], which drives the player's chapter UI and
+     * the "Skip ad chapters" setting.
+     */
+    private fun loadChapters(episodeId: Long, audioUrl: String) {
+        chapterLoadJob?.cancel()
+        if (audioUrl.isBlank()) return
+        val context = appContext ?: return
+        chapterLoadJob = scope.launch {
+            val chapters = try {
+                retrieveChapters(context, audioUrl)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load chapters", e)
+                emptyList()
+            }
+            // Playback may have moved on while the retriever was parsing.
+            if (currentEpisodeId != episodeId) return@launch
+            _playbackState.update {
+                it.copy(
+                    chapters = chapters,
+                    currentChapterIndex = -1,
+                )
+            }
+        }
+    }
+
+    @OptIn(UnstableApi::class)
+    private suspend fun retrieveChapters(context: Context, audioUrl: String): List<Chapter> {
+        val trackGroups = MetadataRetriever
+            .retrieveMetadata(context, MediaItem.fromUri(audioUrl))
+            .await()
+        val metadata = buildList {
+            for (groupIndex in 0 until trackGroups.length) {
+                val group = trackGroups.get(groupIndex)
+                for (formatIndex in 0 until group.length) {
+                    group.getFormat(formatIndex).metadata?.let { add(it) }
+                }
+            }
+        }
+        return chaptersFromMetadata(metadata, mediaController?.duration?.coerceAtLeast(0L) ?: 0L)
     }
 
     /**
@@ -612,6 +684,7 @@ class PlaybackController @Inject constructor(
         controller.stop()
         controller.clearMediaItems()
         stopPositionUpdates()
+        chapterLoadJob?.cancel()
 
         currentEpisodeId = 0L
         currentAudioUrl = ""
@@ -619,27 +692,18 @@ class PlaybackController @Inject constructor(
         currentPodcastTitle = ""
         currentEpisodeTitle = ""
         currentSkipOutroSeconds = 0
+        skippedAdChapters.clear()
 
         _playbackState.value = PlaybackState()
     }
 
     /**
      * Arms or disarms "pause at end of episode" mode. When armed, the player stops
-     * at the end of the current episode instead of auto-advancing the queue.
+     * at the end of the current episode.
      * Used by the sleep timer's end-of-episode mode.
      */
     fun setPauseAtEpisodeEnd(enabled: Boolean) {
         pauseAtEpisodeEnd = enabled
-    }
-
-    /**
-     * Advances to the next episode in the playback queue.
-     * If the queue is empty, playback stops.
-     */
-    fun playNext() {
-        scope.launch {
-            advanceQueue()
-        }
     }
 
     /**
@@ -670,14 +734,14 @@ class PlaybackController @Inject constructor(
     }
 
     // -------------------------------------------------------------------------
-    // Queue helpers
+    // Episode end handling
     // -------------------------------------------------------------------------
 
     /**
      * Shared natural-end path: runs when the current episode finishes, either because
      * the player reached [Player.STATE_ENDED] or because the per-podcast outro-skip
      * window was entered (see [shouldEndForOutro]). Marks the episode played, emits
-     * [episodeEnded], and either stops (sleep timer armed) or auto-advances the queue.
+     * [episodeEnded], and stops the player.
      */
     private fun handleEpisodeFinished() {
         val controller = mediaController ?: return
@@ -713,98 +777,9 @@ class PlaybackController @Inject constructor(
         // inferring from currentPosition, which is reset to 0 above.
         _episodeEnded.tryEmit(Unit)
 
-        if (pauseAtEpisodeEnd) {
-            // End-of-episode sleep timer is armed: stop here instead of
-            // auto-advancing to the next queued episode. Drop the player to
-            // IDLE (as we do after a normal end) so a Bluetooth/car play
-            // command can't restart the finished episode from 0.
-            pauseAtEpisodeEnd = false
-            stopPlayerAfterEnded()
-        } else {
-            // Automatically advance to the next queued episode
-            onEpisodeEnded()
-        }
-    }
-
-    /**
-     * Called when the current episode reaches [Player.STATE_ENDED].
-     * Removes the finished episode from the queue and starts the next one.
-     */
-    private fun onEpisodeEnded() {
-        scope.launch {
-            advanceQueue()
-        }
-    }
-
-    /**
-     * Fetches the next item from the queue, removes the current one, and starts
-     * playback of the next episode. If there is nothing in the queue, playback stops.
-     *
-     * Looks up the actual podcast title from the database for each episode,
-     * since queue items may come from different podcasts.
-     */
-    private suspend fun advanceQueue() {
-        // Only auto-advance if queue feature is enabled
-        val queueEnabled = preferencesManager.queueEnabled.first()
-        if (!queueEnabled) {
-            stopPlayerAfterEnded()
-            return
-        }
-
-        try {
-            val finishedEpisodeId = currentEpisodeId
-
-            // Determine the next episode based on the finished episode's *position*
-            // in the queue, not simply the lowest-position item. The finished episode
-            // may not be the queue head (e.g. the user tapped a later item to play it),
-            // so blindly taking the head would replay an earlier episode and skip the
-            // correct next one.
-            val queue = queueDao.getQueueOnce()
-            val currentIndex = queue.indexOfFirst { it.episode.id == finishedEpisodeId }
-            val next = when {
-                // Finished episode is in the queue: take the item after it.
-                currentIndex in 0 until queue.size - 1 -> queue[currentIndex + 1]
-                // Finished episode is the last item: nothing to advance to.
-                currentIndex == queue.size - 1 -> null
-                // Finished episode isn't in the queue (played from outside it):
-                // fall back to starting the queue from its head.
-                else -> queue.firstOrNull()
-            }
-
-            // Remove the episode that just finished from the queue.
-            if (finishedEpisodeId != 0L) {
-                queueDao.removeFromQueue(finishedEpisodeId)
-            }
-
-            if (next != null && next.episode.id != finishedEpisodeId) {
-                val episode = next.episode
-
-                // Look up the actual podcast title from the database
-                val podcastTitle = podcastDao.getByIdOnce(episode.podcastId)?.title ?: ""
-
-                play(
-                    episodeId = episode.id,
-                    // Prefer the downloaded file (download-first); fall back to the remote
-                    // URL only if not downloaded — matching every other play() call site.
-                    // Streaming the remote URL here would break offline auto-advance and
-                    // waste mobile data for an episode the user explicitly downloaded.
-                    audioUrl = episode.downloadPath.ifBlank { episode.audioUrl },
-                    title = episode.title,
-                    podcastTitle = podcastTitle,
-                    artworkUrl = episode.artworkUrl,
-                    startPosition = episode.playbackPosition,
-                    podcastId = episode.podcastId,
-                )
-            } else {
-                // Nothing left in queue
-                _playbackState.update {
-                    it.copy(hasNext = false, hasPrevious = false)
-                }
-                stopPlayerAfterEnded()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to advance queue", e)
-        }
+        // The queue feature is gone: an episode that finishes simply stops.
+        pauseAtEpisodeEnd = false
+        stopPlayerAfterEnded()
     }
 
     // A STATE_ENDED player still has the finished media item loaded, so any
@@ -816,6 +791,8 @@ class PlaybackController @Inject constructor(
         controller.clearMediaItems()
         controller.stop()
         stopPositionUpdates()
+        chapterLoadJob?.cancel()
+        skippedAdChapters.clear()
 
         // Reset state so the just-finished episode doesn't linger in the mini-player at
         // 0:00 (where tapping play would restart the already-played episode). Mirrors
@@ -829,27 +806,6 @@ class PlaybackController @Inject constructor(
         currentSkipOutroSeconds = 0
 
         _playbackState.value = PlaybackState()
-    }
-
-    /**
-     * Checks the queue to determine whether there is a next/previous episode and
-     * updates the [PlaybackState] flags accordingly.
-     */
-    private fun refreshQueueFlags() {
-        scope.launch {
-            try {
-                val queue = queueDao.getQueueOnce()
-                val currentIndex = queue.indexOfFirst { it.episode.id == currentEpisodeId }
-                _playbackState.update {
-                    it.copy(
-                        hasNext = currentIndex >= 0 && currentIndex < queue.size - 1,
-                        hasPrevious = currentIndex > 0,
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to refresh queue flags", e)
-            }
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -1106,10 +1062,11 @@ class PlaybackController @Inject constructor(
                     }
                     saveSessionProgress()
                     periodicSavePosition()
+                    maybeSkipAdChapter(pos, durationMs)
 
                     // Per-podcast outro-skip: once playback enters the configured
                     // window before the end, treat the episode as finished (mark
-                    // played + advance the queue — the same path STATE_ENDED takes).
+                    // played + stop — the same path STATE_ENDED takes).
                     // outroEndFired guards against firing more than once per episode.
                     if (shouldEndForOutro(pos, durationMs, currentSkipOutroSeconds, outroEndFired)) {
                         outroEndFired = true
@@ -1126,6 +1083,31 @@ class PlaybackController @Inject constructor(
     private fun stopPositionUpdates() {
         positionUpdateJob?.cancel()
         positionUpdateJob = null
+    }
+
+    /**
+     * Chapter-based ad skipping: when the "Skip ad chapters" setting is on and
+     * playback is inside a chapter whose title marks it as an ad (see
+     * [isAdChapterTitle]), jump to the chapter's end. Each chapter is skipped at
+     * most once per episode ([skippedAdChapters]) so seeking back into an ad on
+     * purpose isn't fought, and the jumped-over time counts as skip savings in
+     * Stats just like the intro/outro skips.
+     */
+    private fun maybeSkipAdChapter(pos: Long, durationMs: Long) {
+        if (!skipAdChaptersEnabled) return
+        val state = _playbackState.value
+        val index = state.currentChapterIndex
+        if (index < 0 || index in skippedAdChapters) return
+        val chapter = state.chapters.getOrNull(index) ?: return
+        if (!isAdChapterTitle(chapter.title)) return
+        // A repaired-but-still-unknown end leaves the chapter zero-length: never skip.
+        if (chapter.endTimeMs <= chapter.startTimeMs || chapter.endTimeMs <= pos) return
+
+        skippedAdChapters.add(index)
+        val target = if (durationMs > 0L) chapter.endTimeMs.coerceAtMost(durationMs) else chapter.endTimeMs
+        Log.i(TAG, "Skipping ad chapter \"${chapter.title}\" to ${target}ms")
+        sessionSkipSavedMs += (target - pos).coerceAtLeast(0L)
+        seekTo(target)
     }
 
     // -------------------------------------------------------------------------
@@ -1203,7 +1185,7 @@ class PlaybackController @Inject constructor(
                 controller.setPlaybackParameters(PlaybackParameters(speed))
                 // playWhenReady remains false — user must explicitly tap Play.
 
-                refreshQueueFlags()
+                loadChapters(episode.id, effectiveUrl)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to restore state from database", e)
             }
@@ -1238,10 +1220,12 @@ class PlaybackController @Inject constructor(
                 currentPosition = controller.currentPosition.coerceAtLeast(0L),
                 duration = controller.duration.coerceAtLeast(0L),
                 playbackSpeed = controller.playbackParameters.speed,
+                // Stale until syncEpisodeDetailsFromDatabase reloads them for this episode.
+                chapters = emptyList(),
+                currentChapterIndex = -1,
             )
         }
 
-        refreshQueueFlags()
         syncEpisodeDetailsFromDatabase(episodeId)
     }
 
@@ -1267,6 +1251,7 @@ class PlaybackController @Inject constructor(
                 currentSkipOutroSeconds =
                     podcastDao.getSkipSettings(episode.podcastId)?.skipOutroSeconds ?: 0
                 _playbackState.update { it.copy(podcastId = episode.podcastId) }
+                loadChapters(episodeId, currentAudioUrl)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to sync episode details from database", e)
             }

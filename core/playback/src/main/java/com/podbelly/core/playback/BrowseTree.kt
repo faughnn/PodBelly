@@ -17,8 +17,6 @@ import com.podbelly.core.database.entity.PodcastEntity
  *
  * ```
  * root
- * ├── queue        (only when the queue feature is enabled)
- * │   └── queued episodes that are downloaded          [playable]
  * └── podcasts
  *     └── podcast_{id}  (subscribed shows with >= 1 downloaded episode)
  *         └── downloaded episodes, newest first        [playable]
@@ -40,7 +38,6 @@ import com.podbelly.core.database.entity.PodcastEntity
 object BrowseTree {
 
     const val ROOT_ID = "root"
-    const val QUEUE_ID = "queue"
     const val PODCASTS_ID = "podcasts"
     const val PODCAST_PREFIX = "podcast_"
     const val EPISODE_PREFIX = "episode_"
@@ -74,17 +71,11 @@ object BrowseTree {
     fun rootItem(): MediaItem =
         folderItem(ROOT_ID, "Podbelly", MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
 
-    fun queueFolderItem(): MediaItem =
-        folderItem(QUEUE_ID, "Queue", MediaMetadata.MEDIA_TYPE_PLAYLIST)
-
     fun podcastsFolderItem(): MediaItem =
         folderItem(PODCASTS_ID, "Podcasts", MediaMetadata.MEDIA_TYPE_FOLDER_PODCASTS)
 
-    /** Top-level folders. The Queue folder only appears when the queue feature is on. */
-    fun rootChildren(queueEnabled: Boolean): List<MediaItem> = buildList {
-        if (queueEnabled) add(queueFolderItem())
-        add(podcastsFolderItem())
-    }
+    /** Top-level folders. */
+    fun rootChildren(): List<MediaItem> = listOf(podcastsFolderItem())
 
     /** A browsable (not playable) folder for one subscribed podcast. */
     fun podcastItem(podcast: PodcastEntity): MediaItem {

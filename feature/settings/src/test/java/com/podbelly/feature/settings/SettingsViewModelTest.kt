@@ -52,9 +52,11 @@ class SettingsViewModelTest {
     private val feedRefreshIntervalFlow = MutableStateFlow(60)
     private val autoDownloadEnabledFlow = MutableStateFlow(false)
     private val autoDownloadCountFlow = MutableStateFlow(3)
-    private val autoDeletePlayedFlow = MutableStateFlow(false)
+    private val autoDeletePlayedAfterDaysFlow = MutableStateFlow(0)
+    private val smartAutoDownloadFlow = MutableStateFlow(false)
     private val downloadOnWifiOnlyFlow = MutableStateFlow(true)
     private val skipSilenceFlow = MutableStateFlow(false)
+    private val skipAdChaptersFlow = MutableStateFlow(false)
     private val volumeBoostFlow = MutableStateFlow(false)
 
 
@@ -68,9 +70,11 @@ class SettingsViewModelTest {
         every { preferencesManager.feedRefreshIntervalMinutes } returns feedRefreshIntervalFlow
         every { preferencesManager.autoDownloadEnabled } returns autoDownloadEnabledFlow
         every { preferencesManager.autoDownloadEpisodeCount } returns autoDownloadCountFlow
-        every { preferencesManager.autoDeletePlayed } returns autoDeletePlayedFlow
+        every { preferencesManager.autoDeletePlayedAfterDays } returns autoDeletePlayedAfterDaysFlow
+        every { preferencesManager.smartAutoDownload } returns smartAutoDownloadFlow
         every { preferencesManager.downloadOnWifiOnly } returns downloadOnWifiOnlyFlow
         every { preferencesManager.skipSilence } returns skipSilenceFlow
+        every { preferencesManager.skipAdChapters } returns skipAdChaptersFlow
         every { preferencesManager.volumeBoost } returns volumeBoostFlow
 
 
@@ -126,9 +130,11 @@ class SettingsViewModelTest {
             assertEquals(60, initial.feedRefreshIntervalMinutes)
             assertFalse(initial.autoDownloadEnabled)
             assertEquals(3, initial.autoDownloadEpisodeCount)
-            assertFalse(initial.autoDeletePlayed)
+            assertEquals(0, initial.autoDeletePlayedAfterDays)
+            assertFalse(initial.smartAutoDownload)
             assertTrue(initial.downloadOnWifiOnly)
             assertFalse(initial.skipSilence)
+            assertFalse(initial.skipAdChapters)
             assertFalse(initial.volumeBoost)
         }
     }
@@ -168,6 +174,15 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { preferencesManager.setSkipSilence(true) }
+    }
+
+    @Test
+    fun `setSkipAdChapters updates preferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.setSkipAdChapters(true)
+        advanceUntilIdle()
+
+        coVerify { preferencesManager.setSkipAdChapters(true) }
     }
 
     @Test
@@ -633,12 +648,19 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `setAutoDeletePlayed updates preferences`() = runTest {
+    fun `setAutoDeletePlayedAfterDays updates preferences`() = runTest {
         val viewModel = createViewModel()
-        viewModel.setAutoDeletePlayed(true)
+        viewModel.setAutoDeletePlayedAfterDays(7)
         advanceUntilIdle()
+        coVerify { preferencesManager.setAutoDeletePlayedAfterDays(7) }
+    }
 
-        coVerify { preferencesManager.setAutoDeletePlayed(true) }
+    @Test
+    fun `setSmartAutoDownload updates preferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.setSmartAutoDownload(true)
+        advanceUntilIdle()
+        coVerify { preferencesManager.setSmartAutoDownload(true) }
     }
 
     @Test

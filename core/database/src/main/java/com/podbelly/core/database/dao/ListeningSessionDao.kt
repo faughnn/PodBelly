@@ -82,6 +82,10 @@ interface ListeningSessionDao {
     @Query("UPDATE listening_sessions SET endedAt = :endedAt, listenedMs = :listenedMs WHERE id = :id")
     suspend fun updateSession(id: Long, endedAt: Long, listenedMs: Long)
 
+    /** Podcasts with any listening since [since] — the smart auto-download allowlist. */
+    @Query("SELECT DISTINCT podcastId FROM listening_sessions WHERE startedAt >= :since")
+    suspend fun getEngagedPodcastIds(since: Long): List<Long>
+
     /** Accumulates intro/outro auto-skip savings onto a session. */
     @Query("UPDATE listening_sessions SET skipSavedMs = skipSavedMs + :ms WHERE id = :id")
     suspend fun addSkipSavedMs(id: Long, ms: Long)
@@ -100,9 +104,6 @@ interface ListeningSessionDao {
         """
     )
     fun getTimeSavedBySpeed(since: Long = 0L): Flow<Long>
-
-    @Query("SELECT COALESCE(SUM(silenceTrimmedMs), 0) FROM listening_sessions WHERE startedAt >= :since")
-    fun getTotalSilenceTrimmedMs(since: Long = 0L): Flow<Long>
 
     @Query("SELECT COALESCE(SUM(skipSavedMs), 0) FROM listening_sessions WHERE startedAt >= :since")
     fun getTotalSkipSavedMs(since: Long = 0L): Flow<Long>

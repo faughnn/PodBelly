@@ -78,19 +78,21 @@ class PreferencesManager @Inject constructor(
     private object Keys {
         val FEED_REFRESH_INTERVAL_MINUTES = intPreferencesKey("feed_refresh_interval_minutes")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
+        val SMART_AUTO_DOWNLOAD = booleanPreferencesKey("smart_auto_download")
         val AUTO_DOWNLOAD_EPISODE_COUNT = intPreferencesKey("auto_download_episode_count")
         val AUTO_DELETE_PLAYED = booleanPreferencesKey("auto_delete_played")
+        val AUTO_DELETE_PLAYED_AFTER_DAYS = intPreferencesKey("auto_delete_played_after_days")
         val DOWNLOAD_ON_WIFI_ONLY = booleanPreferencesKey("download_on_wifi_only")
         val DARK_THEME_MODE = stringPreferencesKey("dark_theme_mode")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val SKIP_SILENCE = booleanPreferencesKey("skip_silence")
+        val SKIP_AD_CHAPTERS = booleanPreferencesKey("skip_ad_chapters")
         val VOLUME_BOOST = booleanPreferencesKey("volume_boost")
         val SLEEP_TIMER_MINUTES = intPreferencesKey("sleep_timer_minutes")
         val LIBRARY_SORT_ORDER = stringPreferencesKey("library_sort_order")
         val DOWNLOADS_SORT_ORDER = stringPreferencesKey("downloads_sort_order")
         val LIBRARY_VIEW_MODE = stringPreferencesKey("library_view_mode")
         val PAUSED_AT = longPreferencesKey("paused_at")
-        val QUEUE_ENABLED = booleanPreferencesKey("queue_enabled")
         val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
         val HOME_NEW_EPISODES_CUTOFF = longPreferencesKey("home_new_episodes_cutoff")
         val HOME_NEW_DISMISSED_AT = longPreferencesKey("home_new_dismissed_at")
@@ -108,12 +110,22 @@ class PreferencesManager @Inject constructor(
         prefs[Keys.AUTO_DOWNLOAD_ENABLED] ?: false
     }
 
+    /** Auto-download new episodes, but only from shows listened to recently. */
+    val smartAutoDownload: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD] ?: false
+    }
+
     val autoDownloadEpisodeCount: Flow<Int> = dataStore.data.map { prefs ->
         prefs[Keys.AUTO_DOWNLOAD_EPISODE_COUNT] ?: 3
     }
 
-    val autoDeletePlayed: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.AUTO_DELETE_PLAYED] ?: false
+    /**
+     * Days after playback before a played episode's download is deleted; 0 = off.
+     * Falls back to 7 for users who had the old boolean toggle on.
+     */
+    val autoDeletePlayedAfterDays: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.AUTO_DELETE_PLAYED_AFTER_DAYS]
+            ?: if (prefs[Keys.AUTO_DELETE_PLAYED] == true) 7 else 0
     }
 
     val downloadOnWifiOnly: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -133,6 +145,11 @@ class PreferencesManager @Inject constructor(
 
     val skipSilence: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.SKIP_SILENCE] ?: false
+    }
+
+    /** Auto-skip chapters whose title marks them as ads ("Sponsor", "Ad break", ...). */
+    val skipAdChapters: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SKIP_AD_CHAPTERS] ?: false
     }
 
     val volumeBoost: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -157,10 +174,6 @@ class PreferencesManager @Inject constructor(
 
     val pausedAt: Flow<Long> = dataStore.data.map { prefs ->
         prefs[Keys.PAUSED_AT] ?: 0L
-    }
-
-    val queueEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.QUEUE_ENABLED] ?: true
     }
 
     /**
@@ -202,6 +215,12 @@ class PreferencesManager @Inject constructor(
         }
     }
 
+    suspend fun setSmartAutoDownload(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD] = enabled
+        }
+    }
+
     suspend fun setAutoDownloadEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.AUTO_DOWNLOAD_ENABLED] = enabled
@@ -214,9 +233,9 @@ class PreferencesManager @Inject constructor(
         }
     }
 
-    suspend fun setAutoDeletePlayed(enabled: Boolean) {
+    suspend fun setAutoDeletePlayedAfterDays(days: Int) {
         dataStore.edit { prefs ->
-            prefs[Keys.AUTO_DELETE_PLAYED] = enabled
+            prefs[Keys.AUTO_DELETE_PLAYED_AFTER_DAYS] = days
         }
     }
 
@@ -244,6 +263,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setSkipSilence(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.SKIP_SILENCE] = enabled
+        }
+    }
+
+    suspend fun setSkipAdChapters(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SKIP_AD_CHAPTERS] = enabled
         }
     }
 
@@ -280,12 +305,6 @@ class PreferencesManager @Inject constructor(
     suspend fun setPausedAt(timestamp: Long) {
         dataStore.edit { prefs ->
             prefs[Keys.PAUSED_AT] = timestamp
-        }
-    }
-
-    suspend fun setQueueEnabled(enabled: Boolean) {
-        dataStore.edit { prefs ->
-            prefs[Keys.QUEUE_ENABLED] = enabled
         }
     }
 

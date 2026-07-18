@@ -31,7 +31,6 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +48,7 @@ import javax.inject.Inject
  * Handles:
  * - Background playback with a persistent notification
  * - Media session for system integration (lock screen, Bluetooth, Android Auto, etc.)
- * - The Android Auto browse tree (Queue + Podcasts folders, see [BrowseTree])
+ * - The Android Auto browse tree (Podcasts folder, see [BrowseTree])
  * - Resolving browse-tree media ids to playable items (download-first: only
  *   downloaded episodes are playable from Auto)
  * - Custom session commands for skip-silence and volume-boost toggling
@@ -87,9 +86,6 @@ class PlaybackService : MediaLibraryService() {
 
     @Inject
     lateinit var podcastDao: PodcastDao
-
-    @Inject
-    lateinit var queueDao: QueueDao
 
     @Inject
     lateinit var preferencesManager: PreferencesManager
@@ -202,7 +198,7 @@ class PlaybackService : MediaLibraryService() {
      * MediaSession between the local and remote player. All connected controllers
      * (the app UI's MediaController, Android Auto) follow the session transparently,
      * so PlaybackController's position loop — outro-skip, mark-played, position
-     * saving, queue auto-advance — keeps observing whichever player is active.
+     * saving — keeps observing whichever player is active.
      *
      * Devices without Google Play services must not crash:
      * [CastContext.getSharedInstance] throws there, and we degrade to local-only
@@ -512,9 +508,7 @@ class PlaybackService : MediaLibraryService() {
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
             try {
                 val children: List<MediaItem>? = when {
-                    parentId == BrowseTree.ROOT_ID ->
-                        BrowseTree.rootChildren(preferencesManager.queueEnabled.first())
-                    parentId == BrowseTree.QUEUE_ID -> queueChildren()
+                    parentId == BrowseTree.ROOT_ID -> BrowseTree.rootChildren()
                     parentId == BrowseTree.PODCASTS_ID -> podcastFolders()
                     else -> BrowseTree.parsePodcastId(parentId)?.let { podcastEpisodes(it) }
                 }
@@ -537,7 +531,6 @@ class PlaybackService : MediaLibraryService() {
             try {
                 val item: MediaItem? = when {
                     mediaId == BrowseTree.ROOT_ID -> BrowseTree.rootItem()
-                    mediaId == BrowseTree.QUEUE_ID -> BrowseTree.queueFolderItem()
                     mediaId == BrowseTree.PODCASTS_ID -> BrowseTree.podcastsFolderItem()
                     BrowseTree.parsePodcastId(mediaId) != null ->
                         podcastDao.getByIdOnce(BrowseTree.parsePodcastId(mediaId)!!)
@@ -620,24 +613,6 @@ class PlaybackService : MediaLibraryService() {
     // Browse tree data loading
     // -------------------------------------------------------------------------
 
-    /** Queue folder: queued episodes, downloaded ones only (download-first). */
-    private suspend fun queueChildren(): List<MediaItem> {
-        val queue = queueDao.getQueueOnce()
-        val podcasts = queue.map { it.episode.podcastId }.distinct()
-            .mapNotNull { podcastDao.getByIdOnce(it) }
-            .associateBy { it.id }
-        return queue.mapNotNull { entry ->
-            val episode = entry.episode
-            if (episode.downloadPath.isBlank()) return@mapNotNull null
-            val podcast = podcasts[episode.podcastId]
-            BrowseTree.episodeBrowseItem(
-                episode,
-                podcast?.title ?: "",
-                podcast?.artworkUrl ?: "",
-            )
-        }
-    }
-
     /** Podcasts folder: subscribed shows that have at least one downloaded episode. */
     private suspend fun podcastFolders(): List<MediaItem> {
         val withDownloads = episodeDao.getPodcastIdsWithDownloads().toSet()
@@ -692,7 +667,7 @@ class PlaybackService : MediaLibraryService() {
             }
             val playable = if (casting) {
                 // Rebuild for the receiver: remote URL + MIME type. Episodes with no
-                // remote URL cannot be cast and are dropped (logged) — e.g. the queue
+                // remote URL cannot be cast and are dropped (logged)
                 // auto-advancing into such an episode mid-cast simply stops.
                 BrowseTree.castEpisodeItem(episode, podcast?.title ?: "", podcast?.artworkUrl ?: "")
                     .also {

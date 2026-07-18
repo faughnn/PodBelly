@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -76,7 +75,6 @@ import com.podbelly.ui.DownloadsScreen
 import com.podbelly.ui.LibraryScreen
 import com.podbelly.feature.player.MiniPlayer
 import com.podbelly.feature.player.PlayerScreen
-import com.podbelly.feature.queue.QueueScreen
 import androidx.compose.material3.NavigationBarItemDefaults
 import kotlinx.coroutines.delay
 
@@ -86,7 +84,6 @@ private sealed class BottomNavItem(
     val icon: ImageVector
 ) {
     data object Home : BottomNavItem("home", "Home", Icons.Filled.Home)
-    data object Queue : BottomNavItem("queue", "Queue", Icons.AutoMirrored.Filled.QueueMusic)
     data object Discover : BottomNavItem("discover", "Discover", Icons.Filled.Search)
     data object Library : BottomNavItem("library", "Library", Icons.Filled.Podcasts)
     data object Downloads : BottomNavItem("downloads", "Downloads", Icons.Filled.Download)
@@ -111,7 +108,6 @@ fun PodbellNavHost(
     val currentRoute = navBackStackEntry?.destination?.route
     val isRefreshing by appViewModel.isRefreshing.collectAsStateWithLifecycle()
     val refreshProgress by appViewModel.refreshProgress.collectAsStateWithLifecycle()
-    val queueEnabled by appViewModel.queueEnabled.collectAsStateWithLifecycle()
 
     // Determine whether to show bottom nav and mini player
     val isFullScreenRoute = currentRoute == Screen.Player.route
@@ -127,16 +123,6 @@ fun PodbellNavHost(
             }
             delay(3000L)
             bannerMessage = null
-        }
-    }
-
-    val activeNavItems = remember(queueEnabled) {
-        buildList {
-            add(BottomNavItem.Home)
-            if (queueEnabled) add(BottomNavItem.Queue)
-            add(BottomNavItem.Discover)
-            add(BottomNavItem.Library)
-            add(BottomNavItem.Downloads)
         }
     }
 
@@ -169,7 +155,7 @@ fun PodbellNavHost(
                         containerColor = MaterialTheme.colorScheme.surface,
                         tonalElevation = 0.dp,
                     ) {
-                        activeNavItems.forEach { item ->
+                        bottomNavItems.forEach { item ->
                             val selected = navBackStackEntry?.destination?.hierarchy?.any {
                                 it.route == item.route
                             } == true
@@ -257,10 +243,6 @@ fun PodbellNavHost(
                         navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     }
                 )
-            }
-
-            composable(Screen.Queue.route) {
-                QueueScreen()
             }
 
             composable(Screen.Library.route) {

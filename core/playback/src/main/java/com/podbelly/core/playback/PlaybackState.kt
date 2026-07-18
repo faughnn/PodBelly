@@ -18,8 +18,6 @@ data class PlaybackState(
     val duration: Long = 0L,
     val playbackSpeed: Float = 1.0f,
     val isLoading: Boolean = false,
-    val hasNext: Boolean = false,
-    val hasPrevious: Boolean = false,
     val skipSilence: Boolean = false,
     val volumeBoost: Boolean = false,
     val chapters: List<Chapter> = emptyList(),

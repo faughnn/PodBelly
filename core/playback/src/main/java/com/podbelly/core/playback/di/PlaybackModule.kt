@@ -12,7 +12,7 @@ import dagger.hilt.components.SingletonComponent
  * `@Singleton @Inject constructor` -- no explicit `@Provides` methods are needed.
  *
  * The [com.podbelly.core.database.dao.EpisodeDao] and
- * [com.podbelly.core.database.dao.QueueDao] dependencies come from the
+ * dependencies come from the
  * `:core:database` module's own Hilt module.
  *
  * This module exists as a placeholder for any future bindings that may be

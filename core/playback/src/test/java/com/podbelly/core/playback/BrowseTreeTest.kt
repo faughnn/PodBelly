@@ -116,14 +116,8 @@ class BrowseTreeTest {
     }
 
     @Test
-    fun `root children include queue when the queue feature is enabled`() {
-        val children = BrowseTree.rootChildren(queueEnabled = true)
-        assertEquals(listOf(BrowseTree.QUEUE_ID, BrowseTree.PODCASTS_ID), children.map { it.mediaId })
-    }
-
-    @Test
-    fun `root children omit queue when the queue feature is disabled`() {
-        val children = BrowseTree.rootChildren(queueEnabled = false)
+    fun `root children contain the podcasts folder`() {
+        val children = BrowseTree.rootChildren()
         assertEquals(listOf(BrowseTree.PODCASTS_ID), children.map { it.mediaId })
     }
 
