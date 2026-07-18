@@ -70,6 +70,7 @@ fun StatsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
     val engagementStats by viewModel.engagementStats.collectAsStateWithLifecycle()
+    val duplicateGroups by viewModel.duplicateGroups.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -134,6 +135,7 @@ fun StatsScreen(
                 )
                 else -> PodcastEngagementTab(
                     stats = engagementStats,
+                    duplicateGroups = duplicateGroups,
                     onPodcastClick = onNavigateToPodcast,
                     onUnsubscribe = { stat ->
                         viewModel.unsubscribe(stat.podcastId)

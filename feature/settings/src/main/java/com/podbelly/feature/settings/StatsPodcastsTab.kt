@@ -64,6 +64,7 @@ internal fun PodcastEngagementTab(
     stats: List<PodcastEngagementStat>,
     onUnsubscribe: (PodcastEngagementStat) -> Unit,
     onPodcastClick: (Long) -> Unit = {},
+    duplicateGroups: List<List<PodcastEngagementStat>> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     var sort by rememberSaveable { mutableStateOf(EngagementSort.LEAST_LISTENED) }
@@ -99,6 +100,38 @@ internal fun PodcastEngagementTab(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        // Same show subscribed more than once (identical title, different feed).
+        // Most-listened copy leads each group — that's the one worth keeping.
+        if (duplicateGroups.isNotEmpty()) {
+            item(key = "duplicates_header") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Duplicate subscriptions",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${duplicateGroups.sumOf { it.size }} feeds, " +
+                            "${duplicateGroups.size} show${if (duplicateGroups.size != 1) "s" else ""}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
+            items(
+                items = duplicateGroups,
+                key = { "dup_${it.first().podcastId}" },
+            ) { group ->
+                DuplicateGroupCard(
+                    group = group,
+                    onPodcastClick = onPodcastClick,
+                    onUnsubscribeClick = { confirmTarget = it },
+                )
+            }
         }
 
         item(key = "engagement_sort") {
@@ -164,6 +197,105 @@ internal fun PodcastEngagementTab(
         )
     }
 }
+
+/**
+ * One duplicated show: its copies as rows (most listened first), each with the
+ * feed host to tell them apart, engagement at a glance, and its own unsubscribe.
+ */
+@Composable
+internal fun DuplicateGroupCard(
+    group: List<PodcastEngagementStat>,
+    onPodcastClick: (Long) -> Unit,
+    onUnsubscribeClick: (PodcastEngagementStat) -> Unit,
+) {
+    val podcastsFallback = rememberVectorPainter(Icons.Default.Podcasts)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        shape = RoundedCornerShape(14.dp),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AsyncImage(
+                    model = group.first().artworkUrl.ifBlank { null },
+                    contentDescription = "${group.first().podcastTitle} artwork",
+                    placeholder = podcastsFallback,
+                    error = podcastsFallback,
+                    fallback = podcastsFallback,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = group.first().podcastTitle,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "${group.size} copies · keep the one you listen to",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            group.forEach { copy ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClickLabel = "Open ${copy.podcastTitle}",
+                        ) { onPodcastClick(copy.podcastId) }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = feedHost(copy.feedUrl),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        val listened = if (copy.totalListenedMs > 0L) {
+                            "Listened ${formatListenedMs(copy.totalListenedMs)}"
+                        } else "Never listened"
+                        Text(
+                            text = "$listened · ${copy.episodeCount} episodes · " +
+                                "${copy.downloadedCount} downloads",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = { onUnsubscribeClick(copy) }) {
+                        Icon(
+                            imageVector = Icons.Outlined.PersonRemove,
+                            contentDescription = "Unsubscribe from ${copy.podcastTitle} (${feedHost(copy.feedUrl)})",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "feeds.example.com" from a feed URL, for telling duplicate copies apart. */
+internal fun feedHost(feedUrl: String): String =
+    feedUrl
+        .substringAfter("://", feedUrl)
+        .substringBefore("/")
+        .ifBlank { feedUrl }
 
 @Composable
 internal fun PodcastEngagementCard(

@@ -58,6 +58,8 @@ data class PodcastEngagementStat(
     val podcastId: Long,
     val podcastTitle: String,
     val artworkUrl: String,
+    /** Feed URL — what distinguishes duplicate subscriptions to the same show. */
+    val feedUrl: String,
     val subscribedAt: Long,
     val totalListenedMs: Long,
     /** Start of the most recent listening session, 0 = never listened. */
@@ -241,6 +243,7 @@ interface ListeningSessionDao {
         SELECT p.id AS podcastId,
                p.title AS podcastTitle,
                p.artworkUrl,
+               p.feedUrl,
                p.subscribedAt,
                COALESCE(ls.totalListenedMs, 0) AS totalListenedMs,
                COALESCE(ls.lastListenedAt, 0) AS lastListenedAt,
