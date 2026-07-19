@@ -2,10 +2,11 @@ package com.podbelly.ui
 
 object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
-    const val LATEST_VERSION_CODE = 70
+    const val LATEST_VERSION_CODE = 71
 
     val changelog: Map<Int, List<String>> = mapOf(
-        70 to listOf(
+        // 70 never shipped (CI test fix re-roll).
+        71 to listOf(
             "Tapping a bottom-bar button now always brings you back to that screen's start — even from a podcast or episode page (tap again for a fresh scroll-to-top)",
             "Per-show auto-download: set any podcast to Always or Never auto-download from its page menu, overriding the smart setting",
             "Smart auto-download window is now adjustable: count shows you've listened to in the last 7, 14, 30 or 60 days",

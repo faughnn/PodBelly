@@ -59,6 +59,10 @@ class DownloadManagerTest {
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
         every { connectivityManager.activeNetwork } returns mockNetwork
         every { connectivityManager.getNetworkCapabilities(mockNetwork) } returns mockCapabilities
+        // enqueueDownload's optimistic progress seed checks general connectivity.
+        every {
+            mockCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } returns true
         coEvery { episodeDao.getByIdOnce(1L) } returns testEpisode
     }
 
