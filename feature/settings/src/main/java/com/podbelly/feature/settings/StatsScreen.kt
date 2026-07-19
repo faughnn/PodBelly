@@ -1003,7 +1003,7 @@ internal fun buildYearReviewText(stats: StatsUiState, year: Int): String = build
 // Utility functions
 // =====================================================================
 
-private fun formatDurationMs(ms: Long): String {
+internal fun formatDurationMs(ms: Long): String {
     if (ms <= 0L) return "0h 0m"
     val totalMinutes = ms / 60_000L
     val hours = totalMinutes / 60

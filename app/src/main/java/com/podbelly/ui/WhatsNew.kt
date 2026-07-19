@@ -2,9 +2,15 @@ package com.podbelly.ui
 
 object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
-    const val LATEST_VERSION_CODE = 68
+    const val LATEST_VERSION_CODE = 69
 
     val changelog: Map<Int, List<String>> = mapOf(
+        69 to listOf(
+            "New \"You\" tab in the bottom bar: your listening stats front and center — today, this week and your streak — one tap from anywhere",
+            "Tap the summary card for the full stats: charts, top shows and your Year in Review",
+            "Settings reorganized into quick categories (Playback, Downloads, Appearance, Feeds, Import & Export, Diagnostics) instead of one long scroll",
+            "The settings gear moved off the Home screen into the new You tab",
+        ),
         68 to listOf(
             "Skip ad chapters: for shows that mark their ads as chapters, the player now jumps straight over them (Settings > Playback)",
             "Chapters embedded in episodes now show up in the player — tap the chapter title for the full list",

@@ -41,7 +41,15 @@ class NavigationTest {
                 composable(Screen.Home.route) { Text("Home") }
                 composable(Screen.Discover.route) { Text("Discover") }
                 composable(Screen.Library.route) { Text("Library") }
-                composable(Screen.Settings.route) { Text("Settings") }
+                composable(Screen.Profile.route) { Text("Profile") }
+                composable(
+                    route = Screen.SettingsSection.route,
+                    arguments = listOf(
+                        navArgument("section") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    Text("Settings ${backStackEntry.arguments?.getString("section")}")
+                }
                 composable(Screen.Player.route) { Text("Player") }
                 composable(
                     route = Screen.PodcastDetail.route,
@@ -85,12 +93,24 @@ class NavigationTest {
     }
 
     @Test
-    fun `navigate to Settings tab`() {
+    fun `navigate to Profile tab`() {
         composeTestRule.runOnIdle {
-            navController.navigate(Screen.Settings.route)
+            navController.navigate(Screen.Profile.route)
         }
         composeTestRule.runOnIdle {
-            assertEquals(Screen.Settings.route, navController.currentBackStackEntry?.destination?.route)
+            assertEquals(Screen.Profile.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
+    fun `navigate to a settings section with its key argument`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.SettingsSection.createRoute("downloads"))
+        }
+        composeTestRule.runOnIdle {
+            val currentEntry = navController.currentBackStackEntry
+            assertEquals(Screen.SettingsSection.route, currentEntry?.destination?.route)
+            assertEquals("downloads", currentEntry?.arguments?.getString("section"))
         }
     }
 
@@ -180,7 +200,7 @@ class NavigationTest {
         val tabs = listOf(
             Screen.Discover.route,
             Screen.Library.route,
-            Screen.Settings.route
+            Screen.Profile.route
         )
 
         // Navigate through each tab

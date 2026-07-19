@@ -21,8 +21,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -69,7 +69,9 @@ import com.podbelly.feature.home.HomeScreen
 import com.podbelly.feature.podcast.EpisodeDetailScreen
 import com.podbelly.feature.podcast.PodcastDetailScreen
 import com.podbelly.feature.settings.PlaybackSpeedScreen
+import com.podbelly.feature.settings.ProfileScreen
 import com.podbelly.feature.settings.SettingsScreen
+import com.podbelly.feature.settings.SettingsSection
 import com.podbelly.feature.settings.StatsScreen
 import com.podbelly.ui.DownloadsScreen
 import com.podbelly.ui.LibraryScreen
@@ -87,7 +89,7 @@ private sealed class BottomNavItem(
     data object Discover : BottomNavItem("discover", "Discover", Icons.Filled.Search)
     data object Library : BottomNavItem("library", "Library", Icons.Filled.Podcasts)
     data object Downloads : BottomNavItem("downloads", "Downloads", Icons.Filled.Download)
-    data object Settings : BottomNavItem("settings", "Settings", Icons.Filled.Settings)
+    data object Profile : BottomNavItem("profile", "You", Icons.Filled.Person)
 }
 
 private val bottomNavItems = listOf(
@@ -95,6 +97,7 @@ private val bottomNavItems = listOf(
     BottomNavItem.Discover,
     BottomNavItem.Library,
     BottomNavItem.Downloads,
+    BottomNavItem.Profile,
 )
 
 @Composable
@@ -229,11 +232,6 @@ fun PodbellNavHost(
                     onPodcastClick = { podcastId ->
                         navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     },
-                    onSettingsClick = {
-                        navController.navigate(Screen.Settings.route) {
-                            launchSingleTop = true
-                        }
-                    }
                 )
             }
 
@@ -261,10 +259,27 @@ fun PodbellNavHost(
                 )
             }
 
-            composable(Screen.Settings.route) {
-                SettingsScreen(
+            composable(Screen.Profile.route) {
+                ProfileScreen(
                     onNavigateToStats = {
                         navController.navigate(Screen.Stats.route)
+                    },
+                    onNavigateToSection = { section ->
+                        navController.navigate(Screen.SettingsSection.createRoute(section.key))
+                    },
+                )
+            }
+
+            composable(
+                route = Screen.SettingsSection.route,
+                arguments = listOf(
+                    navArgument("section") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                SettingsScreen(
+                    section = SettingsSection.fromKey(backStackEntry.arguments?.getString("section")),
+                    onNavigateBack = {
+                        navController.popBackStack()
                     },
                     onNavigateToPlaybackSpeeds = {
                         navController.navigate(Screen.PlaybackSpeeds.route)
