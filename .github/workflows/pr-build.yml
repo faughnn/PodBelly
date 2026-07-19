@@ -49,11 +49,6 @@ jobs:
         env:
           DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
 
-      # Temporary diagnostic while the coverage wiring beds in: shows where
-      # the JaCoCo agent actually wrote its execution data.
-      - name: List coverage execution data
-        run: find . -name "*.exec" -path "*/build/*" -o -name "jacocoFullReport.xml" | head -30
-
       - name: Post coverage summary
         run: python3 scripts/coverage_summary.py build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml >> "$GITHUB_STEP_SUMMARY"
 
