@@ -4,9 +4,14 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 76
+    const val LATEST_VERSION_CODE = 77
 
     val changelog: Map<Int, List<String>> = mapOf(
+        77 to listOf(
+            "The player now shows when the episode came out and how long it runs, right under the show name",
+            "New Notes button on the player opens the episode's full show notes without leaving playback",
+            "The transcript button is now labelled \"Transcript\" instead of a bare icon, so it's easier to spot on shows that provide one",
+        ),
         76 to listOf(
             "Pick exactly which shows auto-download: Settings > Downloads > Auto-download per show lists every subscription with its listening history beside a Smart / Always / Never picker",
             "The same picker now sits on every card in Stats > Podcasts, so the least-listened list doubles as the place to mute shows you never play",

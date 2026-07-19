@@ -42,6 +42,13 @@ data class PlayerUiState(
     val transcript: TranscriptUiState = TranscriptUiState(),
 )
 
+/** Feed-derived facts about the playing episode, for the player's info line and notes sheet. */
+data class PlayingEpisodeInfo(
+    val publicationDate: Long,
+    val durationSeconds: Int,
+    val description: String,
+)
+
 /** State of the Podcasting 2.0 transcript panel for the playing episode. */
 data class TranscriptUiState(
     /** True when the playing episode declares a `<podcast:transcript>` URL. */
@@ -96,6 +103,45 @@ class PlayerViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = null,
         )
+
+    /**
+     * Publication date, duration and show notes of the playing episode, followed
+     * via the database. Null while nothing is playing.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val episodeInfo: StateFlow<PlayingEpisodeInfo?> = playbackController.playbackState
+        .map { it.episodeId }
+        .distinctUntilChanged()
+        .flatMapLatest { episodeId ->
+            if (episodeId == 0L) flowOf(null) else episodeDao.getById(episodeId)
+        }
+        .map { episode ->
+            episode?.let {
+                PlayingEpisodeInfo(
+                    publicationDate = it.publicationDate,
+                    durationSeconds = it.durationSeconds,
+                    description = it.description,
+                )
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = null,
+        )
+
+    private val _episodeNotesVisible = MutableStateFlow(false)
+
+    /** True while the show-notes sheet is open. */
+    val episodeNotesVisible: StateFlow<Boolean> = _episodeNotesVisible
+
+    fun showEpisodeNotes() {
+        _episodeNotesVisible.value = true
+    }
+
+    fun hideEpisodeNotes() {
+        _episodeNotesVisible.value = false
+    }
 
     /**
      * Intro/outro auto-skip settings of the playing episode's podcast, followed via

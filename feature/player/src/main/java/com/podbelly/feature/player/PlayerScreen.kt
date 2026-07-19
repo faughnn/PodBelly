@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TimerOff
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -111,6 +112,10 @@ import coil.request.ImageRequest
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import coil.request.SuccessResult
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.viewinterop.AndroidView
+import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.SkipIntroOutroDialog
 import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.playback.Chapter
@@ -126,6 +131,8 @@ fun PlayerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val skipSettings by viewModel.skipSettings.collectAsStateWithLifecycle()
+    val episodeInfo by viewModel.episodeInfo.collectAsStateWithLifecycle()
+    val episodeNotesVisible by viewModel.episodeNotesVisible.collectAsStateWithLifecycle()
     val playback = uiState.playbackState
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val speedPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -288,6 +295,25 @@ fun PlayerScreen(
                         ) { onNavigateToPodcast(playback.podcastId) },
                 )
 
+                // ── Episode facts: when it came out and how long it runs ──
+                episodeInfo?.let { info ->
+                    val metaParts = buildList {
+                        if (info.publicationDate > 0L) add(DateUtils.relativeDate(info.publicationDate))
+                        if (info.durationSeconds > 0) add(DateUtils.formatDuration(info.durationSeconds))
+                    }
+                    if (metaParts.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = metaParts.joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
                 // ── Current chapter title (if chapters exist) ─────────
                 if (playback.chapters.isNotEmpty() && playback.currentChapterIndex >= 0) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -346,6 +372,8 @@ fun PlayerScreen(
                     onChaptersClick = { viewModel.showChaptersList() },
                     hasTranscript = uiState.transcript.available,
                     onTranscriptClick = { viewModel.showTranscript() },
+                    hasNotes = episodeInfo?.description?.isNotBlank() == true,
+                    onNotesClick = { viewModel.showEpisodeNotes() },
                 )
 
                 Spacer(modifier = Modifier.height(48.dp))
@@ -449,6 +477,22 @@ fun PlayerScreen(
                     viewModel.seekToChapter(index)
                     viewModel.hideChaptersList()
                 },
+            )
+        }
+    }
+
+    // ── Show notes bottom sheet ────────────────────────────────────────
+    if (episodeNotesVisible) {
+        val notesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.hideEpisodeNotes() },
+            sheetState = notesSheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            EpisodeNotesContent(
+                episodeTitle = playback.episodeTitle,
+                podcastTitle = playback.podcastTitle,
+                info = episodeInfo,
             )
         }
     }
@@ -773,10 +817,16 @@ internal fun SecondaryControls(
     onChaptersClick: () -> Unit,
     hasTranscript: Boolean = false,
     onTranscriptClick: () -> Unit = {},
+    hasNotes: Boolean = false,
+    onNotesClick: () -> Unit = {},
 ) {
+    // Scrollable: with notes, transcript and chapters all present the row is
+    // wider than small screens, and squeezing would just re-cryptify the labels.
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Playback speed chip
@@ -869,16 +919,43 @@ internal fun SecondaryControls(
             }
         }
 
-        // Transcript button (only when the episode has a transcript)
+        // Transcript button (only when the episode has a transcript). Labeled —
+        // an unnamed icon left the feature undiscoverable.
         if (hasTranscript) {
-            FilledTonalIconButton(
+            FilledTonalButton(
                 onClick = onTranscriptClick,
-                modifier = Modifier.size(42.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Description,
-                    contentDescription = "Show transcript",
-                    modifier = Modifier.size(20.dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Transcript",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        // Show notes (episode description) sheet
+        if (hasNotes) {
+            FilledTonalButton(
+                onClick = onNotesClick,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Article,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Notes",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
@@ -1401,4 +1478,81 @@ private fun rememberDominantColor(imageUrl: String, defaultColor: Color): Color 
     }
 
     return dominantColor
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Show notes bottom sheet content
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+internal fun EpisodeNotesContent(
+    episodeTitle: String,
+    podcastTitle: String,
+    info: PlayingEpisodeInfo?,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 32.dp),
+    ) {
+        Text(
+            text = episodeTitle,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        val metaParts = buildList {
+            if (podcastTitle.isNotBlank()) add(podcastTitle)
+            if (info != null && info.publicationDate > 0L) {
+                add(DateUtils.relativeDate(info.publicationDate))
+            }
+            if (info != null && info.durationSeconds > 0) {
+                add(DateUtils.formatDuration(info.durationSeconds))
+            }
+        }
+        if (metaParts.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = metaParts.joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        val description = info?.description.orEmpty()
+        if (description.isBlank()) {
+            Text(
+                text = "This episode has no show notes.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            // Show notes arrive as HTML; render like the episode page does.
+            val notesTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+            val notesLinkColor = MaterialTheme.colorScheme.primary.toArgb()
+            AndroidView(
+                factory = { ctx ->
+                    android.widget.TextView(ctx).apply {
+                        setTextColor(notesTextColor)
+                        setLinkTextColor(notesLinkColor)
+                        textSize = 14f
+                        movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                    }
+                },
+                update = { textView ->
+                    textView.text = android.text.Html.fromHtml(
+                        description,
+                        android.text.Html.FROM_HTML_MODE_COMPACT,
+                    )
+                    textView.setTextColor(notesTextColor)
+                    textView.setLinkTextColor(notesLinkColor)
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }
