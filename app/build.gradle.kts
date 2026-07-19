@@ -17,8 +17,8 @@ android {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 35
-        versionCode = 71
-        versionName = "1.6.23"
+        versionCode = 72
+        versionName = "1.6.24"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -123,6 +123,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.navigation.testing)
+    testImplementation(libs.work.testing)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
