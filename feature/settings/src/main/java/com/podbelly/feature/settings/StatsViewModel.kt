@@ -2,129 +2,368 @@ package com.podbelly.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.podbelly.core.database.dao.DailyListeningStat
+import com.podbelly.core.database.dao.DuplicateMergeDao
 import com.podbelly.core.database.dao.DayOfWeekStat
 import com.podbelly.core.database.dao.EpisodeCompletionStat
+import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.HourOfDayStat
+import com.podbelly.core.database.dao.KeepUpStat
+import com.podbelly.core.database.dao.LibraryStat
 import com.podbelly.core.database.dao.ListeningSessionDao
+import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastDownloadStat
+import com.podbelly.core.database.dao.PodcastEngagementStat
 import com.podbelly.core.database.dao.PodcastListeningStat
+import com.podbelly.core.database.dao.normalizeTitleForMatch
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.Calendar
 import java.util.TimeZone
 import javax.inject.Inject
 
+/** Date range every session-derived stat on the Overview tab is filtered to. */
+enum class StatsPeriod(val label: String) {
+    ALL_TIME("All time"),
+    THIS_YEAR("This year"),
+    LAST_30_DAYS("Last 30 days");
+
+    /** Earliest session start (epoch ms) included in this period; 0 = everything. */
+    fun cutoff(now: Long = System.currentTimeMillis()): Long = when (this) {
+        ALL_TIME -> 0L
+        THIS_YEAR -> Calendar.getInstance().apply {
+            timeInMillis = now
+            set(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        LAST_30_DAYS -> now - 30L * DAY_MS
+    }
+
+    private companion object {
+        const val DAY_MS = 86_400_000L
+    }
+}
+
 data class StatsUiState(
+    // Headline + rolling windows (windows are always rolling, not period-filtered)
     val totalListenedMs: Long = 0L,
-    val timeSavedBySpeedMs: Long = 0L,
-    val silenceTrimmedMs: Long = 0L,
-    val currentStreak: Int = 0,
-    val longestStreak: Int = 0,
+    val listenedTodayMs: Long = 0L,
     val listenedThisWeekMs: Long = 0L,
     val listenedThisMonthMs: Long = 0L,
+    // Time saved breakdown
+    val timeSavedBySpeedMs: Long = 0L,
+    val skipSavedMs: Long = 0L,
+    // Streaks are lifetime by definition
+    val currentStreak: Int = 0,
+    val longestStreak: Int = 0,
+    // Habits
     val averageSessionLengthMs: Long = 0L,
+    val averageSpeed: Float = 0f,
     val mostActiveDay: String = "",
     val mostActiveHour: String = "",
+    val dayOfWeekStats: List<DayOfWeekStat> = emptyList(),
+    val hourOfDayStats: List<HourOfDayStat> = emptyList(),
+    // Sessions & totals
+    val sessionCount: Int = 0,
+    val longestSessionMs: Long = 0L,
+    val daysListened: Int = 0,
+    val averagePerActiveDayMs: Long = 0L,
+    // Last-30-days chart (always the trailing month regardless of period)
+    val dailyListening: List<DailyListeningStat> = emptyList(),
+    // Keep-up (episodes that arrived in the last 30 days)
+    val keepUpPlayed: Int = 0,
+    val keepUpTotal: Int = 0,
+    // Library summary (always whole-library)
+    val subscriptionCount: Int = 0,
+    val libraryEpisodeCount: Int = 0,
+    val libraryPlayedCount: Int = 0,
+    val downloadedBytes: Long = 0L,
+    // Completion
     val averageCompletionPercent: Int = 0,
     val finishedEpisodes: Int = 0,
     val abandonedEpisodes: Int = 0,
+    // Top lists
     val mostListenedPodcasts: List<PodcastListeningStat> = emptyList(),
     val mostListenedEpisodes: List<EpisodeListeningStat> = emptyList(),
     val mostDownloadedPodcasts: List<PodcastDownloadStat> = emptyList(),
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class StatsViewModel @Inject constructor(
-    listeningSessionDao: ListeningSessionDao,
+    private val listeningSessionDao: ListeningSessionDao,
+    private val podcastDao: PodcastDao,
+    private val episodeDao: EpisodeDao,
+    private val duplicateMergeDao: DuplicateMergeDao,
 ) : ViewModel() {
 
     // Bucket day/hour/streak stats in the device's local time, not UTC.
     private val tzOffsetMs = TimeZone.getDefault().getOffset(System.currentTimeMillis()).toLong()
 
-    val uiState: StateFlow<StatsUiState> = combine(
-        listeningSessionDao.getTotalListenedMs(),
-        listeningSessionDao.getTimeSavedBySpeed(),
-        listeningSessionDao.getTotalSilenceTrimmedMs(),
-        listeningSessionDao.getMostListenedPodcasts(10),
-        listeningSessionDao.getMostListenedEpisodes(10),
-    ) { totalListened, timeSavedBySpeed, silenceTrimmed, mostPodcasts, mostEpisodes ->
-        PartialBase(totalListened, timeSavedBySpeed, silenceTrimmed, mostPodcasts, mostEpisodes)
-    }.combine(
-        listeningSessionDao.getMostDownloadedPodcasts(10),
-    ) { base, mostDownloaded ->
-        base to mostDownloaded
-    }.combine(combine(
-        // Capture the rolling-window cutoff when collection starts rather than at
-        // construction, so the "this week"/"this month" windows don't go stale if the
-        // screen is observed across a day/week boundary.
-        flow { emitAll(listeningSessionDao.getListenedMsSince(System.currentTimeMillis() - 7 * 86400000L)) },
-        flow { emitAll(listeningSessionDao.getListenedMsSince(System.currentTimeMillis() - 30 * 86400000L)) },
-        listeningSessionDao.getListeningDays(tzOffsetMs),
-        listeningSessionDao.getAverageSessionLengthMs(),
-        listeningSessionDao.getListeningMsByDayOfWeek(tzOffsetMs),
-    ) { week, month, days, avgSession, dayOfWeek ->
-        PartialNew(week, month, days, avgSession, dayOfWeek)
-    }) { (base, mostDownloaded), newStats ->
-        Triple(base, mostDownloaded, newStats)
-    }.combine(combine(
-        listeningSessionDao.getListeningMsByHourOfDay(tzOffsetMs),
-        listeningSessionDao.getEpisodeCompletionStats(),
-    ) { hours, completion -> hours to completion }
-    ) { (base, mostDownloaded, newStats), (hours, completion) ->
-        val (currentStreak, longestStreak) = calculateStreaks(
-            newStats.listeningDays,
-            (System.currentTimeMillis() + tzOffsetMs) / 86400000L,
-        )
-        val (avgCompletion, finished, abandoned) = calculateCompletion(completion)
-        val mostActiveDay = newStats.dayOfWeekStats.firstOrNull()?.let { dayName(it.dayOfWeek) } ?: ""
-        val mostActiveHour = hours.firstOrNull()?.let { hourName(it.hour) } ?: ""
+    private val _period = MutableStateFlow(StatsPeriod.ALL_TIME)
+    val period: StateFlow<StatsPeriod> = _period.asStateFlow()
 
-        StatsUiState(
-            totalListenedMs = base.totalListenedMs,
-            timeSavedBySpeedMs = base.timeSavedBySpeedMs,
-            silenceTrimmedMs = base.silenceTrimmedMs,
-            currentStreak = currentStreak,
-            longestStreak = longestStreak,
-            listenedThisWeekMs = newStats.listenedThisWeekMs,
-            listenedThisMonthMs = newStats.listenedThisMonthMs,
-            averageSessionLengthMs = newStats.averageSessionLengthMs,
-            mostActiveDay = mostActiveDay,
-            mostActiveHour = mostActiveHour,
-            averageCompletionPercent = avgCompletion,
-            finishedEpisodes = finished,
-            abandonedEpisodes = abandoned,
-            mostListenedPodcasts = base.mostListenedPodcasts,
-            mostListenedEpisodes = base.mostListenedEpisodes,
-            mostDownloadedPodcasts = mostDownloaded,
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = StatsUiState(),
-    )
+    fun setPeriod(period: StatsPeriod) {
+        _period.value = period
+    }
 
-    private data class PartialBase(
+    val uiState: StateFlow<StatsUiState> = _period
+        .flatMapLatest { period ->
+            // Capture cutoffs when collection (re)starts, not at construction, so
+            // rolling windows don't go stale while the screen stays open.
+            flow { emitAll(statsFlow(period.cutoff())) }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = StatsUiState(),
+        )
+
+    /**
+     * The Year in Review card's numbers: the same stats pipeline pinned to the
+     * current calendar year, independent of the Overview period filter. Only
+     * collected while the review dialog is on screen (WhileSubscribed), so it
+     * costs nothing the rest of the time.
+     */
+    val yearReview: StateFlow<StatsUiState> =
+        flow { emitAll(statsFlow(StatsPeriod.THIS_YEAR.cutoff())) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = StatsUiState(),
+            )
+
+    /**
+     * Per-podcast engagement for the "Podcasts" tab, least listened first, so the
+     * subscriptions gathering dust are the first thing on screen.
+     */
+    val engagementStats: StateFlow<List<PodcastEngagementStat>> =
+        listeningSessionDao.getPodcastEngagementStats()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
+    /**
+     * Groups of subscriptions that look like the same show (identical normalized
+     * title, different feed URL) — usually one show added twice via different
+     * feeds. Each group is sorted most-listened first, so the copy worth keeping
+     * leads.
+     */
+    val duplicateGroups: StateFlow<List<List<PodcastEngagementStat>>> =
+        engagementStats
+            .map { findDuplicateGroups(it) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
+    fun unsubscribe(podcastId: Long) {
+        viewModelScope.launch {
+            podcastDao.unsubscribe(podcastId)
+        }
+    }
+
+    /** Undo for [unsubscribe] (the snackbar's Undo action). */
+    fun undoUnsubscribe(podcastId: Long) {
+        viewModelScope.launch {
+            podcastDao.resubscribe(podcastId)
+        }
+    }
+
+    /**
+     * Merges every spare copy in a duplicate [group] into the copy the user
+     * keeps: play state, downloads and listening history move over, then the
+     * spares are unsubscribed. Not undoable (hence the confirm dialog in the UI).
+     */
+    fun mergeDuplicates(group: List<PodcastEngagementStat>, keepPodcastId: Long) {
+        viewModelScope.launch {
+            group.filter { it.podcastId != keepPodcastId }
+                .forEach { spare -> duplicateMergeDao.merge(spare.podcastId, keepPodcastId) }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Flow assembly
+    // -----------------------------------------------------------------------
+
+    private data class Totals(
         val totalListenedMs: Long,
-        val timeSavedBySpeedMs: Long,
-        val silenceTrimmedMs: Long,
-        val mostListenedPodcasts: List<PodcastListeningStat>,
-        val mostListenedEpisodes: List<EpisodeListeningStat>,
+        val speedSavedMs: Long,
+        val skipSavedMs: Long,
+        val averageSpeed: Double,
     )
 
-    private data class PartialNew(
-        val listenedThisWeekMs: Long,
-        val listenedThisMonthMs: Long,
-        val listeningDays: List<Long>,
-        val averageSessionLengthMs: Long,
-        val dayOfWeekStats: List<DayOfWeekStat>,
+    private data class Windows(
+        val todayMs: Long,
+        val weekMs: Long,
+        val monthMs: Long,
     )
+
+    private data class Sessions(
+        val count: Int,
+        val longestMs: Long,
+        val averageLengthMs: Long,
+        val listeningDays: List<Long>,
+    )
+
+    private data class Distributions(
+        val daily: List<DailyListeningStat>,
+        val dayOfWeek: List<DayOfWeekStat>,
+        val hourOfDay: List<HourOfDayStat>,
+    )
+
+    private data class Library(
+        val subscriptions: Int,
+        val library: LibraryStat,
+        val downloadedBytes: Long,
+        val keepUp: KeepUpStat,
+    )
+
+    private data class Aux(
+        val library: Library,
+        val topPodcasts: List<PodcastListeningStat>,
+        val topEpisodes: List<EpisodeListeningStat>,
+        val topDownloads: List<PodcastDownloadStat>,
+        val completion: List<EpisodeCompletionStat>,
+        val allTimeDays: List<Long>,
+    )
+
+    private fun statsFlow(since: Long): Flow<StatsUiState> {
+        val now = System.currentTimeMillis()
+
+        val totals = combine(
+            listeningSessionDao.getTotalListenedMs(since),
+            listeningSessionDao.getTimeSavedBySpeed(since),
+            listeningSessionDao.getTotalSkipSavedMs(since),
+            listeningSessionDao.getWeightedAverageSpeed(since),
+            ::Totals,
+        )
+
+        val windows = combine(
+            listeningSessionDao.getListenedMsSince(now - DAY_MS),
+            listeningSessionDao.getListenedMsSince(now - 7 * DAY_MS),
+            listeningSessionDao.getListenedMsSince(now - 30 * DAY_MS),
+            ::Windows,
+        )
+
+        val sessions = combine(
+            listeningSessionDao.getSessionCount(since),
+            listeningSessionDao.getLongestSessionMs(since),
+            listeningSessionDao.getAverageSessionLengthMs(since),
+            listeningSessionDao.getListeningDays(tzOffsetMs, since),
+            ::Sessions,
+        )
+
+        val distributions = combine(
+            listeningSessionDao.getListenedMsPerDay(tzOffsetMs, now - 30 * DAY_MS),
+            listeningSessionDao.getListeningMsByDayOfWeek(tzOffsetMs, since),
+            listeningSessionDao.getListeningMsByHourOfDay(tzOffsetMs, since),
+            ::Distributions,
+        )
+
+        val library = combine(
+            podcastDao.getSubscribedCount(),
+            episodeDao.getLibraryStats(),
+            episodeDao.getTotalDownloadedBytes(),
+            episodeDao.getKeepUpStats(now - 30 * DAY_MS),
+            ::Library,
+        )
+
+        val aux = combine(
+            library,
+            combine(
+                listeningSessionDao.getMostListenedPodcasts(10, since),
+                listeningSessionDao.getMostListenedEpisodes(10, since),
+                listeningSessionDao.getMostDownloadedPodcasts(10),
+            ) { p, e, d -> Triple(p, e, d) },
+            listeningSessionDao.getEpisodeCompletionStats(since),
+            listeningSessionDao.getListeningDays(tzOffsetMs),
+        ) { lib, (topPodcasts, topEpisodes, topDownloads), completion, allDays ->
+            Aux(lib, topPodcasts, topEpisodes, topDownloads, completion, allDays)
+        }
+
+        return combine(totals, windows, sessions, distributions, aux) {
+                t, w, s, dist, extra ->
+            val (currentStreak, longestStreak) = calculateStreaks(
+                extra.allTimeDays,
+                (System.currentTimeMillis() + tzOffsetMs) / DAY_MS,
+            )
+            val (avgCompletion, finished, abandoned) = calculateCompletion(extra.completion)
+
+            StatsUiState(
+                totalListenedMs = t.totalListenedMs,
+                listenedTodayMs = w.todayMs,
+                listenedThisWeekMs = w.weekMs,
+                listenedThisMonthMs = w.monthMs,
+                timeSavedBySpeedMs = t.speedSavedMs,
+                skipSavedMs = t.skipSavedMs,
+                currentStreak = currentStreak,
+                longestStreak = longestStreak,
+                averageSessionLengthMs = s.averageLengthMs,
+                averageSpeed = t.averageSpeed.toFloat(),
+                mostActiveDay = dist.dayOfWeek.firstOrNull()?.let { dayName(it.dayOfWeek) } ?: "",
+                mostActiveHour = dist.hourOfDay.firstOrNull()?.let { hourName(it.hour) } ?: "",
+                dayOfWeekStats = dist.dayOfWeek,
+                hourOfDayStats = dist.hourOfDay,
+                sessionCount = s.count,
+                longestSessionMs = s.longestMs,
+                daysListened = s.listeningDays.size,
+                averagePerActiveDayMs = if (s.listeningDays.isNotEmpty()) {
+                    t.totalListenedMs / s.listeningDays.size
+                } else 0L,
+                dailyListening = dist.daily,
+                keepUpPlayed = extra.library.keepUp.playedCount,
+                keepUpTotal = extra.library.keepUp.totalCount,
+                subscriptionCount = extra.library.subscriptions,
+                libraryEpisodeCount = extra.library.library.episodeCount,
+                libraryPlayedCount = extra.library.library.playedCount,
+                downloadedBytes = extra.library.downloadedBytes,
+                averageCompletionPercent = avgCompletion,
+                finishedEpisodes = finished,
+                abandonedEpisodes = abandoned,
+                mostListenedPodcasts = extra.topPodcasts,
+                mostListenedEpisodes = extra.topEpisodes,
+                mostDownloadedPodcasts = extra.topDownloads,
+            )
+        }
+    }
 
     companion object {
+        private const val DAY_MS = 86_400_000L
+
+        /**
+         * Same-show detection for duplicate subscriptions: normalized (trimmed,
+         * case- and whitespace-insensitive) titles that appear more than once.
+         */
+        fun findDuplicateGroups(
+            stats: List<PodcastEngagementStat>,
+        ): List<List<PodcastEngagementStat>> =
+            stats
+                .groupBy { normalizeTitleForMatch(it.podcastTitle) }
+                .values
+                .filter { it.size > 1 }
+                .map { group -> group.sortedByDescending { it.totalListenedMs } }
+                .sortedBy { it.first().podcastTitle.lowercase() }
+
         fun calculateStreaks(
             sortedDays: List<Long>,
             today: Long = System.currentTimeMillis() / 86400000L,

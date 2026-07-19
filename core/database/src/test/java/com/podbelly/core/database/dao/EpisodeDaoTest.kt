@@ -78,6 +78,7 @@ class EpisodeDaoTest {
         downloadPath: String = "",
         downloadedAt: Long = 0L,
         fileSize: Long = 0L,
+        addedAt: Long = 0L,
     ) = EpisodeEntity(
         podcastId = podcastId,
         guid = guid,
@@ -92,6 +93,7 @@ class EpisodeDaoTest {
         downloadPath = downloadPath,
         downloadedAt = downloadedAt,
         fileSize = fileSize,
+        addedAt = addedAt,
     )
 
     @Test
@@ -288,6 +290,52 @@ class EpisodeDaoTest {
     }
 
     @Test
+    fun `getInProgressEpisodes excludes episodes with 30s or less remaining`() = runTest {
+        episodeDao.insertAll(
+            listOf(
+                createEpisode(guid = "halfway", playbackPosition = 1_800_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "at-end", playbackPosition = 3_600_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "past-end", playbackPosition = 3_700_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "15s-left", playbackPosition = 3_585_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "45s-left", playbackPosition = 3_555_000L, durationSeconds = 3600, downloadPath = "/f"),
+                createEpisode(guid = "unknown-duration", playbackPosition = 500_000L, durationSeconds = 0, downloadPath = "/f"),
+                createEpisode(guid = "short-episode", playbackPosition = 5_000L, durationSeconds = 20, downloadPath = "/f"),
+            )
+        )
+
+        episodeDao.getInProgressEpisodes().test {
+            val guids = awaitItem().map { it.guid }.toSet()
+            assertEquals(setOf("halfway", "45s-left", "unknown-duration", "short-episode"), guids)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getEpisodesAddedSince returns only episodes discovered after the cutoff ordered by publicationDate`() = runTest {
+        val unsubscribedPodcastId = podcastDao.insert(
+            createPodcast(feedUrl = "https://unsubscribed.com/feed", title = "Unsubscribed", subscribed = false)
+        )
+
+        episodeDao.insertAll(
+            listOf(
+                createEpisode(guid = "backlog", addedAt = 0L, publicationDate = 9_000L),
+                createEpisode(guid = "seen", addedAt = 4_000L, publicationDate = 8_000L),
+                createEpisode(guid = "fresh-old-pub", addedAt = 6_000L, publicationDate = 1_000L),
+                createEpisode(guid = "fresh-new-pub", addedAt = 5_000L, publicationDate = 7_000L),
+                createEpisode(guid = "fresh-played", addedAt = 6_000L, publicationDate = 7_200L, played = true),
+                createEpisode(podcastId = unsubscribedPodcastId, guid = "fresh-unsub", addedAt = 6_000L, publicationDate = 7_500L),
+            )
+        )
+
+        episodeDao.getEpisodesAddedSince(4_000L).test {
+            val guids = awaitItem().map { it.guid }
+            // Only unplayed subscribed episodes above the cutoff, newest publication first.
+            assertEquals(listOf("fresh-new-pub", "fresh-old-pub"), guids)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `CASCADE deleting a podcast also deletes its episodes`() = runTest {
         episodeDao.insertAll(
             listOf(
@@ -312,5 +360,80 @@ class EpisodeDaoTest {
             assertEquals(0, items.size)
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    @Test
+    fun `transcript fields default to empty`() = runTest {
+        episodeDao.insertAll(listOf(createEpisode(guid = "ep1")))
+
+        val episode = episodeDao.getByGuid("ep1")!!
+        assertEquals("", episode.transcriptUrl)
+        assertEquals("", episode.transcriptType)
+    }
+
+    @Test
+    fun `updateFeedFields backfills transcript on existing episodes`() = runTest {
+        // Episode imported before the feed declared a transcript (transcript empty).
+        episodeDao.insertAll(listOf(createEpisode(guid = "ep1", playbackPosition = 5000L)))
+
+        // A later refresh delivers the transcript.
+        episodeDao.updateFeedFields(
+            podcastId = podcastId,
+            guid = "ep1",
+            title = "Episode 1",
+            description = "Episode description",
+            audioUrl = "https://example.com/audio.mp3",
+            publicationDate = 1000L,
+            durationSeconds = 3600,
+            artworkUrl = "",
+            fileSize = 0L,
+            transcriptUrl = "https://example.com/ep1.vtt",
+            transcriptType = "text/vtt",
+        )
+
+        val episode = episodeDao.getByGuid("ep1")!!
+        assertEquals("https://example.com/ep1.vtt", episode.transcriptUrl)
+        assertEquals("text/vtt", episode.transcriptType)
+        // User state is untouched by the feed-field refresh.
+        assertEquals(5000L, episode.playbackPosition)
+    }
+
+    @Test
+    fun `getAutoDownloadsBeyondNewest returns only older auto-downloads past the cap`() = runTest {
+        val ids = episodeDao.insertAll(
+            listOf(
+                createEpisode(guid = "a", publicationDate = 4000L, downloadPath = "/f/a.mp3"),
+                createEpisode(guid = "b", publicationDate = 3000L, downloadPath = "/f/b.mp3"),
+                createEpisode(guid = "c", publicationDate = 2000L, downloadPath = "/f/c.mp3"),
+                // Manual download: never eligible for the cap cleanup.
+                createEpisode(guid = "d", publicationDate = 1000L, downloadPath = "/f/d.mp3"),
+                // Played: the auto-delete-after-N-days setting's business, not this one's.
+                createEpisode(guid = "e", publicationDate = 500L, downloadPath = "/f/e.mp3", played = true),
+            )
+        )
+        episodeDao.markAutoDownloaded(ids[0])
+        episodeDao.markAutoDownloaded(ids[1])
+        episodeDao.markAutoDownloaded(ids[2])
+        episodeDao.markAutoDownloaded(ids[4])
+
+        val beyond = episodeDao.getAutoDownloadsBeyondNewest(podcastId, 1)
+
+        // Newest auto-download (a) is kept; b and c are beyond the cap; d (manual)
+        // and e (played) are untouched.
+        assertEquals(listOf(ids[1], ids[2]), beyond)
+    }
+
+    @Test
+    fun `clearDownload resets the autoDownloaded flag`() = runTest {
+        val ids = episodeDao.insertAll(
+            listOf(createEpisode(guid = "a", publicationDate = 1000L, downloadPath = "/f/a.mp3"))
+        )
+        episodeDao.markAutoDownloaded(ids[0])
+        assertEquals(listOf(ids[0]), episodeDao.getAutoDownloadsBeyondNewest(podcastId, 0))
+
+        episodeDao.clearDownload(ids[0])
+
+        assertTrue(episodeDao.getAutoDownloadsBeyondNewest(podcastId, 0).isEmpty())
+        assertEquals(false, episodeDao.getByIdOnce(ids[0])!!.autoDownloaded)
     }
 }

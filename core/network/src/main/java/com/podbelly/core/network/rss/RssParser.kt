@@ -6,7 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
+import java.io.InputStream
+import java.io.PushbackInputStream
 import java.io.StringReader
+import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.text.ParsePosition
 import java.text.SimpleDateFormat
@@ -32,6 +35,17 @@ class RssParser @Inject constructor() {
     companion object {
         private const val NS_ITUNES = "http://www.itunes.com/dtds/podcast-1.0.dtd"
         private const val NS_CONTENT = "http://purl.org/rss/1.0/modules/content/"
+
+        // Podcasting 2.0 namespace (podcast:transcript etc.). The spec URL is the
+        // canonical one, but some feeds still declare the old GitHub URL.
+        private const val NS_PODCAST = "https://podcastindex.org/namespace/1.0"
+        private const val NS_PODCAST_LEGACY =
+            "https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md"
+
+        /** Enough to cover any BOM plus a realistic XML declaration. */
+        private const val CHARSET_PROBE_BYTES = 256
+
+        private val ENCODING_REGEX = Regex("""encoding\s*=\s*["']([^"']+)["']""")
 
         private val RFC822_FORMATS = arrayOf(
             "EEE, dd MMM yyyy HH:mm:ss Z",
@@ -62,15 +76,98 @@ class RssParser @Inject constructor() {
      * @return A parsed [RssFeed] containing channel metadata and a list of [RssEpisode]s.
      */
     suspend fun parse(feedUrl: String, xmlContent: String): RssFeed = withContext(Dispatchers.IO) {
-        parseInternal(feedUrl, xmlContent)
+        val parser = newParser()
+        parser.setInput(StringReader(xmlContent))
+        parseInternal(feedUrl, parser)
     }
 
-    private fun parseInternal(feedUrl: String, xmlContent: String): RssFeed {
+    /**
+     * Parses an RSS 2.0 feed directly from [inputStream] without buffering the
+     * document into memory, so peak memory per feed is just the parsed episode
+     * objects rather than raw bytes plus a decoded copy of the whole XML. This
+     * is what makes a high feed-refresh parallelism safe.
+     *
+     * The charset is resolved HERE, deterministically, and always passed to the
+     * parser explicitly. Relying on the parser's own detection (by passing a null
+     * encoding to setInput) is implementation-dependent: Android's kxml2 sniffs
+     * the `<?xml encoding="…"?>` prolog, but other XmlPullParser implementations
+     * (including the one JVM unit tests resolve) silently fall back to UTF-8,
+     * which mangles accents on ISO-8859-1 / windows-1252 feeds.
+     *
+     * Precedence: byte-order mark (authoritative, and consumed here — a BOM
+     * decoded as ordinary text yields U+FEFF before the prolog, which XML
+     * parsers reject) → HTTP Content-Type header ([charsetName]) → the XML
+     * prolog's encoding attribute → UTF-8.
+     *
+     * @param charsetName Charset from the HTTP Content-Type header, if any.
+     */
+    suspend fun parse(feedUrl: String, inputStream: InputStream, charsetName: String?): RssFeed =
+        withContext(Dispatchers.IO) {
+            val stream = PushbackInputStream(inputStream, CHARSET_PROBE_BYTES)
+            val resolved = resolveCharset(stream, charsetName)
+            val parser = newParser()
+            parser.setInput(stream, resolved)
+            parseInternal(feedUrl, parser)
+        }
+
+    /**
+     * Reads up to [CHARSET_PROBE_BYTES] from [stream] to determine the charset,
+     * pushing everything except a leading BOM back so the parser sees the full
+     * document. See [parse] for the precedence rules.
+     */
+    private fun resolveCharset(stream: PushbackInputStream, headerCharset: String?): String {
+        val probe = ByteArray(CHARSET_PROBE_BYTES)
+        var n = 0
+        while (n < probe.size) {
+            val read = stream.read(probe, n, probe.size - n)
+            if (read <= 0) break
+            n += read
+        }
+
+        fun b(i: Int) = probe[i].toInt() and 0xFF
+
+        // BOMs: identify, consume, and let them decide the charset outright.
+        if (n >= 3 && b(0) == 0xEF && b(1) == 0xBB && b(2) == 0xBF) {
+            stream.unread(probe, 3, n - 3)
+            return "UTF-8"
+        }
+        if (n >= 2 && b(0) == 0xFE && b(1) == 0xFF) {
+            stream.unread(probe, 2, n - 2)
+            return "UTF-16BE"
+        }
+        if (n >= 2 && b(0) == 0xFF && b(1) == 0xFE) {
+            stream.unread(probe, 2, n - 2)
+            return "UTF-16LE"
+        }
+
+        stream.unread(probe, 0, n)
+
+        if (headerCharset != null) return headerCharset
+
+        // The XML declaration is ASCII-compatible, so a short prefix read as
+        // ISO-8859-1 recovers the encoding attribute regardless of the actual
+        // single-byte charset.
+        val prefix = String(probe, 0, n, Charsets.ISO_8859_1)
+        if (prefix.startsWith("<?xml")) {
+            val declEnd = prefix.indexOf("?>")
+            val decl = if (declEnd >= 0) prefix.substring(0, declEnd) else prefix
+            val declared = ENCODING_REGEX.find(decl)?.groupValues?.get(1)
+            if (declared != null && runCatching { Charset.isSupported(declared) }.getOrDefault(false)) {
+                return declared
+            }
+        }
+
+        return "UTF-8"
+    }
+
+    private fun newParser(): XmlPullParser {
         val factory = XmlPullParserFactory.newInstance().apply {
             isNamespaceAware = true
         }
-        val parser = factory.newPullParser()
-        parser.setInput(StringReader(xmlContent))
+        return factory.newPullParser()
+    }
+
+    private fun parseInternal(feedUrl: String, parser: XmlPullParser): RssFeed {
 
         var channelTitle = ""
         var channelAuthor = ""
@@ -94,6 +191,8 @@ class RssParser @Inject constructor() {
         var itemFileSize = 0L
         var itemArtworkUrl: String? = null
         var itemLink = ""
+        var itemTranscriptUrl: String? = null
+        var itemTranscriptType: String? = null
 
         var eventType = parser.eventType
         while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -119,13 +218,15 @@ class RssParser @Inject constructor() {
                             itemFileSize = 0L
                             itemArtworkUrl = null
                             itemLink = ""
+                            itemTranscriptUrl = null
+                            itemTranscriptType = null
                         }
 
                         // --- Inside <item> ---
                         insideItem -> {
                             when {
                                 tag == "title" && ns.isEmpty() -> {
-                                    itemTitle = readText(parser)
+                                    itemTitle = decodeHtmlEntities(readText(parser))
                                 }
                                 tag == "description" && ns.isEmpty() -> {
                                     itemDescription = readText(parser)
@@ -174,6 +275,20 @@ class RssParser @Inject constructor() {
                                 tag == "link" && ns.isEmpty() -> {
                                     itemLink = readText(parser)
                                 }
+                                tag == "transcript" && (ns == NS_PODCAST || ns == NS_PODCAST_LEGACY) -> {
+                                    // Podcasting 2.0 <podcast:transcript url="…" type="…"/>.
+                                    // A feed may list several transcripts in different
+                                    // formats; keep the one whose type we can use best.
+                                    val url = parser.getAttributeValue(null, "url")
+                                    val type = parser.getAttributeValue(null, "type") ?: ""
+                                    if (!url.isNullOrBlank() &&
+                                        (itemTranscriptUrl == null ||
+                                            transcriptTypeRank(type) < transcriptTypeRank(itemTranscriptType ?: ""))
+                                    ) {
+                                        itemTranscriptUrl = url.trim()
+                                        itemTranscriptType = type.trim()
+                                    }
+                                }
                             }
                         }
 
@@ -185,7 +300,7 @@ class RssParser @Inject constructor() {
                                 // image's title/link would clobber the real channel values
                                 // (since <image> normally appears after the channel's own).
                                 tag == "title" && ns.isEmpty() && !insideChannelImage -> {
-                                    channelTitle = readText(parser)
+                                    channelTitle = decodeHtmlEntities(readText(parser))
                                 }
                                 tag == "description" && ns.isEmpty() && !insideChannelImage -> {
                                     channelDescription = readText(parser)
@@ -196,7 +311,7 @@ class RssParser @Inject constructor() {
                                     }
                                 }
                                 tag == "author" && ns == NS_ITUNES -> {
-                                    channelAuthor = readText(parser)
+                                    channelAuthor = decodeHtmlEntities(readText(parser))
                                 }
                                 tag == "link" && ns.isEmpty() && !insideChannelImage -> {
                                     channelLink = readText(parser)
@@ -250,7 +365,9 @@ class RssParser @Inject constructor() {
                                         duration = itemDuration,
                                         publishedAt = itemPublishedAt,
                                         fileSize = itemFileSize,
-                                        artworkUrl = itemArtworkUrl
+                                        artworkUrl = itemArtworkUrl,
+                                        transcriptUrl = itemTranscriptUrl,
+                                        transcriptType = itemTranscriptType,
                                     )
                                 )
                             }
@@ -303,6 +420,20 @@ class RssParser @Inject constructor() {
         }
 
         return result.toString().trim()
+    }
+
+    /**
+     * Preference order for `<podcast:transcript>` types when a feed lists several:
+     * podcastindex JSON first (timestamps + easiest to parse), then VTT, then SRT,
+     * then anything else (e.g. text/html) as a last resort. Lower rank wins.
+     */
+    private fun transcriptTypeRank(type: String): Int {
+        return when (type.substringBefore(';').trim().lowercase(Locale.US)) {
+            "application/json" -> 0
+            "text/vtt" -> 1
+            "application/x-subrip", "application/srt" -> 2
+            else -> 3
+        }
     }
 
     /**
@@ -438,4 +569,40 @@ class RssParser @Inject constructor() {
         val hash = digest.digest(audioUrl.toByteArray(Charsets.UTF_8))
         return hash.joinToString("") { "%02x".format(it) }
     }
+}
+
+private val NUMERIC_ENTITY_REGEX = Regex("&#(\\d+|[xX][0-9a-fA-F]+);")
+
+/**
+ * Decodes HTML character entities that survive XML parsing. Publishers commonly
+ * HTML-encode display text inside CDATA (`<![CDATA[Mike &amp; Vittorio]]>`),
+ * where the XML parser correctly leaves the content literal — so "&amp;" would
+ * otherwise reach the UI as-is. Applied to short display fields (titles,
+ * author); descriptions are rendered as HTML by the UI, which decodes there.
+ *
+ * "&amp;" is decoded last so double-encoded text ("&amp;lt;") unescapes exactly
+ * one level, matching a real HTML decoder.
+ */
+internal fun decodeHtmlEntities(text: String): String {
+    if ('&' !in text) return text
+    var result = text
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&nbsp;", " ")
+    result = NUMERIC_ENTITY_REGEX.replace(result) { match ->
+        val body = match.groupValues[1]
+        val codePoint = if (body.startsWith("x", ignoreCase = true)) {
+            body.drop(1).toIntOrNull(16)
+        } else {
+            body.toIntOrNull()
+        }
+        if (codePoint != null && Character.isValidCodePoint(codePoint) && codePoint > 0) {
+            String(Character.toChars(codePoint))
+        } else {
+            match.value
+        }
+    }
+    return result.replace("&amp;", "&")
 }

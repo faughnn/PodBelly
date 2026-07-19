@@ -5,9 +5,17 @@ import com.podbelly.core.database.dao.DayOfWeekStat
 import com.podbelly.core.database.dao.EpisodeCompletionStat
 import com.podbelly.core.database.dao.EpisodeListeningStat
 import com.podbelly.core.database.dao.HourOfDayStat
+import com.podbelly.core.database.dao.DailyListeningStat
+import com.podbelly.core.database.dao.DuplicateMergeDao
+import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.KeepUpStat
+import com.podbelly.core.database.dao.LibraryStat
 import com.podbelly.core.database.dao.ListeningSessionDao
+import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastDownloadStat
+import com.podbelly.core.database.dao.PodcastEngagementStat
 import com.podbelly.core.database.dao.PodcastListeningStat
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -29,10 +37,12 @@ class StatsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val listeningSessionDao = mockk<ListeningSessionDao>(relaxed = true)
+    private val podcastDao = mockk<PodcastDao>(relaxed = true)
+    private val episodeDao = mockk<EpisodeDao>(relaxed = true)
+    private val duplicateMergeDao = mockk<DuplicateMergeDao>(relaxed = true)
 
     private val totalListenedFlow = MutableStateFlow(0L)
     private val timeSavedBySpeedFlow = MutableStateFlow(0L)
-    private val silenceTrimmedFlow = MutableStateFlow(0L)
     private val mostListenedPodcastsFlow = MutableStateFlow<List<PodcastListeningStat>>(emptyList())
     private val mostListenedEpisodesFlow = MutableStateFlow<List<EpisodeListeningStat>>(emptyList())
     private val mostDownloadedPodcastsFlow = MutableStateFlow<List<PodcastDownloadStat>>(emptyList())
@@ -42,22 +52,41 @@ class StatsViewModelTest {
     private val dayOfWeekFlow = MutableStateFlow<List<DayOfWeekStat>>(emptyList())
     private val hourOfDayFlow = MutableStateFlow<List<HourOfDayStat>>(emptyList())
     private val completionStatsFlow = MutableStateFlow<List<EpisodeCompletionStat>>(emptyList())
+    private val engagementStatsFlow = MutableStateFlow<List<PodcastEngagementStat>>(emptyList())
+    private val skipSavedFlow = MutableStateFlow(0L)
+    private val weightedSpeedFlow = MutableStateFlow(0.0)
+    private val sessionCountFlow = MutableStateFlow(0)
+    private val longestSessionFlow = MutableStateFlow(0L)
+    private val dailyListeningFlow = MutableStateFlow<List<DailyListeningStat>>(emptyList())
+    private val subscribedCountFlow = MutableStateFlow(0)
+    private val libraryStatsFlow = MutableStateFlow(LibraryStat(episodeCount = 0, playedCount = 0))
+    private val downloadedBytesFlow = MutableStateFlow(0L)
+    private val keepUpFlow = MutableStateFlow(KeepUpStat(totalCount = 0, playedCount = 0))
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        every { listeningSessionDao.getTotalListenedMs() } returns totalListenedFlow
-        every { listeningSessionDao.getTimeSavedBySpeed() } returns timeSavedBySpeedFlow
-        every { listeningSessionDao.getTotalSilenceTrimmedMs() } returns silenceTrimmedFlow
-        every { listeningSessionDao.getMostListenedPodcasts(10) } returns mostListenedPodcastsFlow
-        every { listeningSessionDao.getMostListenedEpisodes(10) } returns mostListenedEpisodesFlow
+        every { listeningSessionDao.getTotalListenedMs(any()) } returns totalListenedFlow
+        every { listeningSessionDao.getTimeSavedBySpeed(any()) } returns timeSavedBySpeedFlow
+        every { listeningSessionDao.getTotalSkipSavedMs(any()) } returns skipSavedFlow
+        every { listeningSessionDao.getWeightedAverageSpeed(any()) } returns weightedSpeedFlow
+        every { listeningSessionDao.getSessionCount(any()) } returns sessionCountFlow
+        every { listeningSessionDao.getLongestSessionMs(any()) } returns longestSessionFlow
+        every { listeningSessionDao.getListenedMsPerDay(any(), any()) } returns dailyListeningFlow
+        every { listeningSessionDao.getMostListenedPodcasts(10, any()) } returns mostListenedPodcastsFlow
+        every { listeningSessionDao.getMostListenedEpisodes(10, any()) } returns mostListenedEpisodesFlow
         every { listeningSessionDao.getMostDownloadedPodcasts(10) } returns mostDownloadedPodcastsFlow
         every { listeningSessionDao.getListenedMsSince(any()) } returns listenedSinceFlow
-        every { listeningSessionDao.getListeningDays(any()) } returns listeningDaysFlow
-        every { listeningSessionDao.getAverageSessionLengthMs() } returns averageSessionFlow
-        every { listeningSessionDao.getListeningMsByDayOfWeek(any()) } returns dayOfWeekFlow
-        every { listeningSessionDao.getListeningMsByHourOfDay(any()) } returns hourOfDayFlow
-        every { listeningSessionDao.getEpisodeCompletionStats() } returns completionStatsFlow
+        every { listeningSessionDao.getListeningDays(any(), any()) } returns listeningDaysFlow
+        every { listeningSessionDao.getAverageSessionLengthMs(any()) } returns averageSessionFlow
+        every { listeningSessionDao.getListeningMsByDayOfWeek(any(), any()) } returns dayOfWeekFlow
+        every { listeningSessionDao.getListeningMsByHourOfDay(any(), any()) } returns hourOfDayFlow
+        every { listeningSessionDao.getEpisodeCompletionStats(any()) } returns completionStatsFlow
+        every { listeningSessionDao.getPodcastEngagementStats() } returns engagementStatsFlow
+        every { podcastDao.getSubscribedCount() } returns subscribedCountFlow
+        every { episodeDao.getLibraryStats() } returns libraryStatsFlow
+        every { episodeDao.getTotalDownloadedBytes() } returns downloadedBytesFlow
+        every { episodeDao.getKeepUpStats(any()) } returns keepUpFlow
     }
 
     @After
@@ -68,8 +97,32 @@ class StatsViewModelTest {
     private fun createViewModel(): StatsViewModel {
         return StatsViewModel(
             listeningSessionDao = listeningSessionDao,
+            podcastDao = podcastDao,
+            episodeDao = episodeDao,
+            duplicateMergeDao = duplicateMergeDao,
         )
     }
+
+    private fun makeEngagementStat(
+        podcastId: Long = 1L,
+        totalListenedMs: Long = 0L,
+        title: String = "Show $podcastId",
+        feedUrl: String = "https://feed$podcastId.example.com/rss",
+    ) = PodcastEngagementStat(
+        podcastId = podcastId,
+        podcastTitle = title,
+        artworkUrl = "",
+        feedUrl = feedUrl,
+        subscribedAt = 1_000L,
+        totalListenedMs = totalListenedMs,
+        lastListenedAt = 0L,
+        episodeCount = 10L,
+        playedCount = 0L,
+        inProgressCount = 0L,
+        downloadedCount = 0L,
+        downloadedBytes = 0L,
+        latestEpisodeAt = 0L,
+    )
 
     @Test
     fun `initial state has zero values and empty lists`() = runTest {
@@ -79,7 +132,6 @@ class StatsViewModelTest {
             val state = awaitItem()
             assertEquals(0L, state.totalListenedMs)
             assertEquals(0L, state.timeSavedBySpeedMs)
-            assertEquals(0L, state.silenceTrimmedMs)
             assertTrue(state.mostListenedPodcasts.isEmpty())
             assertTrue(state.mostListenedEpisodes.isEmpty())
             assertTrue(state.mostDownloadedPodcasts.isEmpty())
@@ -111,20 +163,6 @@ class StatsViewModelTest {
 
             val state = awaitItem()
             assertEquals(1800000L, state.timeSavedBySpeedMs)
-        }
-    }
-
-    @Test
-    fun `emitting silence trimmed populates UI state`() = runTest {
-        val viewModel = createViewModel()
-
-        viewModel.uiState.test {
-            awaitItem()
-
-            silenceTrimmedFlow.value = 600000L // 10 minutes
-
-            val state = awaitItem()
-            assertEquals(600000L, state.silenceTrimmedMs)
         }
     }
 
@@ -222,7 +260,6 @@ class StatsViewModelTest {
 
             totalListenedFlow.value = 10000000L
             timeSavedBySpeedFlow.value = 2000000L
-            silenceTrimmedFlow.value = 500000L
             mostListenedPodcastsFlow.value = listOf(
                 PodcastListeningStat(1L, "P1", "", 5000000L, 3L),
             )
@@ -242,7 +279,6 @@ class StatsViewModelTest {
 
             assertEquals(10000000L, state.totalListenedMs)
             assertEquals(2000000L, state.timeSavedBySpeedMs)
-            assertEquals(500000L, state.silenceTrimmedMs)
             assertEquals(1, state.mostListenedPodcasts.size)
             assertEquals(1, state.mostListenedEpisodes.size)
             assertEquals(1, state.mostDownloadedPodcasts.size)
@@ -317,5 +353,195 @@ class StatsViewModelTest {
 
             assertEquals("8 AM", state.mostActiveHour)
         }
+    }
+
+    // -- New overview stats --
+
+    @Test
+    fun `skip savings and average speed flow into the UI state`() = runTest {
+        skipSavedFlow.value = 240_000L
+        weightedSpeedFlow.value = 1.42
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.skipSavedMs == 0L) state = awaitItem()
+
+            assertEquals(240_000L, state.skipSavedMs)
+            assertEquals(1.42f, state.averageSpeed, 0.001f)
+        }
+    }
+
+    @Test
+    fun `session, keep-up and library stats flow into the UI state`() = runTest {
+        sessionCountFlow.value = 42
+        longestSessionFlow.value = 5_400_000L
+        subscribedCountFlow.value = 106
+        libraryStatsFlow.value = LibraryStat(episodeCount = 2000, playedCount = 500)
+        downloadedBytesFlow.value = 1_234L
+        keepUpFlow.value = KeepUpStat(totalCount = 38, playedCount = 12)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.sessionCount == 0) state = awaitItem()
+
+            assertEquals(42, state.sessionCount)
+            assertEquals(5_400_000L, state.longestSessionMs)
+            assertEquals(106, state.subscriptionCount)
+            assertEquals(2000, state.libraryEpisodeCount)
+            assertEquals(500, state.libraryPlayedCount)
+            assertEquals(1_234L, state.downloadedBytes)
+            assertEquals(38, state.keepUpTotal)
+            assertEquals(12, state.keepUpPlayed)
+        }
+    }
+
+    @Test
+    fun `average per active day divides total by listening days`() = runTest {
+        val today = System.currentTimeMillis() / 86400000L
+        totalListenedFlow.value = 3_000_000L
+        listeningDaysFlow.value = listOf(today - 2, today - 1, today)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            var state = awaitItem()
+            while (state.daysListened == 0) state = awaitItem()
+
+            assertEquals(3, state.daysListened)
+            assertEquals(1_000_000L, state.averagePerActiveDayMs)
+        }
+    }
+
+    @Test
+    fun `selecting a period re-queries with a non-zero cutoff`() = runTest {
+        val cutoffs = mutableListOf<Long>()
+        every { listeningSessionDao.getTotalListenedMs(capture(cutoffs)) } returns totalListenedFlow
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial value from stateIn
+            // awaitItem() returns the StateFlow's initial value before the sharing
+            // coroutine necessarily collects, so run the scheduler dry to guarantee
+            // the ALL_TIME query fired before the period flips.
+            testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.setPeriod(StatsPeriod.LAST_30_DAYS)
+            // The re-collected state can be identical (all stubs unchanged), so
+            // drive the scheduler instead of awaiting a (deduped) emission.
+            testDispatcher.scheduler.advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertTrue(cutoffs.size >= 2)
+        assertEquals(0L, cutoffs.first())
+        assertTrue(cutoffs.last() > 0L)
+    }
+
+    @Test
+    fun `period cutoffs are ordered sensibly`() {
+        val now = System.currentTimeMillis()
+        assertEquals(0L, StatsPeriod.ALL_TIME.cutoff(now))
+        assertTrue(StatsPeriod.LAST_30_DAYS.cutoff(now) == now - 30L * 86_400_000L)
+        val yearStart = StatsPeriod.THIS_YEAR.cutoff(now)
+        assertTrue(yearStart in 1..now)
+    }
+
+    // -- Podcast engagement tab --
+
+    @Test
+    fun `engagementStats exposes the least-listened list from the dao`() = runTest {
+        val stats = listOf(
+            makeEngagementStat(podcastId = 1L, totalListenedMs = 0L),
+            makeEngagementStat(podcastId = 2L, totalListenedMs = 5_000L),
+        )
+        engagementStatsFlow.value = stats
+
+        val viewModel = createViewModel()
+
+        viewModel.engagementStats.test {
+            var value = awaitItem()
+            while (value.isEmpty()) value = awaitItem()
+            assertEquals(stats, value)
+        }
+    }
+
+    @Test
+    fun `findDuplicateGroups groups same titles ignoring case whitespace and punctuation`() {
+        val a = makeEngagementStat(podcastId = 1L, title = "The Daily Show!", totalListenedMs = 100L)
+        val b = makeEngagementStat(podcastId = 2L, title = "  the daily — show ", totalListenedMs = 900L)
+        val unique = makeEngagementStat(podcastId = 3L, title = "Something Else")
+
+        val groups = StatsViewModel.findDuplicateGroups(listOf(a, b, unique))
+
+        assertEquals(1, groups.size)
+        // Most-listened copy leads the group
+        assertEquals(listOf(2L, 1L), groups[0].map { it.podcastId })
+    }
+
+    @Test
+    fun `findDuplicateGroups is empty when all titles are unique`() {
+        val stats = listOf(
+            makeEngagementStat(podcastId = 1L, title = "Show A"),
+            makeEngagementStat(podcastId = 2L, title = "Show B"),
+        )
+
+        assertTrue(StatsViewModel.findDuplicateGroups(stats).isEmpty())
+    }
+
+    @Test
+    fun `duplicateGroups flow surfaces duplicates from engagement stats`() = runTest {
+        engagementStatsFlow.value = listOf(
+            makeEngagementStat(podcastId = 1L, title = "Same Show"),
+            makeEngagementStat(podcastId = 2L, title = "Same Show"),
+            makeEngagementStat(podcastId = 3L, title = "Unique Show"),
+        )
+
+        val viewModel = createViewModel()
+
+        viewModel.duplicateGroups.test {
+            var value = awaitItem()
+            while (value.isEmpty()) value = awaitItem()
+            assertEquals(1, value.size)
+            assertEquals(setOf(1L, 2L), value[0].map { it.podcastId }.toSet())
+        }
+    }
+
+    @Test
+    fun `mergeDuplicates merges every spare into the kept copy`() = runTest {
+        val keep = makeEngagementStat(podcastId = 1L, title = "Same Show")
+        val spareA = makeEngagementStat(podcastId = 2L, title = "Same Show")
+        val spareB = makeEngagementStat(podcastId = 3L, title = "Same Show")
+
+        val viewModel = createViewModel()
+        viewModel.mergeDuplicates(listOf(keep, spareA, spareB), keepPodcastId = 1L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { duplicateMergeDao.merge(2L, 1L) }
+        coVerify(exactly = 1) { duplicateMergeDao.merge(3L, 1L) }
+        coVerify(exactly = 0) { duplicateMergeDao.merge(1L, 1L) }
+    }
+
+    @Test
+    fun `unsubscribe delegates to the dao`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.unsubscribe(7L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { podcastDao.unsubscribe(7L) }
+    }
+
+    @Test
+    fun `undoUnsubscribe resubscribes via the dao`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.undoUnsubscribe(7L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { podcastDao.resubscribe(7L) }
     }
 }

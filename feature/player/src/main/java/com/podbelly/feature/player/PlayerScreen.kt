@@ -36,9 +36,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -48,6 +50,9 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
@@ -76,6 +81,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -102,6 +111,8 @@ import coil.request.ImageRequest
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import coil.request.SuccessResult
+import com.podbelly.core.common.SkipIntroOutroDialog
+import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.playback.Chapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -111,11 +122,14 @@ import kotlinx.coroutines.withContext
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
+    onNavigateToPodcast: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val skipSettings by viewModel.skipSettings.collectAsStateWithLifecycle()
     val playback = uiState.playbackState
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val speedPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showSkipSettings by remember { mutableStateOf(false) }
 
     // Extract dominant color from artwork for background tinting
     val dominantColor = rememberDominantColor(
@@ -148,6 +162,41 @@ fun PlayerScreen(
                             contentDescription = "Dismiss",
                             modifier = Modifier.size(28.dp),
                         )
+                    }
+                },
+                actions = {
+                    // Chromecast device picker; renders nothing on devices without
+                    // Google Play services.
+                    CastButton(modifier = Modifier.padding(end = 8.dp))
+                    if (playback.podcastId != 0L) {
+                        var showOverflowMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.MoreVert,
+                                    contentDescription = "More options",
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Skip intro & outro") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showSkipSettings = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Go to podcast") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onNavigateToPodcast(playback.podcastId)
+                                    },
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -224,14 +273,19 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // ── Podcast title ────────────────────────────────────────
+                // ── Podcast title (tap to open the show's episode list) ──
                 Text(
                     text = playback.podcastTitle,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            enabled = playback.podcastId != 0L,
+                            onClickLabel = "Go to podcast",
+                        ) { onNavigateToPodcast(playback.podcastId) },
                 )
 
                 // ── Current chapter title (if chapters exist) ─────────
@@ -256,6 +310,8 @@ fun PlayerScreen(
                     currentPosition = playback.currentPosition,
                     duration = playback.duration,
                     onSeek = { viewModel.seekTo(it) },
+                    skipIntroMs = (skipSettings?.skipIntroSeconds ?: 0) * 1000L,
+                    skipOutroMs = (skipSettings?.skipOutroSeconds ?: 0) * 1000L,
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -288,11 +344,33 @@ fun PlayerScreen(
                     onToggleSkipSilence = { viewModel.toggleSkipSilence() },
                     onToggleVolumeBoost = { viewModel.toggleVolumeBoost() },
                     onChaptersClick = { viewModel.showChaptersList() },
+                    hasTranscript = uiState.transcript.available,
+                    onTranscriptClick = { viewModel.showTranscript() },
                 )
 
                 Spacer(modifier = Modifier.height(48.dp))
             }
         }
+    }
+
+    // ── Per-podcast skip intro/outro settings (same dialog as the podcast page).
+    // The player also offers "up to now" / "after now" shortcuts: pause where the
+    // ads end (or begin) and one tap fills the field from the playback position.
+    if (showSkipSettings) {
+        val hasPosition = playback.duration > 0L
+        SkipIntroOutroDialog(
+            skipIntroSeconds = skipSettings?.skipIntroSeconds ?: 0,
+            skipOutroSeconds = skipSettings?.skipOutroSeconds ?: 0,
+            onSetSkipIntro = { viewModel.setSkipIntroSeconds(it) },
+            onSetSkipOutro = { viewModel.setSkipOutroSeconds(it) },
+            onDismiss = { showSkipSettings = false },
+            currentPositionSeconds = if (hasPosition) {
+                (playback.currentPosition / 1000L).toInt()
+            } else null,
+            remainingSeconds = if (hasPosition) {
+                ((playback.duration - playback.currentPosition) / 1000L).coerceAtLeast(0L).toInt()
+            } else null,
+        )
     }
 
     // ── Speed picker bottom sheet ────────────────────────────────────────
@@ -374,6 +452,24 @@ fun PlayerScreen(
             )
         }
     }
+
+    // ── Transcript bottom sheet (mirrors the chapters pattern) ─────────
+    if (uiState.transcript.visible) {
+        val transcriptSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.hideTranscript() },
+            sheetState = transcriptSheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            TranscriptListContent(
+                cues = uiState.transcript.cues,
+                isLoading = uiState.transcript.isLoading,
+                isError = uiState.transcript.error,
+                currentPositionMs = playback.currentPosition,
+                onCueClick = { cue -> viewModel.seekToCue(cue.startMs) },
+            )
+        }
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -386,6 +482,8 @@ private fun SeekBar(
     currentPosition: Long,
     duration: Long,
     onSeek: (Long) -> Unit,
+    skipIntroMs: Long = 0L,
+    skipOutroMs: Long = 0L,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isDragging by interactionSource.collectIsDraggedAsState()
@@ -460,39 +558,73 @@ private fun SeekBar(
             }
         }
 
-        Slider(
-            value = sliderPosition,
-            // Track the drag locally and commit a single seek on release, rather than
-            // firing a Media3 seek on every drag frame (dozens/sec). Mirrors the
-            // commit-on-finish pattern the speed slider already uses.
-            onValueChange = { fraction ->
-                localSlider = fraction
-            },
-            onValueChangeFinished = {
-                if (duration > 0L) onSeek((localSlider * duration).toLong())
-            },
-            modifier = Modifier.fillMaxWidth(),
-            interactionSource = interactionSource,
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-            ),
-            thumb = {
-                Box(
+        // Configured intro/outro auto-skip zones, shaded behind the track so the
+        // skipped stretches are visible at a glance.
+        Box(contentAlignment = Alignment.Center) {
+            if (duration > 0L && (skipIntroMs > 0L || skipOutroMs > 0L)) {
+                Canvas(
                     modifier = Modifier
-                        .size(thumbSize)
-                        .shadow(
-                            elevation = if (isDragging) 6.dp else 2.dp,
-                            shape = CircleShape,
+                        .matchParentSize()
+                        .padding(horizontal = 10.dp),
+                ) {
+                    val zoneColor = Color(0xFFE57373).copy(alpha = 0.35f)
+                    val barHeight = 12.dp.toPx()
+                    val top = (size.height - barHeight) / 2f
+                    val introFraction = (skipIntroMs.toFloat() / duration).coerceIn(0f, 1f)
+                    val outroFraction = (skipOutroMs.toFloat() / duration).coerceIn(0f, 1f)
+                    if (introFraction > 0f) {
+                        drawRoundRect(
+                            color = zoneColor,
+                            topLeft = Offset(0f, top),
+                            size = Size(size.width * introFraction, barHeight),
+                            cornerRadius = CornerRadius(4.dp.toPx()),
                         )
-                        .background(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape,
-                        ),
-                )
-            },
-        )
+                    }
+                    if (outroFraction > 0f) {
+                        val width = size.width * outroFraction
+                        drawRoundRect(
+                            color = zoneColor,
+                            topLeft = Offset(size.width - width, top),
+                            size = Size(width, barHeight),
+                            cornerRadius = CornerRadius(4.dp.toPx()),
+                        )
+                    }
+                }
+            }
+            Slider(
+                value = sliderPosition,
+                // Track the drag locally and commit a single seek on release, rather than
+                // firing a Media3 seek on every drag frame (dozens/sec). Mirrors the
+                // commit-on-finish pattern the speed slider already uses.
+                onValueChange = { fraction ->
+                    localSlider = fraction
+                },
+                onValueChangeFinished = {
+                    if (duration > 0L) onSeek((localSlider * duration).toLong())
+                },
+                modifier = Modifier.fillMaxWidth(),
+                interactionSource = interactionSource,
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+                thumb = {
+                    Box(
+                        modifier = Modifier
+                            .size(thumbSize)
+                            .shadow(
+                                elevation = if (isDragging) 6.dp else 2.dp,
+                                shape = CircleShape,
+                            )
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = CircleShape,
+                            ),
+                    )
+                },
+            )
+        }
 
         Row(
             modifier = Modifier
@@ -639,6 +771,8 @@ internal fun SecondaryControls(
     onToggleSkipSilence: () -> Unit,
     onToggleVolumeBoost: () -> Unit,
     onChaptersClick: () -> Unit,
+    hasTranscript: Boolean = false,
+    onTranscriptClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -731,6 +865,20 @@ internal fun SecondaryControls(
                     text = "Ch.",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        // Transcript button (only when the episode has a transcript)
+        if (hasTranscript) {
+            FilledTonalIconButton(
+                onClick = onTranscriptClick,
+                modifier = Modifier.size(42.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Description,
+                    contentDescription = "Show transcript",
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -1066,6 +1214,108 @@ internal fun ChaptersListContent(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Transcript bottom sheet content
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Scrollable transcript of the playing episode (Podcasting 2.0
+ * `<podcast:transcript>`). Each cue shows its [mm:ss] timestamp and text; tapping
+ * a cue seeks playback to it. The cue containing the playback position is
+ * highlighted, mirroring the chapters list.
+ */
+@Composable
+internal fun TranscriptListContent(
+    cues: List<TranscriptCue>,
+    isLoading: Boolean,
+    isError: Boolean,
+    currentPositionMs: Long,
+    onCueClick: (TranscriptCue) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 40.dp),
+    ) {
+        Text(
+            text = "Transcript",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            isError || cues.isEmpty() -> {
+                Text(
+                    text = "Transcript couldn't be loaded.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 24.dp),
+                )
+            }
+
+            else -> {
+                val currentCueIndex = cues.indexOfLast { currentPositionMs >= it.startMs }
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    itemsIndexed(cues) { index, cue ->
+                        val isCurrent = index == currentCueIndex
+                        val bgColor = if (isCurrent) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        } else {
+                            Color.Transparent
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(bgColor)
+                                .clickable { onCueClick(cue) }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = formatMillis(cue.startMs),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isCurrent) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.width(52.dp),
+                            )
+                            Text(
+                                text = cue.text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isCurrent) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
             }
         }

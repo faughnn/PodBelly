@@ -1,9 +1,139 @@
 package com.podbelly.ui
 
 object WhatsNew {
-    const val LATEST_VERSION_CODE = 36
+    // 65 was a test-stability fix with no user-facing changes; no changelog entry.
+    // 72 was internal test hardening with no user-facing changes; no changelog entry.
+    // 73-75 wired up coverage reporting (CI only); no changelog entries.
+    const val LATEST_VERSION_CODE = 75
 
     val changelog: Map<Int, List<String>> = mapOf(
+        // 70 never shipped (CI test fix re-roll).
+        71 to listOf(
+            "Tapping a bottom-bar button now always brings you back to that screen's start — even from a podcast or episode page (tap again for a fresh scroll-to-top)",
+            "Per-show auto-download: set any podcast to Always or Never auto-download from its page menu, overriding the smart setting",
+            "Smart auto-download window is now adjustable: count shows you've listened to in the last 7, 14, 30 or 60 days",
+            "Keep per show: cap smart downloads at the newest 1, 3, 5 or 10 unplayed episodes per show — older auto-downloads clean themselves up (your manual downloads are never touched)",
+            "Only while charging: optionally defer auto-downloads until the phone is plugged in",
+        ),
+        69 to listOf(
+            "New \"You\" tab in the bottom bar: your listening stats front and center — today, this week and your streak — one tap from anywhere",
+            "Tap the summary card for the full stats: charts, top shows and your Year in Review",
+            "Settings reorganized into quick categories (Playback, Downloads, Appearance, Feeds, Import & Export, Diagnostics) instead of one long scroll",
+            "The settings gear moved off the Home screen into the new You tab",
+        ),
+        68 to listOf(
+            "Skip ad chapters: for shows that mark their ads as chapters, the player now jumps straight over them (Settings > Playback)",
+            "Chapters embedded in episodes now show up in the player — tap the chapter title for the full list",
+            "Merge duplicate subscriptions: Stats > Podcasts can now fold copies of the same show into one, moving your listening history and downloads over",
+            "Smart auto-download: only fetches new episodes from shows you've actually listened to in the last 30 days (Settings > Downloads)",
+            "Auto-delete played downloads after 1, 3, 7 or 30 days to free up space",
+            "The player's seek bar now shades the intro/outro stretches your skip settings jump over",
+            "Year in Review: a shareable summary of your listening year, at the top of Stats",
+            "The queue feature is gone — playback simply stops at the end of an episode",
+        ),
+        67 to listOf(
+            "Podcast and episode titles no longer show raw \"&amp;\" codes — existing titles correct themselves on the next feed refresh",
+        ),
+        66 to listOf(
+            "Stats now flags duplicate subscriptions — the same show added via different feeds — at the top of the Podcasts tab, with each copy's feed and listening so you can unsubscribe the spare",
+        ),
+        64 to listOf(
+            "Tap any podcast in Stats — the Podcasts tab cards or the Top lists — to open its page before deciding to unsubscribe",
+        ),
+        63 to listOf(
+            "Stats Overview redesigned: a big listening headline with today/week/month, a 30-day listening chart, and day-of-week and hour-of-day charts",
+            "Time saved now adds up faster playback, silence trimming and skipped intros/outros in one card — skipped intro/outro time is tracked from now on",
+            "New stats: average playback speed, session counts, days listened, keep-up rate for new arrivals, and a library summary",
+            "Filter the Overview by All time, This year or Last 30 days",
+            "Most-listened podcasts and episodes moved to their own Top tab",
+        ),
+        62 to listOf(
+            "Stats has a new Podcasts tab: every subscription ranked least-listened first, with played counts, last-listened dates, downloads and more",
+            "Unsubscribe from neglected shows right from the list (with undo)",
+            "Sort the list by least listened, least played or longest idle",
+        ),
+        61 to listOf(
+            "Opening the app is much snappier: feeds only refresh when your refresh interval has actually elapsed, not on every launch",
+            "Artwork loads immediately even while a refresh is running",
+            "The app stays smooth during large refreshes instead of stuttering while feeds update",
+        ),
+        60 to listOf(
+            "Skip intro & outro now takes an exact number of seconds instead of preset buttons",
+            "From the player, pause where the ads end and tap \"Up to now\" to set the intro — or where they begin and tap \"After now\" for the outro",
+            "An outro set mid-episode now applies to the episode you're listening to, not just the next one",
+        ),
+        59 to listOf(
+            "Tap the podcast name on the Now Playing screen to jump to that show's episodes",
+            "Skip intro & outro can now be set right from the Now Playing screen (⋮ menu)",
+            "Tap the tab you're already on to jump back to the top of that screen",
+            "The playing episode now shows a pause button on its card in Home, and tapping it pauses instead of restarting",
+        ),
+        57 to listOf(
+            "Discover is tidier: add-by-RSS now lives behind the feed button beside the search bar",
+            "Pick your chart region: tap the country chip next to the categories to browse another country's top podcasts",
+        ),
+        54 to listOf(
+            "Home-screen widget: see what's playing and control it without opening the app",
+        ),
+        53 to listOf(
+            "Chromecast support: tap the cast button on the player to send your episode to a TV or speaker",
+            "Casting plays the show's stream; switching back to your phone resumes your downloaded copy where you left off",
+        ),
+        52 to listOf(
+            "Android Auto support: browse your queue and downloaded episodes from the car screen",
+            "Playback started in the car picks up where you left off, with your per-podcast speed and intro skip",
+        ),
+        51 to listOf(
+            "Read along with episode transcripts: tap the transcript button on the player for shows that provide them",
+            "Tap any line in the transcript to jump straight to that moment",
+        ),
+        50 to listOf(
+            "Skip intros and outros automatically: set per-podcast skip times from the podcast page menu (Skip intro & outro)",
+            "Episodes start past the intro and finish before the outro, then move on to your queue as usual",
+        ),
+        49 to listOf(
+            "Fixed feeds with special characters (accents, smart quotes) potentially displaying incorrectly on some devices",
+            "Fixed feeds that start with a byte-order mark failing to load",
+        ),
+        48 to listOf(
+            "Discover now shows the top podcast charts for your country the moment you open it — no search needed",
+            "Browse charts by category: Comedy, News, True Crime, Technology, Sport and more",
+        ),
+        47 to listOf(
+            "Feed refresh is much faster: up to 32 podcasts update at once instead of 5",
+            "Refreshing uses far less memory, even for shows with huge episode archives",
+        ),
+        46 to listOf(
+            "Tap the New header to clear the section — episodes slide back into their place in the list",
+        ),
+        45 to listOf(
+            "The refresh status moved to the top bar beside the logo, so it stays visible while you scroll",
+            "While feeds are refreshing you now see live progress, e.g. \"Checking 7/12\"",
+        ),
+        44 to listOf(
+            "Home now shows a refresh status below Continue Listening: a spinner while checking for new episodes, and \"Updated X ago\" the rest of the time",
+        ),
+        42 to listOf(
+            "The New section now clears when you return to the app after a while away, not only after a full restart",
+        ),
+        41 to listOf(
+            "Fixed just-released episodes sometimes landing under Earlier instead of the New section",
+            "Episodes you've already played no longer show in the New section",
+        ),
+        40 to listOf(
+            "Episodes that arrive from a refresh now appear in a \"New\" section at the top of Home, so nothing slips past you further down the list",
+            "Once you've seen them, they return to their usual place in the list",
+        ),
+        39 to listOf(
+            "Continue Listening no longer shows episodes you've already finished (\"0 seconds left\")",
+        ),
+        38 to listOf(
+            "Fixed a crash when tapping rewind or fast-forward repeatedly from the notification or lock screen",
+            "Fast-forwarding near the end of an episode no longer marks it as finished",
+        ),
+        37 to listOf(
+            "A show's cover art, title and description now update when the podcast changes them — not only when you first subscribe",
+        ),
         36 to listOf(
             "Background feed refresh now actually runs on the interval you set, so new episodes and notifications arrive without opening the app",
             "Switching straight to another episode now saves your place in the one you were listening to",

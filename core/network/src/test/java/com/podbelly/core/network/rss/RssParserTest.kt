@@ -334,6 +334,64 @@ class RssParserTest {
     }
 
     // -------------------------------------------------------------------------
+    // HTML entities in display fields
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `html entities inside CDATA titles are decoded`() = runTest {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0"
+                 xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+              <channel>
+                <title><![CDATA[Mike &amp; Vittorio's Guide to Parenting]]></title>
+                <itunes:author><![CDATA[Mike &amp; Vittorio]]></itunes:author>
+                <item>
+                  <title><![CDATA[Kids &#8217;n&#x2019; Chaos &amp; Fun]]></title>
+                  <guid>ep-1</guid>
+                  <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1"/>
+                </item>
+              </channel>
+            </rss>
+        """.trimIndent()
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("Mike & Vittorio's Guide to Parenting", feed.title)
+        assertEquals("Mike & Vittorio", feed.author)
+        assertEquals("Kids ’n’ Chaos & Fun", feed.episodes[0].title)
+    }
+
+    @Test
+    fun `plain xml-escaped titles decode exactly once`() = runTest {
+        // Outside CDATA the XML parser itself decodes &amp; — the entity pass
+        // must not mangle the already-decoded ampersand.
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0">
+              <channel>
+                <title>Salt &amp; Vinegar</title>
+              </channel>
+            </rss>
+        """.trimIndent()
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("Salt & Vinegar", feed.title)
+    }
+
+    @Test
+    fun `decodeHtmlEntities unescapes one level and leaves unknown entities alone`() {
+        assertEquals("A & B", decodeHtmlEntities("A &amp; B"))
+        assertEquals("&lt;", decodeHtmlEntities("&amp;lt;")) // one level only
+        assertEquals("’", decodeHtmlEntities("&#8217;"))
+        assertEquals("’", decodeHtmlEntities("&#x2019;"))
+        assertEquals("\"quoted\" 'apos' <tag>", decodeHtmlEntities("&quot;quoted&quot; &apos;apos&apos; &lt;tag&gt;"))
+        assertEquals("&bogus;", decodeHtmlEntities("&bogus;"))
+        assertEquals("no entities", decodeHtmlEntities("no entities"))
+    }
+
+    // -------------------------------------------------------------------------
     // Duration parsing
     // -------------------------------------------------------------------------
 
@@ -459,5 +517,237 @@ class RssParserTest {
         val feed = parser.parse("https://example.com/feed.xml", xml)
 
         assertEquals("https://example.com/itunes-art.jpg", feed.artworkUrl)
+    }
+
+    // -------------------------------------------------------------------------
+    // Streaming input (InputStream overload)
+    // -------------------------------------------------------------------------
+
+    private fun streamFeedXml(title: String, encodingDecl: String?) = buildString {
+        append("<?xml version=\"1.0\"")
+        if (encodingDecl != null) append(" encoding=\"$encodingDecl\"")
+        append("?>\n")
+        append(
+            """
+            <rss version="2.0">
+              <channel>
+                <title>$title</title>
+                <description>Desc</description>
+              </channel>
+            </rss>
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `streaming parse produces the same result as string parse`() = runTest {
+        val xml = streamFeedXml("Streamed Podcast", "UTF-8")
+
+        val fromString = parser.parse("https://example.com/feed.xml", xml)
+        val fromStream = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.UTF_8),
+            null,
+        )
+
+        assertEquals(fromString, fromStream)
+    }
+
+    @Test
+    fun `streaming parse sniffs ISO-8859-1 from the XML prolog when no header charset`() = runTest {
+        // "Séance Café" — bytes are ISO-8859-1, declared only in the prolog.
+        val xml = streamFeedXml("Séance Café", "ISO-8859-1")
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.ISO_8859_1),
+            null,
+        )
+
+        assertEquals("Séance Café", feed.title)
+    }
+
+    @Test
+    fun `streaming parse prefers the header charset over the prolog`() = runTest {
+        // Server says ISO-8859-1 in Content-Type while the prolog lies (UTF-8);
+        // header must win, matching the old buffered implementation.
+        val xml = streamFeedXml("Séance Café", "UTF-8")
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.ISO_8859_1),
+            "ISO-8859-1",
+        )
+
+        assertEquals("Séance Café", feed.title)
+    }
+
+    @Test
+    fun `streaming parse defaults to UTF-8 without header or prolog encoding`() = runTest {
+        val xml = streamFeedXml("Séance Café", null)
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            xml.byteInputStream(Charsets.UTF_8),
+            null,
+        )
+
+        assertEquals("Séance Café", feed.title)
+    }
+
+    // -------------------------------------------------------------------------
+    // Podcasting 2.0 transcript (<podcast:transcript>)
+    // -------------------------------------------------------------------------
+
+    // The injected tags are collapsed onto one line BEFORE interpolation: a
+    // multi-line argument would contribute column-0 lines to the raw string,
+    // turning the outer trimIndent() into a no-op and leaving whitespace before
+    // the XML declaration — which strict parsers (MXParser on the unit-test
+    // classpath) reject even though lenient ones (kxml2) accept it.
+    private fun transcriptFeedXml(transcriptTags: String): String = transcriptFeedXmlTemplate(
+        transcriptTags.lines().joinToString(" ") { it.trim() }
+    )
+
+    private fun transcriptFeedXmlTemplate(transcriptTagsOneLine: String): String = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"
+             xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+             xmlns:podcast="https://podcastindex.org/namespace/1.0">
+          <channel>
+            <title>Transcript Podcast</title>
+            <description>Desc</description>
+            <item>
+              <title>Episode 1</title>
+              <guid>guid-1</guid>
+              <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="100"/>
+              $transcriptTagsOneLine
+            </item>
+          </channel>
+        </rss>
+    """.trimIndent()
+
+    @Test
+    fun `parse extracts podcast transcript url and type`() = runTest {
+        val xml = transcriptFeedXml(
+            """<podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>"""
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        val episode = feed.episodes[0]
+        assertEquals("https://example.com/ep1.vtt", episode.transcriptUrl)
+        assertEquals("text/vtt", episode.transcriptType)
+    }
+
+    @Test
+    fun `episode without transcript has null transcript fields`() = runTest {
+        val xml = transcriptFeedXml("")
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertNull(feed.episodes[0].transcriptUrl)
+        assertNull(feed.episodes[0].transcriptType)
+    }
+
+    @Test
+    fun `multiple transcripts prefer JSON over VTT and SRT`() = runTest {
+        val xml = transcriptFeedXml(
+            """
+            <podcast:transcript url="https://example.com/ep1.srt" type="application/x-subrip"/>
+            <podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>
+            <podcast:transcript url="https://example.com/ep1.json" type="application/json"/>
+            """.trimIndent()
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        val episode = feed.episodes[0]
+        assertEquals("https://example.com/ep1.json", episode.transcriptUrl)
+        assertEquals("application/json", episode.transcriptType)
+    }
+
+    @Test
+    fun `multiple transcripts prefer VTT over SRT and HTML`() = runTest {
+        val xml = transcriptFeedXml(
+            """
+            <podcast:transcript url="https://example.com/ep1.html" type="text/html"/>
+            <podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>
+            <podcast:transcript url="https://example.com/ep1.srt" type="application/srt"/>
+            """.trimIndent()
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("https://example.com/ep1.vtt", feed.episodes[0].transcriptUrl)
+        assertEquals("text/vtt", feed.episodes[0].transcriptType)
+    }
+
+    @Test
+    fun `unpreferred transcript type is still kept when it is the only one`() = runTest {
+        val xml = transcriptFeedXml(
+            """<podcast:transcript url="https://example.com/ep1.html" type="text/html"/>"""
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("https://example.com/ep1.html", feed.episodes[0].transcriptUrl)
+        assertEquals("text/html", feed.episodes[0].transcriptType)
+    }
+
+    @Test
+    fun `transcript without url is ignored`() = runTest {
+        val xml = transcriptFeedXml("""<podcast:transcript type="text/vtt"/>""")
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertNull(feed.episodes[0].transcriptUrl)
+    }
+
+    @Test
+    fun `transcript does not leak into the next item`() = runTest {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0"
+                 xmlns:podcast="https://podcastindex.org/namespace/1.0">
+              <channel>
+                <title>Transcript Podcast</title>
+                <item>
+                  <title>Episode 1</title>
+                  <guid>guid-1</guid>
+                  <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg"/>
+                  <podcast:transcript url="https://example.com/ep1.vtt" type="text/vtt"/>
+                </item>
+                <item>
+                  <title>Episode 2</title>
+                  <guid>guid-2</guid>
+                  <enclosure url="https://example.com/ep2.mp3" type="audio/mpeg"/>
+                </item>
+              </channel>
+            </rss>
+        """.trimIndent()
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals(2, feed.episodes.size)
+        assertEquals("https://example.com/ep1.vtt", feed.episodes[0].transcriptUrl)
+        assertNull(feed.episodes[1].transcriptUrl)
+    }
+
+    @Test
+    fun `streaming parse strips a UTF-8 byte-order mark`() = runTest {
+        // A BOM decoded as ordinary text yields U+FEFF before the prolog, which
+        // XML parsers reject ("PI must not start with xml") — resolveCharset must
+        // consume it. The old buffered implementation failed on such feeds.
+        val xml = streamFeedXml("Séance Café", "UTF-8")
+        val bytes = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) +
+            xml.toByteArray(Charsets.UTF_8)
+
+        val feed = parser.parse(
+            "https://example.com/feed.xml",
+            bytes.inputStream(),
+            null,
+        )
+
+        assertEquals("Séance Café", feed.title)
     }
 }

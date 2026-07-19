@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.podbelly.core.common.RefreshProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -103,6 +104,49 @@ class HomeScreenInteractionTest {
     }
 
     @Test
+    fun `episode card shows pause button while its episode is playing`() {
+        var toggleClicked = false
+        val episode = createEpisode(downloadPath = "/downloads/episode.mp3")
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeCard(
+                    episode = episode,
+                    downloadProgress = null,
+                    isCurrentlyPlaying = true,
+                    onClick = {},
+                    onPlay = { toggleClicked = true },
+                    onDownload = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Pause episode").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Pause episode").performClick()
+        assertTrue(toggleClicked)
+    }
+
+    @Test
+    fun `pause button wins over the played checkmark while playing`() {
+        val episode = createEpisode(downloadPath = "/downloads/episode.mp3", played = true)
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeCard(
+                    episode = episode,
+                    downloadProgress = null,
+                    isCurrentlyPlaying = true,
+                    onClick = {},
+                    onPlay = {},
+                    onDownload = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Pause episode").assertIsDisplayed()
+    }
+
+    @Test
     fun `episode card click triggers callback`() {
         var cardClicked = false
         val episode = createEpisode()
@@ -122,6 +166,87 @@ class HomeScreenInteractionTest {
         // Click on the episode title text, which is inside the clickable card
         composeTestRule.onNodeWithText("Test Episode").performClick()
         assertTrue(cardClicked)
+    }
+
+    @Test
+    fun `refresh indicator shows completion counter while refreshing`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                RefreshStatusIndicator(
+                    isRefreshing = true,
+                    refreshProgress = RefreshProgress(completed = 3, total = 12),
+                    lastRefreshedAt = 0L,
+                    bannerMessage = null,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Checking 3/12…").assertIsDisplayed()
+    }
+
+    @Test
+    fun `refresh indicator shows plain checking text before the feed count is known`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                RefreshStatusIndicator(
+                    isRefreshing = true,
+                    refreshProgress = null,
+                    lastRefreshedAt = 0L,
+                    bannerMessage = null,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Checking…").assertIsDisplayed()
+    }
+
+    @Test
+    fun `refresh indicator shows last updated time when idle`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                RefreshStatusIndicator(
+                    isRefreshing = false,
+                    refreshProgress = null,
+                    lastRefreshedAt = System.currentTimeMillis() - 30_000L,
+                    bannerMessage = null,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Updated just now").assertIsDisplayed()
+    }
+
+    @Test
+    fun `refresh indicator prefers the banner over the updated time`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                RefreshStatusIndicator(
+                    isRefreshing = false,
+                    refreshProgress = null,
+                    lastRefreshedAt = System.currentTimeMillis(),
+                    bannerMessage = "3 new episodes found",
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("3 new episodes found").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Updated", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `refresh indicator is hidden before the first ever refresh`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                RefreshStatusIndicator(
+                    isRefreshing = false,
+                    refreshProgress = null,
+                    lastRefreshedAt = 0L,
+                    bannerMessage = null,
+                )
+            }
+        }
+
+        composeTestRule.onAllNodesWithText("Updated", substring = true).assertCountEquals(0)
     }
 
     @Test
@@ -197,6 +322,30 @@ class HomeScreenInteractionTest {
         }
 
         composeTestRule.onNodeWithText("Continue Listening").assertDoesNotExist()
+    }
+
+    @Test
+    fun `tapping the New header dismisses the section`() {
+        var dismissed = false
+        val newEpisode = createEpisode(episodeId = 5L, title = "Fresh Episode")
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                EpisodeList(
+                    episodes = emptyList(),
+                    newEpisodes = listOf(newEpisode),
+                    inProgressEpisodes = emptyList(),
+                    downloadProgress = emptyMap(),
+                    onEpisodeClick = {},
+                    onPlayClick = {},
+                    onDownloadClick = {},
+                    onDismissNewSection = { dismissed = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("New").performClick()
+        assertTrue(dismissed)
     }
 
     @Test

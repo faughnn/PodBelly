@@ -39,13 +39,16 @@ data class SettingsUiState(
     val feedRefreshIntervalMinutes: Int = 60,
     val autoDownloadEnabled: Boolean = false,
     val autoDownloadEpisodeCount: Int = 3,
-    val autoDeletePlayed: Boolean = false,
+    val autoDeletePlayedAfterDays: Int = 0,
+    val smartAutoDownload: Boolean = false,
+    val smartAutoDownloadWindowDays: Int = 30,
+    val smartAutoDownloadKeepPerShow: Int = 0,
+    val smartAutoDownloadChargingOnly: Boolean = false,
     val downloadOnWifiOnly: Boolean = true,
     val skipSilence: Boolean = false,
+    val skipAdChapters: Boolean = false,
     val volumeBoost: Boolean = false,
-    // Matches PreferencesManager.queueEnabled's persisted default (true), so the
     // switch doesn't render OFF then snap ON for never-configured users.
-    val queueEnabled: Boolean = true,
     val totalDownloadedBytes: Long = 0L,
     val importExportMessage: String? = null,
     val importResult: ImportResult? = null,
@@ -71,14 +74,14 @@ class SettingsViewModel @Inject constructor(
         preferencesManager.feedRefreshIntervalMinutes,
         preferencesManager.autoDownloadEnabled,
         preferencesManager.autoDownloadEpisodeCount,
-        preferencesManager.autoDeletePlayed,
+        preferencesManager.autoDeletePlayedAfterDays,
     ) { appTheme, refreshInterval, autoDownload, autoDownloadCount, autoDelete ->
         PartialState(
             appTheme = appTheme,
             feedRefreshIntervalMinutes = refreshInterval,
             autoDownloadEnabled = autoDownload,
             autoDownloadEpisodeCount = autoDownloadCount,
-            autoDeletePlayed = autoDelete,
+            autoDeletePlayedAfterDays = autoDelete,
         )
     }.combine(
         combine(
@@ -86,7 +89,11 @@ class SettingsViewModel @Inject constructor(
             preferencesManager.skipSilence,
             preferencesManager.volumeBoost,
             _importExportMessage,
-            preferencesManager.queueEnabled,
+            preferencesManager.smartAutoDownload,
+            preferencesManager.skipAdChapters,
+            preferencesManager.smartAutoDownloadWindowDays,
+            preferencesManager.smartAutoDownloadKeepPerShow,
+            preferencesManager.smartAutoDownloadChargingOnly,
         ) { values ->
             @Suppress("UNCHECKED_CAST")
             SecondaryState(
@@ -94,7 +101,11 @@ class SettingsViewModel @Inject constructor(
                 skipSilence = values[1] as Boolean,
                 volumeBoost = values[2] as Boolean,
                 importExportMessage = values[3] as? String,
-                queueEnabled = values[4] as Boolean,
+                smartAutoDownload = values[4] as Boolean,
+                skipAdChapters = values[5] as Boolean,
+                smartAutoDownloadWindowDays = values[6] as Int,
+                smartAutoDownloadKeepPerShow = values[7] as Int,
+                smartAutoDownloadChargingOnly = values[8] as Boolean,
             )
         }
     ) { partial, secondary ->
@@ -103,11 +114,15 @@ class SettingsViewModel @Inject constructor(
             feedRefreshIntervalMinutes = partial.feedRefreshIntervalMinutes,
             autoDownloadEnabled = partial.autoDownloadEnabled,
             autoDownloadEpisodeCount = partial.autoDownloadEpisodeCount,
-            autoDeletePlayed = partial.autoDeletePlayed,
+            autoDeletePlayedAfterDays = partial.autoDeletePlayedAfterDays,
+            smartAutoDownload = secondary.smartAutoDownload,
+            smartAutoDownloadWindowDays = secondary.smartAutoDownloadWindowDays,
+            smartAutoDownloadKeepPerShow = secondary.smartAutoDownloadKeepPerShow,
+            smartAutoDownloadChargingOnly = secondary.smartAutoDownloadChargingOnly,
             downloadOnWifiOnly = secondary.downloadOnWifiOnly,
             skipSilence = secondary.skipSilence,
+            skipAdChapters = secondary.skipAdChapters,
             volumeBoost = secondary.volumeBoost,
-            queueEnabled = secondary.queueEnabled,
             importExportMessage = secondary.importExportMessage,
         )
     }.combine(_importResult) { state, importResult ->
@@ -128,6 +143,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { preferencesManager.setSkipSilence(enabled) }
     }
 
+    fun setSkipAdChapters(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setSkipAdChapters(enabled) }
+    }
+
     fun setVolumeBoost(enabled: Boolean) {
         viewModelScope.launch { preferencesManager.setVolumeBoost(enabled) }
     }
@@ -144,12 +163,24 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { preferencesManager.setDownloadOnWifiOnly(wifiOnly) }
     }
 
-    fun setAutoDeletePlayed(enabled: Boolean) {
-        viewModelScope.launch { preferencesManager.setAutoDeletePlayed(enabled) }
+    fun setAutoDeletePlayedAfterDays(days: Int) {
+        viewModelScope.launch { preferencesManager.setAutoDeletePlayedAfterDays(days) }
     }
 
-    fun setQueueEnabled(enabled: Boolean) {
-        viewModelScope.launch { preferencesManager.setQueueEnabled(enabled) }
+    fun setSmartAutoDownload(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setSmartAutoDownload(enabled) }
+    }
+
+    fun setSmartAutoDownloadWindowDays(days: Int) {
+        viewModelScope.launch { preferencesManager.setSmartAutoDownloadWindowDays(days) }
+    }
+
+    fun setSmartAutoDownloadKeepPerShow(count: Int) {
+        viewModelScope.launch { preferencesManager.setSmartAutoDownloadKeepPerShow(count) }
+    }
+
+    fun setSmartAutoDownloadChargingOnly(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setSmartAutoDownloadChargingOnly(enabled) }
     }
 
     fun setFeedRefreshInterval(minutes: Int) {
@@ -224,6 +255,8 @@ class SettingsViewModel @Inject constructor(
                                 durationSeconds = (ep.duration / 1000).toInt(),
                                 artworkUrl = ep.artworkUrl ?: "",
                                 fileSize = ep.fileSize,
+                                transcriptUrl = ep.transcriptUrl ?: "",
+                                transcriptType = ep.transcriptType ?: "",
                             )
                         }
                         try {
@@ -318,7 +351,7 @@ class SettingsViewModel @Inject constructor(
         val feedRefreshIntervalMinutes: Int,
         val autoDownloadEnabled: Boolean,
         val autoDownloadEpisodeCount: Int,
-        val autoDeletePlayed: Boolean,
+        val autoDeletePlayedAfterDays: Int,
     )
 
     private data class SecondaryState(
@@ -326,6 +359,10 @@ class SettingsViewModel @Inject constructor(
         val skipSilence: Boolean,
         val volumeBoost: Boolean,
         val importExportMessage: String?,
-        val queueEnabled: Boolean,
+        val smartAutoDownload: Boolean,
+        val skipAdChapters: Boolean,
+        val smartAutoDownloadWindowDays: Int,
+        val smartAutoDownloadKeepPerShow: Int,
+        val smartAutoDownloadChargingOnly: Boolean,
     )
 }

@@ -5,10 +5,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.podbelly.core.database.dao.DownloadErrorDao
+import com.podbelly.core.database.dao.DuplicateMergeDao
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.DownloadErrorEntity
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.ListeningSessionEntity
@@ -23,17 +23,82 @@ import com.podbelly.core.database.entity.QueueItemEntity
         ListeningSessionEntity::class,
         DownloadErrorEntity::class,
     ],
-    version = 5,
+    version = 10,
     exportSchema = false
 )
 abstract class PodbellDatabase : RoomDatabase() {
     abstract fun podcastDao(): PodcastDao
     abstract fun episodeDao(): EpisodeDao
-    abstract fun queueDao(): QueueDao
     abstract fun listeningSessionDao(): ListeningSessionDao
     abstract fun downloadErrorDao(): DownloadErrorDao
+    abstract fun duplicateMergeDao(): DuplicateMergeDao
 
     companion object {
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Per-show auto-download override: 0 = follow the smart setting,
+                // 1 = always download new episodes, 2 = never (Pocket Casts'
+                // per-podcast auto-download pattern).
+                db.execSQL(
+                    "ALTER TABLE podcasts ADD COLUMN autoDownloadMode INTEGER NOT NULL DEFAULT 0"
+                )
+                // Marks downloads queued automatically, so the "keep newest N per
+                // show" cleanup never touches downloads the user started manually.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN autoDownloaded INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Time saved by per-podcast intro/outro auto-skip, accumulated onto
+                // the listening session it happened in (powers the Stats
+                // "Time saved" breakdown).
+                db.execSQL(
+                    "ALTER TABLE listening_sessions ADD COLUMN skipSavedMs INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Podcasting 2.0 episode transcripts (<podcast:transcript>). Existing
+                // rows start empty and are backfilled by the next feed refresh via
+                // updateFeedFields.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN transcriptUrl TEXT NOT NULL DEFAULT ''"
+                )
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN transcriptType TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Per-podcast intro/outro auto-skip (seconds; 0 = disabled), the
+                // AntennaPod "Skip introduction / ending" per-feed pattern.
+                db.execSQL(
+                    "ALTER TABLE podcasts ADD COLUMN skipIntroSeconds INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE podcasts ADD COLUMN skipOutroSeconds INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Records when a feed refresh first discovered the episode, powering
+                // the "New" section on Home. Existing rows keep 0 so nothing floods
+                // the section on first launch after the update.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN addedAt INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // GUIDs are only unique within a feed. Replace the global unique

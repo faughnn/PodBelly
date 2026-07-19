@@ -21,9 +21,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -70,13 +69,14 @@ import com.podbelly.feature.home.HomeScreen
 import com.podbelly.feature.podcast.EpisodeDetailScreen
 import com.podbelly.feature.podcast.PodcastDetailScreen
 import com.podbelly.feature.settings.PlaybackSpeedScreen
+import com.podbelly.feature.settings.ProfileScreen
 import com.podbelly.feature.settings.SettingsScreen
+import com.podbelly.feature.settings.SettingsSection
 import com.podbelly.feature.settings.StatsScreen
 import com.podbelly.ui.DownloadsScreen
 import com.podbelly.ui.LibraryScreen
 import com.podbelly.feature.player.MiniPlayer
 import com.podbelly.feature.player.PlayerScreen
-import com.podbelly.feature.queue.QueueScreen
 import androidx.compose.material3.NavigationBarItemDefaults
 import kotlinx.coroutines.delay
 
@@ -86,11 +86,10 @@ private sealed class BottomNavItem(
     val icon: ImageVector
 ) {
     data object Home : BottomNavItem("home", "Home", Icons.Filled.Home)
-    data object Queue : BottomNavItem("queue", "Queue", Icons.AutoMirrored.Filled.QueueMusic)
     data object Discover : BottomNavItem("discover", "Discover", Icons.Filled.Search)
     data object Library : BottomNavItem("library", "Library", Icons.Filled.Podcasts)
     data object Downloads : BottomNavItem("downloads", "Downloads", Icons.Filled.Download)
-    data object Settings : BottomNavItem("settings", "Settings", Icons.Filled.Settings)
+    data object Profile : BottomNavItem("profile", "You", Icons.Filled.Person)
 }
 
 private val bottomNavItems = listOf(
@@ -98,7 +97,46 @@ private val bottomNavItems = listOf(
     BottomNavItem.Discover,
     BottomNavItem.Library,
     BottomNavItem.Downloads,
+    BottomNavItem.Profile,
 )
+
+/**
+ * Bottom-nav tap behavior. Three cases, in order:
+ *
+ * 1. Already on the tab's root: reset it to a fresh root — scroll back to top,
+ *    search cleared (the "pop to root on reselect" pattern from Pocket Casts).
+ * 2. Somewhere above the tab's root (a podcast/episode page pushed from it, or
+ *    from another tab): pop straight back to that root. Detail routes aren't
+ *    nested under a tab in this flat graph, so the old selected-only check
+ *    never fired here and tapping used to just re-restore the detail screen.
+ *    Combined with case 1, a double-tap always lands on a fresh tab root.
+ * 3. The tab isn't on the back stack: normal tab switch, saving/restoring each
+ *    tab's state so scroll position and search text survive switching.
+ */
+internal fun NavHostController.onTabClick(route: String) {
+    val currentRoute = currentBackStackEntry?.destination?.route
+    when {
+        currentRoute == route -> navigate(route) {
+            popUpTo(route) { inclusive = true }
+            launchSingleTop = true
+        }
+        isRouteOnBackStack(route) -> popBackStack(route, inclusive = false, saveState = true)
+        else -> navigate(route) {
+            popUpTo(graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+}
+
+private fun NavHostController.isRouteOnBackStack(route: String): Boolean = try {
+    getBackStackEntry(route)
+    true
+} catch (_: IllegalArgumentException) {
+    false
+}
 
 @Composable
 fun PodbellNavHost(
@@ -110,7 +148,7 @@ fun PodbellNavHost(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val isRefreshing by appViewModel.isRefreshing.collectAsStateWithLifecycle()
-    val queueEnabled by appViewModel.queueEnabled.collectAsStateWithLifecycle()
+    val refreshProgress by appViewModel.refreshProgress.collectAsStateWithLifecycle()
 
     // Determine whether to show bottom nav and mini player
     val isFullScreenRoute = currentRoute == Screen.Player.route
@@ -126,16 +164,6 @@ fun PodbellNavHost(
             }
             delay(3000L)
             bannerMessage = null
-        }
-    }
-
-    val activeNavItems = remember(queueEnabled) {
-        buildList {
-            add(BottomNavItem.Home)
-            if (queueEnabled) add(BottomNavItem.Queue)
-            add(BottomNavItem.Discover)
-            add(BottomNavItem.Library)
-            add(BottomNavItem.Downloads)
         }
     }
 
@@ -168,25 +196,14 @@ fun PodbellNavHost(
                         containerColor = MaterialTheme.colorScheme.surface,
                         tonalElevation = 0.dp,
                     ) {
-                        activeNavItems.forEach { item ->
+                        bottomNavItems.forEach { item ->
                             val selected = navBackStackEntry?.destination?.hierarchy?.any {
                                 it.route == item.route
                             } == true
 
                             NavigationBarItem(
                                 selected = selected,
-                                onClick = {
-                                    navController.navigate(item.route) {
-                                        // Save/restore each tab's back stack + state so
-                                        // switching tabs doesn't reset scroll position,
-                                        // search text, or screen-scoped ViewModels.
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
+                                onClick = { navController.onTabClick(item.route) },
                                 icon = {
                                     Icon(
                                         imageVector = item.icon,
@@ -222,6 +239,7 @@ fun PodbellNavHost(
                 HomeScreen(
                     isRefreshing = isRefreshing,
                     onRefresh = { appViewModel.refreshFeeds() },
+                    refreshProgress = refreshProgress,
                     bannerMessage = bannerMessage,
                     onEpisodeClick = { episodeId ->
                         navController.navigate(Screen.EpisodeDetail.createRoute(episodeId))
@@ -229,11 +247,6 @@ fun PodbellNavHost(
                     onPodcastClick = { podcastId ->
                         navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     },
-                    onSettingsClick = {
-                        navController.navigate(Screen.Settings.route) {
-                            launchSingleTop = true
-                        }
-                    }
                 )
             }
 
@@ -243,10 +256,6 @@ fun PodbellNavHost(
                         navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     }
                 )
-            }
-
-            composable(Screen.Queue.route) {
-                QueueScreen()
             }
 
             composable(Screen.Library.route) {
@@ -265,10 +274,27 @@ fun PodbellNavHost(
                 )
             }
 
-            composable(Screen.Settings.route) {
-                SettingsScreen(
+            composable(Screen.Profile.route) {
+                ProfileScreen(
                     onNavigateToStats = {
                         navController.navigate(Screen.Stats.route)
+                    },
+                    onNavigateToSection = { section ->
+                        navController.navigate(Screen.SettingsSection.createRoute(section.key))
+                    },
+                )
+            }
+
+            composable(
+                route = Screen.SettingsSection.route,
+                arguments = listOf(
+                    navArgument("section") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                SettingsScreen(
+                    section = SettingsSection.fromKey(backStackEntry.arguments?.getString("section")),
+                    onNavigateBack = {
+                        navController.popBackStack()
                     },
                     onNavigateToPlaybackSpeeds = {
                         navController.navigate(Screen.PlaybackSpeeds.route)
@@ -280,6 +306,9 @@ fun PodbellNavHost(
                 StatsScreen(
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPodcast = { podcastId ->
+                        navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     }
                 )
             }
@@ -328,6 +357,9 @@ fun PodbellNavHost(
                 PlayerScreen(
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPodcast = { podcastId ->
+                        navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
                     }
                 )
             }

@@ -95,7 +95,7 @@ class SleepTimer @Inject constructor(
         endOfEpisode = true
         armedEpisodeId = 0L
         // Tell the controller to stop at the end of the episode instead of
-        // auto-advancing the queue.
+        // continuing.
         playbackController.setPauseAtEpisodeEnd(true)
         // Set remaining to a sentinel value so isActive reads as true.
         _remainingMillis.value = Long.MAX_VALUE
@@ -146,7 +146,7 @@ class SleepTimer @Inject constructor(
         endOfEpisodeJob = null
         endOfEpisode = false
         armedEpisodeId = 0L
-        // Re-enable queue auto-advance when the end-of-episode timer is cleared.
+        // Disarm the end-of-episode stop when the timer is cleared.
         playbackController.setPauseAtEpisodeEnd(false)
         _remainingMillis.value = 0L
     }

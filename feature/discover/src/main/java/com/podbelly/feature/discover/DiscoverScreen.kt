@@ -14,18 +14,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.RssFeed
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,10 +41,14 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +73,7 @@ fun DiscoverScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showRssDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.navigateToPodcast.collect { podcastId ->
@@ -82,6 +91,15 @@ fun DiscoverScreen(
         }
     }
 
+    if (showRssDialog) {
+        RssUrlDialog(
+            feedUrl = uiState.feedUrlInput,
+            onFeedUrlChange = viewModel::updateFeedUrl,
+            onSubscribe = viewModel::subscribeByUrl,
+            onDismiss = { showRssDialog = false },
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
@@ -94,13 +112,7 @@ fun DiscoverScreen(
                 query = uiState.searchQuery,
                 onQueryChange = viewModel::updateSearchQuery,
                 onSearch = viewModel::search,
-            )
-
-            RssUrlSection(
-                feedUrl = uiState.feedUrlInput,
-                onFeedUrlChange = viewModel::updateFeedUrl,
-                onSubscribe = viewModel::subscribeByUrl,
-                isSubscribing = uiState.feedUrlInput.trim() in uiState.subscribingFeedUrls,
+                onAddByRss = { showRssDialog = true },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -118,7 +130,22 @@ fun DiscoverScreen(
                 }
 
                 uiState.searchResults.isEmpty() && uiState.searchQuery.isBlank() -> {
-                    DiscoverEmptyState(modifier = Modifier.weight(1f))
+                    ChartsSection(
+                        categories = uiState.chartCategories,
+                        selectedGenreId = uiState.selectedChartGenreId,
+                        onCategorySelected = viewModel::selectChartCategory,
+                        results = uiState.chartResults,
+                        isLoading = uiState.isLoadingChart,
+                        error = uiState.chartError,
+                        onRetry = viewModel::retryChart,
+                        subscribingFeedUrls = uiState.subscribingFeedUrls,
+                        onSubscribe = viewModel::subscribeToPodcast,
+                        onPodcastClick = viewModel::onPodcastClick,
+                        regions = uiState.chartRegions,
+                        selectedCountry = uiState.selectedChartCountry,
+                        onRegionSelected = viewModel::selectChartRegion,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 uiState.searchResults.isEmpty() && uiState.searchQuery.isNotBlank() -> {
@@ -155,15 +182,20 @@ internal fun SearchSection(
     query: String,
     onQueryChange: (String) -> Unit,
     onSearch: (String) -> Unit,
+    onAddByRss: () -> Unit = {},
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.weight(1f),
         placeholder = { Text("Search podcasts...") },
         leadingIcon = {
             Icon(
@@ -191,41 +223,40 @@ internal fun SearchSection(
                 keyboardController?.hide()
             },
         ),
-    )
+        )
+
+        IconButton(onClick = onAddByRss) {
+            Icon(
+                imageVector = Icons.Outlined.RssFeed,
+                contentDescription = "Add podcast by RSS URL",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
 }
 
 @Composable
-internal fun RssUrlSection(
+internal fun RssUrlDialog(
     feedUrl: String,
     onFeedUrlChange: (String) -> Unit,
     onSubscribe: (String) -> Unit,
-    isSubscribing: Boolean,
+    onDismiss: () -> Unit,
 ) {
-    val keyboardController = LocalSoftwareKeyboardController.current
+    // Subscribing continues in the ViewModel after the dialog closes; the
+    // existing snackbar reports success or failure.
+    fun submit() {
+        onSubscribe(feedUrl)
+        onDismiss()
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 12.dp),
-    ) {
-        Text(
-            text = "Add by RSS URL",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add by RSS URL") },
+        text = {
             OutlinedTextField(
                 value = feedUrl,
                 onValueChange = onFeedUrlChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("https://example.com/feed.xml") },
                 leadingIcon = {
                     Icon(
@@ -240,36 +271,188 @@ internal fun RssUrlSection(
                     imeAction = ImeAction.Done,
                 ),
                 keyboardActions = KeyboardActions(
-                    onDone = {
-                        onSubscribe(feedUrl)
-                        keyboardController?.hide()
-                    },
+                    onDone = { if (feedUrl.isNotBlank()) submit() },
                 ),
             )
-
+        },
+        confirmButton = {
             Button(
-                onClick = { onSubscribe(feedUrl) },
-                enabled = feedUrl.isNotBlank() && !isSubscribing,
+                onClick = ::submit,
+                enabled = feedUrl.isNotBlank(),
                 shape = RoundedCornerShape(12.dp),
             ) {
-                if (isSubscribing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                Text("Subscribe")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+internal fun ChartsSection(
+    categories: List<ChartCategory>,
+    selectedGenreId: Int,
+    onCategorySelected: (Int) -> Unit,
+    results: List<DiscoverPodcastItem>,
+    isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    subscribingFeedUrls: Set<String>,
+    onSubscribe: (String) -> Unit,
+    onPodcastClick: (String) -> Unit,
+    regions: List<ChartRegion> = emptyList(),
+    selectedCountry: String = "",
+    onRegionSelected: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    var showRegionDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showRegionDialog) {
+        ChartRegionDialog(
+            regions = regions,
+            selectedCountry = selectedCountry,
+            onRegionSelected = {
+                onRegionSelected(it)
+                showRegionDialog = false
+            },
+            onDismiss = { showRegionDialog = false },
+        )
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LazyRow(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(
+                    items = categories,
+                    key = { it.genreId },
+                ) { category ->
+                    FilterChip(
+                        selected = category.genreId == selectedGenreId,
+                        onClick = { onCategorySelected(category.genreId) },
+                        label = { Text(category.label) },
                     )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Subscribe")
                 }
+            }
+
+            if (selectedCountry.isNotBlank()) {
+                FilterChip(
+                    selected = false,
+                    onClick = { showRegionDialog = true },
+                    label = { Text(selectedCountry.uppercase()) },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowDropDown,
+                            contentDescription = "Change chart region",
+                        )
+                    },
+                    modifier = Modifier.padding(end = 12.dp),
+                )
+            }
+        }
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            error != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(onClick = onRetry) {
+                        Text("Retry")
+                    }
+                }
+            }
+
+            else -> {
+                SearchResultsList(
+                    results = results,
+                    subscribingFeedUrls = subscribingFeedUrls,
+                    onSubscribe = onSubscribe,
+                    onPodcastClick = onPodcastClick,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
+}
+
+@Composable
+internal fun ChartRegionDialog(
+    regions: List<ChartRegion>,
+    selectedCountry: String,
+    onRegionSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Chart region") },
+        text = {
+            LazyColumn {
+                items(
+                    items = regions,
+                    key = { it.code },
+                ) { region ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onRegionSelected(region.code) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = region.label,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (region.code == selectedCountry) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

@@ -4,7 +4,9 @@ import app.cash.turbine.test
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
+import com.podbelly.core.database.dao.PodcastSkipSettings
+import com.podbelly.core.database.entity.PodcastEntity
+import com.podbelly.core.network.transcript.TranscriptParser
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState
 import com.podbelly.core.playback.SleepTimer
@@ -36,9 +38,9 @@ class PlayerViewModelTest {
     private val playbackController = mockk<PlaybackController>(relaxed = true)
     private val episodeDao = mockk<EpisodeDao>(relaxed = true)
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
-    private val queueDao = mockk<QueueDao>(relaxed = true)
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
     private val sleepTimer = mockk<SleepTimer>(relaxed = true)
+    private val transcriptParser = mockk<TranscriptParser>(relaxed = true)
 
     private val playbackStateFlow = MutableStateFlow(PlaybackState())
     private val sleepTimerRemainingFlow = MutableStateFlow(0L)
@@ -65,9 +67,9 @@ class PlayerViewModelTest {
             playbackController = playbackController,
             episodeDao = episodeDao,
             podcastDao = podcastDao,
-            queueDao = queueDao,
             preferencesManager = preferencesManager,
             sleepTimer = sleepTimer,
+            transcriptParser = transcriptParser,
         )
     }
 
@@ -422,5 +424,70 @@ class PlayerViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { episodeDao.updatePlaybackPosition(any(), any()) }
+    }
+
+    // -- Skip intro/outro settings --
+
+    private fun makePodcast(id: Long, skipIntro: Int = 0, skipOutro: Int = 0) = PodcastEntity(
+        id = id,
+        feedUrl = "https://example.com/feed.xml",
+        title = "Show",
+        author = "Author",
+        description = "Description",
+        artworkUrl = "",
+        link = "",
+        language = "en",
+        lastBuildDate = 0L,
+        subscribedAt = 0L,
+        skipIntroSeconds = skipIntro,
+        skipOutroSeconds = skipOutro,
+    )
+
+    @Test
+    fun `skipSettings follows the playing podcast`() = runTest {
+        every { podcastDao.getById(7L) } returns
+            MutableStateFlow(makePodcast(id = 7L, skipIntro = 15, skipOutro = 45))
+        playbackStateFlow.value = PlaybackState(episodeId = 1L, podcastId = 7L)
+
+        val viewModel = createViewModel()
+
+        viewModel.skipSettings.test {
+            assertEquals(null, awaitItem())
+            assertEquals(PodcastSkipSettings(15, 45), awaitItem())
+        }
+    }
+
+    @Test
+    fun `setSkipOutroSeconds persists and re-arms the playing episode`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 1L, podcastId = 7L)
+
+        val viewModel = createViewModel()
+        viewModel.setSkipOutroSeconds(90)
+        advanceUntilIdle()
+
+        coVerify { podcastDao.updateSkipOutroSeconds(7L, 90) }
+        verify { playbackController.refreshSkipSettings() }
+    }
+
+    @Test
+    fun `setSkipIntroSeconds persists for the playing podcast`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 1L, podcastId = 7L)
+
+        val viewModel = createViewModel()
+        viewModel.setSkipIntroSeconds(30)
+        advanceUntilIdle()
+
+        coVerify { podcastDao.updateSkipIntroSeconds(7L, 30) }
+    }
+
+    @Test
+    fun `skip setters do nothing when nothing is playing`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.setSkipIntroSeconds(30)
+        viewModel.setSkipOutroSeconds(60)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { podcastDao.updateSkipIntroSeconds(any(), any()) }
+        coVerify(exactly = 0) { podcastDao.updateSkipOutroSeconds(any(), any()) }
     }
 }

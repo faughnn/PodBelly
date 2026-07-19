@@ -41,8 +41,15 @@ class NavigationTest {
                 composable(Screen.Home.route) { Text("Home") }
                 composable(Screen.Discover.route) { Text("Discover") }
                 composable(Screen.Library.route) { Text("Library") }
-                composable(Screen.Queue.route) { Text("Queue") }
-                composable(Screen.Settings.route) { Text("Settings") }
+                composable(Screen.Profile.route) { Text("Profile") }
+                composable(
+                    route = Screen.SettingsSection.route,
+                    arguments = listOf(
+                        navArgument("section") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    Text("Settings ${backStackEntry.arguments?.getString("section")}")
+                }
                 composable(Screen.Player.route) { Text("Player") }
                 composable(
                     route = Screen.PodcastDetail.route,
@@ -86,22 +93,24 @@ class NavigationTest {
     }
 
     @Test
-    fun `navigate to Queue tab`() {
+    fun `navigate to Profile tab`() {
         composeTestRule.runOnIdle {
-            navController.navigate(Screen.Queue.route)
+            navController.navigate(Screen.Profile.route)
         }
         composeTestRule.runOnIdle {
-            assertEquals(Screen.Queue.route, navController.currentBackStackEntry?.destination?.route)
+            assertEquals(Screen.Profile.route, navController.currentBackStackEntry?.destination?.route)
         }
     }
 
     @Test
-    fun `navigate to Settings tab`() {
+    fun `navigate to a settings section with its key argument`() {
         composeTestRule.runOnIdle {
-            navController.navigate(Screen.Settings.route)
+            navController.navigate(Screen.SettingsSection.createRoute("downloads"))
         }
         composeTestRule.runOnIdle {
-            assertEquals(Screen.Settings.route, navController.currentBackStackEntry?.destination?.route)
+            val currentEntry = navController.currentBackStackEntry
+            assertEquals(Screen.SettingsSection.route, currentEntry?.destination?.route)
+            assertEquals("downloads", currentEntry?.arguments?.getString("section"))
         }
     }
 
@@ -149,6 +158,67 @@ class NavigationTest {
     }
 
     @Test
+    fun `tapping the current tab from a detail screen pops back to that tab's root`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Library.route)
+            navController.navigate(Screen.PodcastDetail.createRoute(42L))
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Library.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Library.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
+    fun `double-tapping a tab from a detail screen lands on a fresh tab root`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Library.route)
+            navController.navigate(Screen.PodcastDetail.createRoute(42L))
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Library.route)
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Library.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Library.route, navController.currentBackStackEntry?.destination?.route)
+            // The detail screen is gone from the back stack: back returns to Home.
+            navController.popBackStack()
+            assertEquals(Screen.Home.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
+    fun `tapping a different tab from a detail screen leaves the detail stack`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Library.route)
+            navController.navigate(Screen.PodcastDetail.createRoute(42L))
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Home.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Home.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
+    fun `reselecting a tab on its own root resets it in place`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Discover.route)
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Discover.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Discover.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
     fun `PodcastDetail route extracts podcastId correctly`() {
         assertEquals("podcast/99", Screen.PodcastDetail.createRoute(99L))
         assertEquals("podcast/0", Screen.PodcastDetail.createRoute(0L))
@@ -191,8 +261,7 @@ class NavigationTest {
         val tabs = listOf(
             Screen.Discover.route,
             Screen.Library.route,
-            Screen.Queue.route,
-            Screen.Settings.route
+            Screen.Profile.route
         )
 
         // Navigate through each tab

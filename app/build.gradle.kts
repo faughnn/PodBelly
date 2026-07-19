@@ -17,8 +17,8 @@ android {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 35
-        versionCode = 36
-        versionName = "1.4.2"
+        versionCode = 75
+        versionName = "1.6.27"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -41,6 +41,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // Unit-test coverage for the root jacocoFullReport task.
+            enableUnitTestCoverage = true
             signingConfig = signingConfigs.getByName("debug")
             firebaseAppDistribution {
                 artifactType = "APK"
@@ -84,7 +86,6 @@ dependencies {
     implementation(project(":feature:discover"))
     implementation(project(":feature:podcast"))
     implementation(project(":feature:player"))
-    implementation(project(":feature:queue"))
     implementation(project(":feature:settings"))
 
     implementation(libs.androidx.core.ktx)
@@ -124,6 +125,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.navigation.testing)
+    testImplementation(libs.work.testing)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)

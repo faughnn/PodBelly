@@ -78,20 +78,29 @@ class PreferencesManager @Inject constructor(
     private object Keys {
         val FEED_REFRESH_INTERVAL_MINUTES = intPreferencesKey("feed_refresh_interval_minutes")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
+        val SMART_AUTO_DOWNLOAD = booleanPreferencesKey("smart_auto_download")
+        val SMART_AUTO_DOWNLOAD_WINDOW_DAYS = intPreferencesKey("smart_auto_download_window_days")
+        val SMART_AUTO_DOWNLOAD_KEEP_PER_SHOW = intPreferencesKey("smart_auto_download_keep_per_show")
+        val SMART_AUTO_DOWNLOAD_CHARGING_ONLY = booleanPreferencesKey("smart_auto_download_charging_only")
         val AUTO_DOWNLOAD_EPISODE_COUNT = intPreferencesKey("auto_download_episode_count")
         val AUTO_DELETE_PLAYED = booleanPreferencesKey("auto_delete_played")
+        val AUTO_DELETE_PLAYED_AFTER_DAYS = intPreferencesKey("auto_delete_played_after_days")
         val DOWNLOAD_ON_WIFI_ONLY = booleanPreferencesKey("download_on_wifi_only")
         val DARK_THEME_MODE = stringPreferencesKey("dark_theme_mode")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val SKIP_SILENCE = booleanPreferencesKey("skip_silence")
+        val SKIP_AD_CHAPTERS = booleanPreferencesKey("skip_ad_chapters")
         val VOLUME_BOOST = booleanPreferencesKey("volume_boost")
         val SLEEP_TIMER_MINUTES = intPreferencesKey("sleep_timer_minutes")
         val LIBRARY_SORT_ORDER = stringPreferencesKey("library_sort_order")
         val DOWNLOADS_SORT_ORDER = stringPreferencesKey("downloads_sort_order")
         val LIBRARY_VIEW_MODE = stringPreferencesKey("library_view_mode")
         val PAUSED_AT = longPreferencesKey("paused_at")
-        val QUEUE_ENABLED = booleanPreferencesKey("queue_enabled")
         val LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
+        val HOME_NEW_EPISODES_CUTOFF = longPreferencesKey("home_new_episodes_cutoff")
+        val HOME_NEW_DISMISSED_AT = longPreferencesKey("home_new_dismissed_at")
+        val LAST_FEED_REFRESH_AT = longPreferencesKey("last_feed_refresh_at")
+        val CHART_COUNTRY = stringPreferencesKey("chart_country")
     }
 
     // ── Flows ────────────────────────────────────────────────────────────
@@ -104,12 +113,40 @@ class PreferencesManager @Inject constructor(
         prefs[Keys.AUTO_DOWNLOAD_ENABLED] ?: false
     }
 
+    /** Auto-download new episodes, but only from shows listened to recently. */
+    val smartAutoDownload: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD] ?: false
+    }
+
+    /** How recently a show must have been listened to for smart auto-download. */
+    val smartAutoDownloadWindowDays: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD_WINDOW_DAYS] ?: 30
+    }
+
+    /**
+     * Cap on auto-downloaded, unplayed episodes kept per show (newest first);
+     * 0 = unlimited. Manual downloads never count against the cap.
+     */
+    val smartAutoDownloadKeepPerShow: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD_KEEP_PER_SHOW] ?: 0
+    }
+
+    /** Defer auto-downloads until the device is charging. */
+    val smartAutoDownloadChargingOnly: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD_CHARGING_ONLY] ?: false
+    }
+
     val autoDownloadEpisodeCount: Flow<Int> = dataStore.data.map { prefs ->
         prefs[Keys.AUTO_DOWNLOAD_EPISODE_COUNT] ?: 3
     }
 
-    val autoDeletePlayed: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.AUTO_DELETE_PLAYED] ?: false
+    /**
+     * Days after playback before a played episode's download is deleted; 0 = off.
+     * Falls back to 7 for users who had the old boolean toggle on.
+     */
+    val autoDeletePlayedAfterDays: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.AUTO_DELETE_PLAYED_AFTER_DAYS]
+            ?: if (prefs[Keys.AUTO_DELETE_PLAYED] == true) 7 else 0
     }
 
     val downloadOnWifiOnly: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -129,6 +166,11 @@ class PreferencesManager @Inject constructor(
 
     val skipSilence: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.SKIP_SILENCE] ?: false
+    }
+
+    /** Auto-skip chapters whose title marks them as ads ("Sponsor", "Ad break", ...). */
+    val skipAdChapters: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SKIP_AD_CHAPTERS] ?: false
     }
 
     val volumeBoost: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -155,8 +197,35 @@ class PreferencesManager @Inject constructor(
         prefs[Keys.PAUSED_AT] ?: 0L
     }
 
-    val queueEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.QUEUE_ENABLED] ?: true
+    /**
+     * Episodes with addedAt above this value count as "new" on Home. Advanced to
+     * the highest addedAt the user has had on screen, so the New section dissolves
+     * on the next visit once its contents have been seen.
+     */
+    val homeNewEpisodesCutoff: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.HOME_NEW_EPISODES_CUTOFF] ?: 0L
+    }
+
+    /**
+     * When the user last explicitly dismissed the New section by tapping its
+     * header (epoch ms, 0 = never). Unlike [homeNewEpisodesCutoff], this is a
+     * hard cutoff: the recency floor does not resurrect episodes below it.
+     */
+    val homeNewDismissedAt: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.HOME_NEW_DISMISSED_AT] ?: 0L
+    }
+
+    /**
+     * ISO country code for the Discover top charts ("ie", "us", ...). Blank means
+     * "follow the device locale".
+     */
+    val chartCountry: Flow<String> = dataStore.data.map { prefs ->
+        prefs[Keys.CHART_COUNTRY] ?: ""
+    }
+
+    /** When feeds last refreshed successfully (epoch ms, 0 = never). */
+    val lastFeedRefreshAt: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.LAST_FEED_REFRESH_AT] ?: 0L
     }
 
     // ── Setters ──────────────────────────────────────────────────────────
@@ -164,6 +233,30 @@ class PreferencesManager @Inject constructor(
     suspend fun setFeedRefreshIntervalMinutes(minutes: Int) {
         dataStore.edit { prefs ->
             prefs[Keys.FEED_REFRESH_INTERVAL_MINUTES] = minutes
+        }
+    }
+
+    suspend fun setSmartAutoDownload(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD] = enabled
+        }
+    }
+
+    suspend fun setSmartAutoDownloadWindowDays(days: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD_WINDOW_DAYS] = days
+        }
+    }
+
+    suspend fun setSmartAutoDownloadKeepPerShow(count: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD_KEEP_PER_SHOW] = count
+        }
+    }
+
+    suspend fun setSmartAutoDownloadChargingOnly(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD_CHARGING_ONLY] = enabled
         }
     }
 
@@ -179,9 +272,9 @@ class PreferencesManager @Inject constructor(
         }
     }
 
-    suspend fun setAutoDeletePlayed(enabled: Boolean) {
+    suspend fun setAutoDeletePlayedAfterDays(days: Int) {
         dataStore.edit { prefs ->
-            prefs[Keys.AUTO_DELETE_PLAYED] = enabled
+            prefs[Keys.AUTO_DELETE_PLAYED_AFTER_DAYS] = days
         }
     }
 
@@ -209,6 +302,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setSkipSilence(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.SKIP_SILENCE] = enabled
+        }
+    }
+
+    suspend fun setSkipAdChapters(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SKIP_AD_CHAPTERS] = enabled
         }
     }
 
@@ -248,12 +347,6 @@ class PreferencesManager @Inject constructor(
         }
     }
 
-    suspend fun setQueueEnabled(enabled: Boolean) {
-        dataStore.edit { prefs ->
-            prefs[Keys.QUEUE_ENABLED] = enabled
-        }
-    }
-
     suspend fun getLastSeenVersionCode(): Int {
         return dataStore.data.first()[Keys.LAST_SEEN_VERSION_CODE] ?: 0
     }
@@ -261,6 +354,30 @@ class PreferencesManager @Inject constructor(
     suspend fun setLastSeenVersionCode(code: Int) {
         dataStore.edit { prefs ->
             prefs[Keys.LAST_SEEN_VERSION_CODE] = code
+        }
+    }
+
+    suspend fun setHomeNewEpisodesCutoff(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.HOME_NEW_EPISODES_CUTOFF] = timestamp
+        }
+    }
+
+    suspend fun setChartCountry(countryCode: String) {
+        dataStore.edit { prefs ->
+            prefs[Keys.CHART_COUNTRY] = countryCode
+        }
+    }
+
+    suspend fun setHomeNewDismissedAt(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.HOME_NEW_DISMISSED_AT] = timestamp
+        }
+    }
+
+    suspend fun setLastFeedRefreshAt(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LAST_FEED_REFRESH_AT] = timestamp
         }
     }
 }

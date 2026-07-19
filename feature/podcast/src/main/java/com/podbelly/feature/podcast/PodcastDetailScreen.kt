@@ -65,8 +65,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import com.podbelly.core.common.AutoDownloadModeDialog
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.MobileDataWarningDialog
+import com.podbelly.core.common.SkipIntroOutroDialog
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_SMART
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,8 +81,9 @@ fun PodcastDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
-    val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showSkipSettings by remember { mutableStateOf(false) }
+    var showAutoDownloadSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.downloadErrors.collect { error ->
@@ -99,6 +103,8 @@ fun PodcastDetailScreen(
                 notifyNewEpisodes = uiState.podcast?.notifyNewEpisodes ?: true,
                 onNavigateBack = onNavigateBack,
                 onToggleNotifications = { viewModel.toggleNotifications() },
+                onSkipSettings = { showSkipSettings = true },
+                onAutoDownloadSettings = { showAutoDownloadSettings = true },
                 onUnsubscribe = {
                     viewModel.unsubscribe()
                     onNavigateBack()
@@ -145,13 +151,28 @@ fun PodcastDetailScreen(
                         onDownload = { viewModel.downloadEpisode(episode.id) },
                         onCancelDownload = { viewModel.cancelDownload(episode.id) },
                         onDeleteDownload = { viewModel.deleteDownload(episode.id) },
-                        queueEnabled = queueEnabled,
-                        onPlayNext = { viewModel.addToQueueNext(episode.id) },
-                        onPlayLast = { viewModel.addToQueueLast(episode.id) },
                     )
                 }
             }
         }
+    }
+
+    if (showSkipSettings) {
+        SkipIntroOutroDialog(
+            skipIntroSeconds = uiState.podcast?.skipIntroSeconds ?: 0,
+            skipOutroSeconds = uiState.podcast?.skipOutroSeconds ?: 0,
+            onSetSkipIntro = { viewModel.setSkipIntroSeconds(it) },
+            onSetSkipOutro = { viewModel.setSkipOutroSeconds(it) },
+            onDismiss = { showSkipSettings = false },
+        )
+    }
+
+    if (showAutoDownloadSettings) {
+        AutoDownloadModeDialog(
+            currentMode = uiState.podcast?.autoDownloadMode ?: AUTO_DOWNLOAD_SMART,
+            onSelect = { viewModel.setAutoDownloadMode(it) },
+            onDismiss = { showAutoDownloadSettings = false },
+        )
     }
 }
 
@@ -162,6 +183,8 @@ private fun PodcastDetailTopBar(
     notifyNewEpisodes: Boolean,
     onNavigateBack: () -> Unit,
     onToggleNotifications: () -> Unit,
+    onSkipSettings: () -> Unit,
+    onAutoDownloadSettings: () -> Unit,
     onUnsubscribe: () -> Unit,
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -214,6 +237,20 @@ private fun PodcastDetailTopBar(
                         onClick = {
                             showOverflowMenu = false
                             onToggleNotifications()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Skip intro & outro") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onSkipSettings()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Auto-download") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onAutoDownloadSettings()
                         }
                     )
                     DropdownMenuItem(
@@ -367,9 +404,6 @@ internal fun EpisodeCard(
     onDownload: () -> Unit,
     onCancelDownload: () -> Unit = {},
     onDeleteDownload: () -> Unit,
-    queueEnabled: Boolean = false,
-    onPlayNext: () -> Unit = {},
-    onPlayLast: () -> Unit = {},
 ) {
     val isDownloading = downloadProgress != null
     val playedAlpha = if (episode.played) 0.5f else 1f
@@ -543,8 +577,8 @@ internal fun EpisodeCard(
                     }
                 }
 
-                // Overflow menu (when downloaded or queue enabled)
-                if (episode.isDownloaded || queueEnabled) {
+                // Overflow menu (when downloaded)
+                if (episode.isDownloaded) {
                     Box {
                         IconButton(
                             onClick = { showMenu = true },
@@ -561,22 +595,6 @@ internal fun EpisodeCard(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
-                            if (queueEnabled) {
-                                DropdownMenuItem(
-                                    text = { Text("Play Next") },
-                                    onClick = {
-                                        showMenu = false
-                                        onPlayNext()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Play Last") },
-                                    onClick = {
-                                        showMenu = false
-                                        onPlayLast()
-                                    }
-                                )
-                            }
                             if (episode.isDownloaded) {
                                 DropdownMenuItem(
                                     text = { Text("Delete download") },

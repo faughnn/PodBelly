@@ -40,6 +40,13 @@ interface PodcastDao {
     @Query("UPDATE podcasts SET subscribed = 0 WHERE id = :id")
     suspend fun unsubscribe(id: Long)
 
+    /** Reverses [unsubscribe]; used by the Stats tab's undo snackbar. */
+    @Query("UPDATE podcasts SET subscribed = 1 WHERE id = :id")
+    suspend fun resubscribe(id: Long)
+
+    @Query("SELECT COUNT(*) FROM podcasts WHERE subscribed = 1")
+    fun getSubscribedCount(): Flow<Int>
+
     @Query("UPDATE podcasts SET notifyNewEpisodes = :enabled WHERE id = :id")
     suspend fun setNotifyNewEpisodes(id: Long, enabled: Boolean)
 
@@ -57,4 +64,23 @@ interface PodcastDao {
 
     @Query("UPDATE podcasts SET playbackSpeed = 0.0 WHERE subscribed = 1 AND playbackSpeed > 0")
     suspend fun resetAllPlaybackSpeeds()
+
+    @Query("UPDATE podcasts SET skipIntroSeconds = :seconds WHERE id = :id")
+    suspend fun updateSkipIntroSeconds(id: Long, seconds: Int)
+
+    @Query("UPDATE podcasts SET skipOutroSeconds = :seconds WHERE id = :id")
+    suspend fun updateSkipOutroSeconds(id: Long, seconds: Int)
+
+    /** Intro/outro auto-skip settings for one podcast; null when the podcast doesn't exist. */
+    @Query("SELECT skipIntroSeconds, skipOutroSeconds FROM podcasts WHERE id = :id LIMIT 1")
+    suspend fun getSkipSettings(id: Long): PodcastSkipSettings?
+
+    /** Per-show auto-download override; see PodcastEntity.autoDownloadMode. */
+    @Query("UPDATE podcasts SET autoDownloadMode = :mode WHERE id = :id")
+    suspend fun setAutoDownloadMode(id: Long, mode: Int)
 }
+
+data class PodcastSkipSettings(
+    val skipIntroSeconds: Int,
+    val skipOutroSeconds: Int,
+)

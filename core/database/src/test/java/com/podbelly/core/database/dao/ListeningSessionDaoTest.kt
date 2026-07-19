@@ -187,22 +187,123 @@ class ListeningSessionDaoTest {
     }
 
     @Test
-    fun `getTotalSilenceTrimmedMs sums all sessions`() = runTest {
+    fun `addSkipSavedMs accumulates and getTotalSkipSavedMs sums with a cutoff`() = runTest {
+        val id1 = listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = 1000L, listenedMs = 60000L,
+            )
+        )
+        val id2 = listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = 9000L, listenedMs = 30000L,
+            )
+        )
+
+        listeningSessionDao.addSkipSavedMs(id1, 15_000L)
+        listeningSessionDao.addSkipSavedMs(id1, 5_000L) // accumulates, not overwrites
+        listeningSessionDao.addSkipSavedMs(id2, 30_000L)
+
+        listeningSessionDao.getTotalSkipSavedMs().test {
+            assertEquals(50_000L, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+        listeningSessionDao.getTotalSkipSavedMs(since = 5000L).test {
+            assertEquals(30_000L, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getWeightedAverageSpeed weights by listened time`() = runTest {
+        // 90s at 1.0x and 30s at 2.0x -> (90*1 + 30*2) / 120 = 1.25
         listeningSessionDao.insert(
             ListeningSessionEntity(
                 episodeId = episodeId1, podcastId = podcastId1,
-                startedAt = 1000L, listenedMs = 60000L, silenceTrimmedMs = 5000L,
+                startedAt = 1000L, listenedMs = 90_000L, playbackSpeed = 1.0f,
             )
         )
         listeningSessionDao.insert(
             ListeningSessionEntity(
                 episodeId = episodeId2, podcastId = podcastId1,
-                startedAt = 2000L, listenedMs = 30000L, silenceTrimmedMs = 3000L,
+                startedAt = 2000L, listenedMs = 30_000L, playbackSpeed = 2.0f,
             )
         )
 
-        listeningSessionDao.getTotalSilenceTrimmedMs().test {
-            assertEquals(8000L, awaitItem())
+        listeningSessionDao.getWeightedAverageSpeed().test {
+            assertEquals(1.25, awaitItem(), 0.001)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getWeightedAverageSpeed is zero with no sessions`() = runTest {
+        listeningSessionDao.getWeightedAverageSpeed().test {
+            assertEquals(0.0, awaitItem(), 0.001)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getListenedMsPerDay buckets by local day`() = runTest {
+        val day = 86_400_000L
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = 10 * day + 1000L, listenedMs = 60_000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = 10 * day + 2000L, listenedMs = 30_000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId3, podcastId = podcastId2,
+                startedAt = 12 * day, listenedMs = 45_000L,
+            )
+        )
+
+        listeningSessionDao.getListenedMsPerDay(tzOffsetMs = 0L).test {
+            val stats = awaitItem()
+            assertEquals(listOf(10L, 12L), stats.map { it.epochDay })
+            assertEquals(listOf(90_000L, 45_000L), stats.map { it.totalListenedMs })
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `session count and longest session respect the cutoff`() = runTest {
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId1, podcastId = podcastId1,
+                startedAt = 1000L, listenedMs = 90_000L,
+            )
+        )
+        listeningSessionDao.insert(
+            ListeningSessionEntity(
+                episodeId = episodeId2, podcastId = podcastId1,
+                startedAt = 9000L, listenedMs = 30_000L,
+            )
+        )
+
+        listeningSessionDao.getSessionCount().test {
+            assertEquals(2, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+        listeningSessionDao.getLongestSessionMs().test {
+            assertEquals(90_000L, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+        listeningSessionDao.getSessionCount(since = 5000L).test {
+            assertEquals(1, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+        listeningSessionDao.getLongestSessionMs(since = 5000L).test {
+            assertEquals(30_000L, awaitItem())
             cancelAndConsumeRemainingEvents()
         }
     }

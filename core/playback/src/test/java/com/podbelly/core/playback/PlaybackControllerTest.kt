@@ -5,11 +5,8 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
-import com.podbelly.core.database.dao.QueueEpisode
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
-import com.podbelly.core.database.entity.QueueItemEntity
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -43,7 +40,6 @@ import org.junit.Test
  * - Initial PlaybackState values
  * - StateFlow emission behavior
  * - PlaybackState data class defaults and copy semantics
- * - playNext() / advanceQueue() queue interaction logic via mocked QueueDao
  * - stop() state reset (partially -- the mediaController calls are no-ops, but
  *   we can verify the _playbackState is reset to defaults)
  */
@@ -51,7 +47,6 @@ import org.junit.Test
 class PlaybackControllerTest {
 
     private val testDispatcher = StandardTestDispatcher()
-    private lateinit var queueDao: QueueDao
     private lateinit var podcastDao: PodcastDao
     private lateinit var episodeDao: EpisodeDao
     private lateinit var preferencesManager: PreferencesManager
@@ -61,13 +56,13 @@ class PlaybackControllerTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        queueDao = mockk(relaxed = true)
         podcastDao = mockk(relaxed = true)
         episodeDao = mockk(relaxed = true)
         preferencesManager = mockk(relaxed = true)
-        every { preferencesManager.queueEnabled } returns flowOf(true)
+        // The controller's init block collects this; a real flow keeps it deterministic.
+        every { preferencesManager.skipAdChapters } returns flowOf(false)
         listeningSessionDao = mockk(relaxed = true)
-        controller = PlaybackController(queueDao, podcastDao, episodeDao, preferencesManager, listeningSessionDao)
+        controller = PlaybackController(podcastDao, episodeDao, preferencesManager, listeningSessionDao)
     }
 
     @After
@@ -92,8 +87,6 @@ class PlaybackControllerTest {
         assertEquals(0L, state.duration)
         assertEquals(1.0f, state.playbackSpeed, 0.001f)
         assertFalse(state.isLoading)
-        assertFalse(state.hasNext)
-        assertFalse(state.hasPrevious)
         assertFalse(state.skipSilence)
         assertFalse(state.volumeBoost)
     }
@@ -186,12 +179,6 @@ class PlaybackControllerTest {
         assertEquals(0L, controller.playbackState.value.duration)
     }
 
-    @Test
-    fun `playbackState initial hasNext and hasPrevious are false`() {
-        assertFalse(controller.playbackState.value.hasNext)
-        assertFalse(controller.playbackState.value.hasPrevious)
-    }
-
     // -------------------------------------------------------------------------
     // StateFlow behavior
     // -------------------------------------------------------------------------
@@ -243,145 +230,6 @@ class PlaybackControllerTest {
     }
 
     // -------------------------------------------------------------------------
-    // playNext() / advanceQueue() -- the queue logic IS testable because it
-    // interacts with the QueueDao (which we can mock) and only calls play()
-    // on the next episode. Since mediaController is null, the play() call
-    // within advanceQueue will be a no-op, but we can verify the DAO
-    // interactions.
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `playNext removes current episode from queue when episodeId is nonzero`() = runTest {
-        // We need to set currentEpisodeId. Since play() requires a mediaController,
-        // we can use the _playbackState to observe, but currentEpisodeId is private.
-        // However, playNext reads currentEpisodeId which defaults to 0L.
-        // When currentEpisodeId is 0, removeFromQueue is NOT called.
-        // So first, let's test the default case.
-        coEvery { queueDao.getQueueOnce() } returns emptyList()
-
-        controller.playNext()
-        advanceUntilIdle()
-
-        // currentEpisodeId is 0L by default, so removeFromQueue should NOT be called
-        coVerify(exactly = 0) { queueDao.removeFromQueue(any()) }
-        coVerify(exactly = 1) { queueDao.getQueueOnce() }
-    }
-
-    @Test
-    fun `playNext with no next item updates state to no hasNext and no hasPrevious`() = runTest {
-        coEvery { queueDao.getNextInQueue() } returns null
-
-        controller.playNext()
-        advanceUntilIdle()
-
-        val state = controller.playbackState.value
-        assertFalse(state.hasNext)
-        assertFalse(state.hasPrevious)
-    }
-
-    @Test
-    fun `playNext with next item calls play with correct episode data`() = runTest {
-        val nextEpisode = EpisodeEntity(
-            id = 42L,
-            podcastId = 1L,
-            guid = "guid-42",
-            title = "Next Episode",
-            description = "Desc",
-            audioUrl = "https://example.com/next.mp3",
-            publicationDate = 1000L,
-            artworkUrl = "https://example.com/next-art.jpg",
-            playbackPosition = 5000L,
-        )
-        val nextQueueItem = QueueItemEntity(
-            id = 1L,
-            episodeId = 42L,
-            position = 0,
-            addedAt = System.currentTimeMillis(),
-        )
-        val nextQueueEpisode = QueueEpisode(
-            queueItem = nextQueueItem,
-            episode = nextEpisode,
-        )
-
-        coEvery { queueDao.getQueueOnce() } returns listOf(nextQueueEpisode)
-
-        controller.playNext()
-        advanceUntilIdle()
-
-        // Since mediaController is null, play() will early-return.
-        // But we CAN verify that the DAO was queried for the queue:
-        coVerify(exactly = 1) { queueDao.getQueueOnce() }
-    }
-
-    @Test
-    fun `playNext queries the queue to find the next episode`() = runTest {
-        val nextEpisode = EpisodeEntity(
-            id = 10L,
-            podcastId = 1L,
-            guid = "guid-10",
-            title = "Episode 10",
-            description = "Desc",
-            audioUrl = "https://example.com/ep10.mp3",
-            publicationDate = 1000L,
-        )
-        val nextQueueEpisode = QueueEpisode(
-            queueItem = QueueItemEntity(id = 1L, episodeId = 10L, position = 0, addedAt = 0L),
-            episode = nextEpisode,
-        )
-
-        coEvery { queueDao.getQueueOnce() } returns listOf(nextQueueEpisode)
-
-        controller.playNext()
-        advanceUntilIdle()
-
-        coVerify(exactly = 1) { queueDao.getQueueOnce() }
-    }
-
-    @Test
-    fun `playNext handles dao exception gracefully`() = runTest {
-        coEvery { queueDao.getQueueOnce() } throws RuntimeException("DB error")
-
-        // Should not throw -- advanceQueue catches exceptions
-        controller.playNext()
-        advanceUntilIdle()
-
-        // State should remain at defaults (not crash)
-        assertEquals(PlaybackState(), controller.playbackState.value)
-    }
-
-    @Test
-    fun `playNext handles removeFromQueue exception gracefully`() = runTest {
-        // Even if removeFromQueue throws, the controller should catch the exception.
-        // However, since currentEpisodeId is 0L, removeFromQueue won't be called.
-        // We'll just verify the overall exception safety.
-        coEvery { queueDao.removeFromQueue(any()) } throws RuntimeException("DB error")
-        coEvery { queueDao.getNextInQueue() } returns null
-
-        controller.playNext()
-        advanceUntilIdle()
-
-        // Should not crash, state should be updated with no next/previous
-        assertFalse(controller.playbackState.value.hasNext)
-    }
-
-    // -------------------------------------------------------------------------
-    // Multiple playNext calls
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `successive playNext calls each query the queue`() = runTest {
-        coEvery { queueDao.getQueueOnce() } returns emptyList()
-
-        controller.playNext()
-        advanceUntilIdle()
-
-        controller.playNext()
-        advanceUntilIdle()
-
-        coVerify(exactly = 2) { queueDao.getQueueOnce() }
-    }
-
-    // -------------------------------------------------------------------------
     // release()
     // -------------------------------------------------------------------------
 
@@ -391,8 +239,7 @@ class PlaybackControllerTest {
         controller.release()
         advanceUntilIdle()
 
-        // After release, the internal scope is cancelled. New playNext() calls
-        // will not execute their coroutines.
+        // After release, the internal scope is cancelled.
     }
 
     // -------------------------------------------------------------------------

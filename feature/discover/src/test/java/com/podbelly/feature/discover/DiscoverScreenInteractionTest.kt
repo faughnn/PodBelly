@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -106,18 +107,56 @@ class DiscoverScreenInteractionTest {
     }
 
     @Test
-    fun `RSS subscribe button is disabled when URL is blank`() {
+    fun `RSS dialog subscribe button is disabled when URL is blank`() {
         composeTestRule.setContent {
             MaterialTheme {
-                RssUrlSection(
+                RssUrlDialog(
                     feedUrl = "",
                     onFeedUrlChange = {},
                     onSubscribe = {},
-                    isSubscribing = false
+                    onDismiss = {},
                 )
             }
         }
 
         composeTestRule.onNodeWithText("Subscribe").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `RSS dialog subscribe invokes callback and dismisses`() {
+        var subscribed: String? = null
+        var dismissed = false
+        composeTestRule.setContent {
+            MaterialTheme {
+                RssUrlDialog(
+                    feedUrl = "https://example.com/feed.xml",
+                    onFeedUrlChange = {},
+                    onSubscribe = { subscribed = it },
+                    onDismiss = { dismissed = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Subscribe").performClick()
+        assertEquals("https://example.com/feed.xml", subscribed)
+        assertTrue(dismissed)
+    }
+
+    @Test
+    fun `search bar RSS button invokes callback`() {
+        var opened = false
+        composeTestRule.setContent {
+            MaterialTheme {
+                SearchSection(
+                    query = "",
+                    onQueryChange = {},
+                    onSearch = {},
+                    onAddByRss = { opened = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Add podcast by RSS URL").performClick()
+        assertTrue(opened)
     }
 }

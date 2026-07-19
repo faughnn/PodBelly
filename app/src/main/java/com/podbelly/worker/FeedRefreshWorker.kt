@@ -10,9 +10,16 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.podbelly.PodbellApp
+import com.podbelly.core.common.AutoDownloadCandidate
+import com.podbelly.core.common.DownloadManager
+import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.shouldAutoDownload
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
+import com.podbelly.core.database.entity.hasSameFeedFields
+import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -25,6 +32,9 @@ class FeedRefreshWorker @AssistedInject constructor(
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
     private val searchRepository: PodcastSearchRepository,
+    private val preferencesManager: PreferencesManager,
+    private val listeningSessionDao: ListeningSessionDao,
+    private val downloadManager: DownloadManager,
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -40,6 +50,18 @@ class FeedRefreshWorker @AssistedInject constructor(
 
             var refreshedCount = 0
             var newEpisodeCount = 0
+
+            // Smart auto-download allowlist (see AppViewModel.refreshFeeds).
+            val smartEnabled = preferencesManager.smartAutoDownload.first()
+            val autoDownloadBlocked = downloadManager.isDownloadBlockedByWifiSetting() ||
+                downloadManager.isAutoDownloadBlockedByChargingSetting()
+            val keepPerShow = preferencesManager.smartAutoDownloadKeepPerShow.first()
+            val engagedPodcastIds = if (smartEnabled && !autoDownloadBlocked) {
+                val windowDays = preferencesManager.smartAutoDownloadWindowDays.first()
+                listeningSessionDao
+                    .getEngagedPodcastIds(System.currentTimeMillis() - windowDays * 86_400_000L)
+                    .toSet()
+            } else emptySet()
 
             // Track podcasts with new episodes for notifications
             val podcastsWithNewEpisodes = mutableMapOf<String, Int>()
@@ -65,9 +87,24 @@ class FeedRefreshWorker @AssistedInject constructor(
                                     durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                     artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
                                     fileSize = rssEpisode.fileSize,
+                                    addedAt = System.currentTimeMillis(),
+                                    transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                    transcriptType = rssEpisode.transcriptType ?: "",
                                 )
                             )
-                        } else {
+                        } else if (!existing.hasSameFeedFields(
+                                title = rssEpisode.title,
+                                description = rssEpisode.description,
+                                audioUrl = rssEpisode.audioUrl,
+                                publicationDate = rssEpisode.publishedAt,
+                                durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                                artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
+                                fileSize = rssEpisode.fileSize,
+                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                transcriptType = rssEpisode.transcriptType ?: "",
+                            )
+                        ) {
+                            // Skip the write when nothing changed — see hasSameFeedFields.
                             episodeDao.updateFeedFields(
                                 podcastId = podcast.id,
                                 guid = rssEpisode.guid,
@@ -78,13 +115,29 @@ class FeedRefreshWorker @AssistedInject constructor(
                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                 artworkUrl = rssEpisode.artworkUrl ?: podcast.artworkUrl,
                                 fileSize = rssEpisode.fileSize,
+                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                transcriptType = rssEpisode.transcriptType ?: "",
                             )
                         }
                     }
 
                     if (newEpisodes.isNotEmpty()) {
-                        episodeDao.insertAll(newEpisodes)
+                        val insertedIds = episodeDao.insertAll(newEpisodes)
                         newEpisodeCount += newEpisodes.size
+                        val autoDownload = !autoDownloadBlocked && shouldAutoDownload(
+                            autoDownloadMode = podcast.autoDownloadMode,
+                            smartEnabled = smartEnabled,
+                            engaged = podcast.id in engagedPodcastIds,
+                        )
+                        if (autoDownload) {
+                            downloadManager.autoDownloadNewEpisodes(
+                                podcastId = podcast.id,
+                                inserted = newEpisodes.zip(insertedIds) { ep, id ->
+                                    AutoDownloadCandidate(id, ep.publicationDate)
+                                },
+                                keepPerShow = keepPerShow,
+                            )
+                        }
 
                         // Track for notification if podcast has notifications enabled
                         if (podcast.notifyNewEpisodes) {
@@ -93,7 +146,13 @@ class FeedRefreshWorker @AssistedInject constructor(
                     }
 
                     podcastDao.update(
-                        podcast.copy(
+                        podcast.withRefreshedMetadata(
+                            title = feed.title,
+                            author = feed.author,
+                            description = feed.description,
+                            artworkUrl = feed.artworkUrl,
+                            link = feed.link,
+                        ).copy(
                             lastRefreshedAt = System.currentTimeMillis(),
                             // Use the actual stored count, not the feed's (windowed) size.
                             episodeCount = episodeDao.countByPodcastId(podcast.id),
@@ -106,6 +165,14 @@ class FeedRefreshWorker @AssistedInject constructor(
                 }
             }
 
+            // Record the refresh only if it actually reached at least one feed,
+            // so an offline attempt doesn't claim the feed is up to date.
+            if (refreshedCount > 0) {
+                preferencesManager.setLastFeedRefreshAt(System.currentTimeMillis())
+            }
+
+            cleanUpPlayedDownloads()
+
             // Post notifications for new episodes
             if (podcastsWithNewEpisodes.isNotEmpty()) {
                 postNewEpisodesNotification(podcastsWithNewEpisodes)
@@ -117,6 +184,20 @@ class FeedRefreshWorker @AssistedInject constructor(
             Log.e(TAG, "Feed refresh failed", e)
             Result.retry()
         }
+    }
+
+    /**
+     * Deletes downloads of episodes that were finished more than the configured
+     * number of days ago (Settings > Downloads > Auto-delete played downloads).
+     */
+    private suspend fun cleanUpPlayedDownloads() {
+        val days = preferencesManager.autoDeletePlayedAfterDays.first()
+        if (days <= 0) return
+        val cutoff = System.currentTimeMillis() - days * 86_400_000L
+        val staleIds = episodeDao.getPlayedDownloadIdsOlderThan(cutoff)
+        if (staleIds.isEmpty()) return
+        staleIds.forEach { downloadManager.deleteDownload(it) }
+        Log.i(TAG, "Auto-deleted ${staleIds.size} played downloads older than $days days")
     }
 
     private fun postNewEpisodesNotification(podcastsWithNewEpisodes: Map<String, Int>) {

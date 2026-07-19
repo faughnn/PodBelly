@@ -1,18 +1,11 @@
 package com.podbelly.feature.home
 
 import android.text.format.DateUtils
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,14 +27,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -81,22 +73,24 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.podbelly.core.common.MobileDataWarningDialog
+import com.podbelly.core.common.RefreshProgress
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    refreshProgress: RefreshProgress? = null,
     bannerMessage: String? = null,
     viewModel: HomeViewModel = hiltViewModel(),
     onEpisodeClick: (Long) -> Unit,
     onPodcastClick: (Long) -> Unit,
-    onSettingsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
-    val queueEnabled by viewModel.queueEnabled.collectAsStateWithLifecycle()
+    val lastRefreshedAt by viewModel.lastRefreshedAt.collectAsStateWithLifecycle()
+    val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -133,32 +127,11 @@ fun HomeScreen(
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
-                        AnimatedVisibility(
-                            visible = bannerMessage != null,
-                            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-                            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
-                        ) {
-                            Surface(
-                                modifier = Modifier.padding(start = 12.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                            ) {
-                                Text(
-                                    text = bannerMessage ?: "",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                )
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "Settings"
+                        RefreshStatusIndicator(
+                            isRefreshing = isRefreshing,
+                            refreshProgress = refreshProgress,
+                            lastRefreshedAt = lastRefreshedAt,
+                            bannerMessage = bannerMessage,
                         )
                     }
                 },
@@ -181,15 +154,15 @@ fun HomeScreen(
             } else {
                 EpisodeList(
                     episodes = uiState.recentEpisodes,
+                    newEpisodes = uiState.newEpisodes,
                     inProgressEpisodes = uiState.inProgressEpisodes,
                     downloadProgress = downloadProgress,
+                    nowPlaying = nowPlaying,
                     onEpisodeClick = onEpisodeClick,
                     onPlayClick = { episodeId -> viewModel.playEpisode(episodeId) },
                     onDownloadClick = { episodeId -> viewModel.downloadEpisode(episodeId) },
                     onCancelDownloadClick = { episodeId -> viewModel.cancelDownload(episodeId) },
-                    queueEnabled = queueEnabled,
-                    onPlayNext = { episodeId -> viewModel.addToQueueNext(episodeId) },
-                    onPlayLast = { episodeId -> viewModel.addToQueueLast(episodeId) },
+                    onDismissNewSection = viewModel::dismissNewSection,
                 )
             }
         }
@@ -241,15 +214,15 @@ internal fun EmptyState() {
 @Composable
 internal fun EpisodeList(
     episodes: List<HomeEpisodeItem>,
+    newEpisodes: List<HomeEpisodeItem> = emptyList(),
     inProgressEpisodes: List<HomeEpisodeItem> = emptyList(),
     downloadProgress: Map<Long, Float>,
+    nowPlaying: NowPlayingState = NowPlayingState(),
     onEpisodeClick: (Long) -> Unit,
     onPlayClick: (Long) -> Unit,
     onDownloadClick: (Long) -> Unit,
     onCancelDownloadClick: (Long) -> Unit = {},
-    queueEnabled: Boolean = false,
-    onPlayNext: (Long) -> Unit = {},
-    onPlayLast: (Long) -> Unit = {},
+    onDismissNewSection: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -296,6 +269,84 @@ internal fun EpisodeList(
             }
         }
 
+        // New arrivals from the latest refreshes, pinned above the main list
+        // until they've been seen. Sorted by publication date within the section.
+        // Tapping the header dismisses the section.
+        if (newEpisodes.isNotEmpty()) {
+            item(key = "new_header") {
+                Row(
+                    modifier = Modifier
+                        .animateItem()
+                        .fillMaxWidth()
+                        .clickable(
+                            onClickLabel = "Dismiss new episodes",
+                            onClick = onDismissNewSection,
+                        )
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "New",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Surface(
+                        modifier = Modifier.padding(start = 8.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Text(
+                            text = "${newEpisodes.size}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+            }
+
+            // Same key as the main list (an episode is never in both — the
+            // ViewModel filters new ids out of recentEpisodes), so animateItem()
+            // slides a card between the sections on dismissal instead of
+            // crossfading it out and back in.
+            items(
+                items = newEpisodes,
+                key = { it.episodeId }
+            ) { episode ->
+                EpisodeCard(
+                    episode = episode,
+                    downloadProgress = downloadProgress[episode.episodeId],
+                    isCurrentlyPlaying = nowPlaying.isPlaying &&
+                        nowPlaying.episodeId == episode.episodeId,
+                    onClick = { onEpisodeClick(episode.episodeId) },
+                    onPlay = { onPlayClick(episode.episodeId) },
+                    onDownload = { onDownloadClick(episode.episodeId) },
+                    onCancelDownload = { onCancelDownloadClick(episode.episodeId) },
+                    modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = spring(stiffness = Spring.StiffnessLow),
+                            fadeOutSpec = spring(stiffness = Spring.StiffnessLow),
+                            placementSpec = spring(
+                                stiffness = Spring.StiffnessLow,
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                            ),
+                        )
+                        .padding(horizontal = 16.dp),
+                )
+            }
+
+            if (episodes.isNotEmpty()) item(key = "new_footer") {
+                Text(
+                    text = "Earlier",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier
+                        .animateItem()
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+        }
+
         // Main episode list
         items(
             items = episodes,
@@ -304,13 +355,12 @@ internal fun EpisodeList(
             EpisodeCard(
                 episode = episode,
                 downloadProgress = downloadProgress[episode.episodeId],
+                isCurrentlyPlaying = nowPlaying.isPlaying &&
+                    nowPlaying.episodeId == episode.episodeId,
                 onClick = { onEpisodeClick(episode.episodeId) },
                 onPlay = { onPlayClick(episode.episodeId) },
                 onDownload = { onDownloadClick(episode.episodeId) },
                 onCancelDownload = { onCancelDownloadClick(episode.episodeId) },
-                queueEnabled = queueEnabled,
-                onPlayNext = { onPlayNext(episode.episodeId) },
-                onPlayLast = { onPlayLast(episode.episodeId) },
                 modifier = Modifier
                     .animateItem(
                         fadeInSpec = spring(stiffness = Spring.StiffnessLow),
@@ -321,6 +371,92 @@ internal fun EpisodeList(
                         ),
                     )
                     .padding(horizontal = 16.dp),
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------------
+// Refresh status indicator (top bar, beside the logo)
+// ------------------------------------------------------------------
+
+@Composable
+internal fun RefreshStatusIndicator(
+    isRefreshing: Boolean,
+    refreshProgress: RefreshProgress?,
+    lastRefreshedAt: Long,
+    bannerMessage: String?,
+    modifier: Modifier = Modifier,
+) {
+    // Re-render every minute so "Updated X min ago" doesn't go stale while the
+    // screen stays open.
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(isRefreshing, lastRefreshedAt) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(60_000)
+        }
+    }
+
+    when {
+        isRefreshing -> {
+            Row(
+                modifier = modifier.padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp),
+                    strokeWidth = 1.5.dp,
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                // Feeds refresh in parallel (5 at a time), so this counts
+                // completions rather than a position in a sequence.
+                val progressText = refreshProgress
+                    ?.takeIf { it.total > 0 }
+                    ?.let { "Checking ${it.completed}/${it.total}…" }
+                    ?: "Checking…"
+                Text(
+                    text = progressText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        bannerMessage != null -> {
+            Surface(
+                modifier = modifier.padding(start = 12.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Text(
+                    text = bannerMessage,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+            }
+        }
+
+        lastRefreshedAt > 0L -> {
+            val updatedText = if (now - lastRefreshedAt < DateUtils.MINUTE_IN_MILLIS) {
+                "Updated just now"
+            } else {
+                "Updated " + DateUtils.getRelativeTimeSpanString(
+                    lastRefreshedAt,
+                    now,
+                    DateUtils.MINUTE_IN_MILLIS,
+                    DateUtils.FORMAT_ABBREV_RELATIVE,
+                ).toString().replaceFirstChar { it.lowercaseChar() }
+            }
+            Text(
+                text = updatedText,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = modifier.padding(start = 12.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -417,7 +553,6 @@ private fun CarouselCard(
 // Episode card — Jukebox styling with color-coded duration tags
 // ------------------------------------------------------------------
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EpisodeCard(
     episode: HomeEpisodeItem,
@@ -426,16 +561,13 @@ fun EpisodeCard(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onCancelDownload: () -> Unit = {},
-    queueEnabled: Boolean = false,
-    onPlayNext: () -> Unit = {},
-    onPlayLast: () -> Unit = {},
+    isCurrentlyPlaying: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val isDownloaded = episode.downloadPath.isNotBlank()
     val isDownloading = downloadProgress != null
     val hasProgress = episode.playbackPosition > 0L && !episode.played && episode.durationSeconds > 0
     val playedAlpha = if (episode.played) 0.5f else 1f
-    var showQueueMenu by remember { mutableStateOf(false) }
 
     val cardShape = RoundedCornerShape(14.dp)
 
@@ -447,10 +579,7 @@ fun EpisodeCard(
                 color = Color.White.copy(alpha = 0.024f),
                 shape = cardShape,
             )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = { if (queueEnabled) showQueueMenu = true }
-            ),
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
@@ -548,6 +677,10 @@ fun EpisodeCard(
                         .size(40.dp)
                         .align(Alignment.CenterVertically),
                     colors = when {
+                        isDownloaded && isCurrentlyPlaying -> IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
                         isDownloaded && episode.played -> IconButtonDefaults.iconButtonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -577,6 +710,12 @@ fun EpisodeCard(
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
+                        }
+                        isDownloaded && isCurrentlyPlaying -> {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "Pause episode",
+                            )
                         }
                         isDownloaded && episode.played -> {
                             Icon(
@@ -628,22 +767,6 @@ fun EpisodeCard(
                                     )
                                 )
                             )
-                    )
-                }
-            }
-
-            if (showQueueMenu) {
-                DropdownMenu(
-                    expanded = showQueueMenu,
-                    onDismissRequest = { showQueueMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Play Next") },
-                        onClick = { showQueueMenu = false; onPlayNext() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Play Last") },
-                        onClick = { showQueueMenu = false; onPlayLast() }
                     )
                 }
             }

@@ -68,5 +68,64 @@ data class EpisodeEntity(
     val downloadedAt: Long = 0L,
 
     @ColumnInfo(name = "fileSize")
-    val fileSize: Long = 0L
+    val fileSize: Long = 0L,
+
+    /**
+     * When this episode row was first discovered by a feed *refresh* (epoch ms).
+     * Deliberately left 0 for episodes imported when first subscribing to a
+     * podcast, so a new subscription's backlog never shows up as "new" on Home.
+     */
+    @ColumnInfo(name = "addedAt")
+    val addedAt: Long = 0L,
+
+    /**
+     * Podcasting 2.0 `<podcast:transcript>` URL for this episode; empty when the
+     * feed doesn't provide one. Refreshes keep it up to date via updateFeedFields.
+     */
+    @ColumnInfo(name = "transcriptUrl", defaultValue = "")
+    val transcriptUrl: String = "",
+
+    /** MIME type declared for [transcriptUrl] (e.g. "text/vtt"); empty when unknown. */
+    @ColumnInfo(name = "transcriptType", defaultValue = "")
+    val transcriptType: String = "",
+
+    /**
+     * True when the download was queued automatically (smart auto-download or a
+     * per-show Always override) rather than by the user. Only auto-downloaded,
+     * unplayed episodes are eligible for the "keep newest N per show" cleanup, so
+     * manual downloads are never deleted behind the user's back. Cleared again by
+     * `EpisodeDao.clearDownload`.
+     */
+    @ColumnInfo(name = "autoDownloaded", defaultValue = "0")
+    val autoDownloaded: Boolean = false,
 )
+
+/**
+ * True when `EpisodeDao.updateFeedFields` with these values would be a no-op, so
+ * refreshes can skip the write. Most feed episodes never change, and each write
+ * invalidates every Room flow on the episodes table — skipping unchanged rows is
+ * what keeps the UI smooth while a large refresh runs.
+ *
+ * Mirrors updateFeedFields' semantics exactly, including fileSize being ignored
+ * once the episode is downloaded (the row then holds the real on-disk size).
+ */
+fun EpisodeEntity.hasSameFeedFields(
+    title: String,
+    description: String,
+    audioUrl: String,
+    publicationDate: Long,
+    durationSeconds: Int,
+    artworkUrl: String,
+    fileSize: Long,
+    transcriptUrl: String,
+    transcriptType: String,
+): Boolean =
+    this.title == title &&
+        this.description == description &&
+        this.audioUrl == audioUrl &&
+        this.publicationDate == publicationDate &&
+        this.durationSeconds == durationSeconds &&
+        this.artworkUrl == artworkUrl &&
+        this.transcriptUrl == transcriptUrl &&
+        this.transcriptType == transcriptType &&
+        (downloadPath.isNotBlank() || this.fileSize == fileSize)

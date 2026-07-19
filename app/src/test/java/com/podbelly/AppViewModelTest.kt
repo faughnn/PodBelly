@@ -4,9 +4,13 @@ import android.app.Application
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import app.cash.turbine.test
+import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_ALWAYS
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_NEVER
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.network.model.RssEpisode
@@ -39,6 +43,8 @@ class AppViewModelTest {
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val searchRepository = mockk<PodcastSearchRepository>(relaxed = true)
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
+    private val listeningSessionDao = mockk<ListeningSessionDao>(relaxed = true)
+    private val downloadManager = mockk<DownloadManager>(relaxed = true)
 
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
 
@@ -46,6 +52,17 @@ class AppViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { podcastDao.getAll() } returns podcastsFlow
+
+        // Staleness gate for the launch refresh: default to "never refreshed" with
+        // a 60-minute interval, so init's refreshIfStale() fires like before.
+        every { preferencesManager.feedRefreshIntervalMinutes } returns MutableStateFlow(60)
+        every { preferencesManager.lastFeedRefreshAt } returns MutableStateFlow(0L)
+        every { preferencesManager.smartAutoDownload } returns MutableStateFlow(false)
+        every { preferencesManager.smartAutoDownloadWindowDays } returns MutableStateFlow(30)
+        every { preferencesManager.smartAutoDownloadKeepPerShow } returns MutableStateFlow(0)
+        coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns emptyList()
+        coEvery { downloadManager.isDownloadBlockedByWifiSetting() } returns false
+        coEvery { downloadManager.isAutoDownloadBlockedByChargingSetting() } returns false
 
         val packageInfo = PackageInfo().apply {
             @Suppress("DEPRECATION")
@@ -114,6 +131,8 @@ class AppViewModelTest {
             podcastDao = podcastDao,
             searchRepository = searchRepository,
             preferencesManager = preferencesManager,
+            listeningSessionDao = listeningSessionDao,
+            downloadManager = downloadManager,
         )
     }
 
@@ -128,6 +147,105 @@ class AppViewModelTest {
 
         coVerify { searchRepository.fetchFeed("https://feed1.com/rss") }
         coVerify { episodeDao.insertAll(any()) }
+    }
+
+    @Test
+    fun `init skips the refresh when the last refresh is within the interval`() = runTest {
+        podcastsFlow.value = listOf(makePodcast())
+        every { preferencesManager.lastFeedRefreshAt } returns
+            MutableStateFlow(System.currentTimeMillis())
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `init skips the refresh when the interval is manual-only`() = runTest {
+        podcastsFlow.value = listOf(makePodcast())
+        every { preferencesManager.feedRefreshIntervalMinutes } returns MutableStateFlow(0)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `manual refreshFeeds runs even when the last refresh is recent`() = runTest {
+        podcastsFlow.value = listOf(makePodcast())
+        every { preferencesManager.lastFeedRefreshAt } returns
+            MutableStateFlow(System.currentTimeMillis())
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle() // init's staleness check completes without refreshing
+
+        viewModel.refreshFeeds()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `unchanged existing episode is not rewritten`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        podcastsFlow.value = listOf(podcast)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        // Mirror exactly what makeRssFeed's episode maps to in the database.
+        coEvery { episodeDao.getByPodcastAndGuid(1L, "guid-1") } returns
+            com.podbelly.core.database.entity.EpisodeEntity(
+                id = 10L,
+                podcastId = 1L,
+                guid = "guid-1",
+                title = "Episode 1",
+                description = "Desc",
+                audioUrl = "https://audio.com/ep1.mp3",
+                publicationDate = 1000L,
+                durationSeconds = 60,
+                artworkUrl = "",
+                fileSize = 5000L,
+            )
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            episodeDao.updateFeedFields(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            )
+        }
+    }
+
+    @Test
+    fun `changed existing episode is rewritten`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        podcastsFlow.value = listOf(podcast)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        // Same episode but the publisher fixed the title.
+        coEvery { episodeDao.getByPodcastAndGuid(1L, "guid-1") } returns
+            com.podbelly.core.database.entity.EpisodeEntity(
+                id = 10L,
+                podcastId = 1L,
+                guid = "guid-1",
+                title = "Old Title",
+                description = "Desc",
+                audioUrl = "https://audio.com/ep1.mp3",
+                publicationDate = 1000L,
+                durationSeconds = 60,
+                artworkUrl = "",
+                fileSize = 5000L,
+            )
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            episodeDao.updateFeedFields(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+            )
+        }
     }
 
     @Test
@@ -227,5 +345,104 @@ class AppViewModelTest {
         // Second feed should still be processed
         coVerify { searchRepository.fetchFeed("https://feed2.com/rss") }
         coVerify(exactly = 1) { episodeDao.insertAll(any()) }
+    }
+
+    @Test
+    fun `smart auto-download queues new episodes from engaged podcasts`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        podcastsFlow.value = listOf(podcast)
+        every { preferencesManager.smartAutoDownload } returns MutableStateFlow(true)
+        coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns listOf(1L)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 2)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L, 12L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify {
+            downloadManager.autoDownloadNewEpisodes(
+                podcastId = 1L,
+                inserted = match { list -> list.map { it.episodeId } == listOf(11L, 12L) },
+                keepPerShow = 0,
+            )
+        }
+    }
+
+    @Test
+    fun `smart auto-download skips podcasts with no recent listening`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        podcastsFlow.value = listOf(podcast)
+        every { preferencesManager.smartAutoDownload } returns MutableStateFlow(true)
+        coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns listOf(99L)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
+    }
+
+    @Test
+    fun `smart auto-download does nothing when disabled`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        podcastsFlow.value = listOf(podcast)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
+    }
+
+    @Test
+    fun `per-show Always override downloads even with smart auto-download off`() = runTest {
+        val podcast = makePodcast(id = 1L).copy(autoDownloadMode = AUTO_DOWNLOAD_ALWAYS)
+        podcastsFlow.value = listOf(podcast)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify {
+            downloadManager.autoDownloadNewEpisodes(
+                podcastId = 1L,
+                inserted = match { list -> list.map { it.episodeId } == listOf(11L) },
+                keepPerShow = 0,
+            )
+        }
+    }
+
+    @Test
+    fun `per-show Never override blocks an engaged podcast`() = runTest {
+        val podcast = makePodcast(id = 1L).copy(autoDownloadMode = AUTO_DOWNLOAD_NEVER)
+        podcastsFlow.value = listOf(podcast)
+        every { preferencesManager.smartAutoDownload } returns MutableStateFlow(true)
+        coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns listOf(1L)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
+    }
+
+    @Test
+    fun `charging-only gate blocks all auto-downloads`() = runTest {
+        val podcast = makePodcast(id = 1L).copy(autoDownloadMode = AUTO_DOWNLOAD_ALWAYS)
+        podcastsFlow.value = listOf(podcast)
+        every { preferencesManager.smartAutoDownload } returns MutableStateFlow(true)
+        coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns listOf(1L)
+        coEvery { downloadManager.isAutoDownloadBlockedByChargingSetting() } returns true
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
     }
 }

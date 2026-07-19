@@ -3,6 +3,7 @@ package com.podbelly.core.common
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -73,6 +74,54 @@ class DownloadManager @Inject constructor(
     suspend fun isDownloadBlockedByWifiSetting(): Boolean {
         val wifiOnly = preferencesManager.downloadOnWifiOnly.first()
         return wifiOnly && !isOnWifi()
+    }
+
+    /**
+     * Returns `true` when the user restricted *automatic* downloads to charging
+     * sessions and the device isn't currently plugged in. Only the smart
+     * auto-download paths consult this — a download the user starts by hand
+     * always runs.
+     */
+    suspend fun isAutoDownloadBlockedByChargingSetting(): Boolean {
+        val chargingOnly = preferencesManager.smartAutoDownloadChargingOnly.first()
+        if (!chargingOnly) return false
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            ?: return false
+        return !batteryManager.isCharging
+    }
+
+    /**
+     * Queues auto-downloads for a show's newly inserted episodes, honouring the
+     * "keep newest N per show" cap: only the newest [keepPerShow] arrivals are
+     * queued, and older auto-downloaded, unplayed episodes beyond the cap are
+     * deleted so the show's auto-downloads never pile up. Each queued episode is
+     * flagged autoDownloaded first, which is what makes it eligible for that
+     * cleanup later — manual downloads are untouched. [keepPerShow] <= 0 means
+     * unlimited (no cap, no cleanup).
+     */
+    suspend fun autoDownloadNewEpisodes(
+        podcastId: Long,
+        inserted: List<AutoDownloadCandidate>,
+        keepPerShow: Int,
+    ) {
+        // IGNORE-conflict inserts return -1 for rows that already existed.
+        val fresh = inserted.filter { it.episodeId > 0L }
+        val toQueue = if (keepPerShow > 0) {
+            fresh.sortedByDescending { it.publicationDate }.take(keepPerShow)
+        } else {
+            fresh
+        }
+        toQueue.forEach { candidate ->
+            episodeDao.markAutoDownloaded(candidate.episodeId)
+            enqueueDownload(candidate.episodeId)
+        }
+        if (keepPerShow > 0) {
+            // The just-queued episodes have no downloadPath yet, so shrink the
+            // keep-window by their count: once they land, the show is at the cap.
+            val remainingSlots = (keepPerShow - toQueue.size).coerceAtLeast(0)
+            episodeDao.getAutoDownloadsBeyondNewest(podcastId, remainingSlots)
+                .forEach { deleteDownload(it) }
+        }
     }
 
     /**

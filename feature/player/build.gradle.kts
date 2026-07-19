@@ -21,6 +21,15 @@ android {
         }
     }
 
+
+    buildTypes {
+        debug {
+            // Lets AGP's JaCoCo integration record unit-test coverage for the
+            // root jacocoFullReport task (see the root build file).
+            enableUnitTestCoverage = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -37,6 +46,7 @@ android {
 
 dependencies {
     implementation(project(":core:database"))
+    implementation(project(":core:network"))
     implementation(project(":core:playback"))
     implementation(project(":core:common"))
 
@@ -57,6 +67,10 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.androidx.palette)
+
+    // Chromecast button (MediaRouteButton + CastButtonFactory)
+    implementation(libs.androidx.mediarouter)
+    implementation(libs.play.services.cast.framework)
 
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)

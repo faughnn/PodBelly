@@ -10,6 +10,7 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
+import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.network.api.PodcastSearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -36,6 +38,12 @@ data class DiscoverPodcastItem(
     val isSubscribed: Boolean,
 )
 
+/** A browsable chart category, mapping a chip label to an iTunes genre id. */
+data class ChartCategory(val label: String, val genreId: Int)
+
+/** A selectable chart storefront region. */
+data class ChartRegion(val code: String, val label: String)
+
 data class DiscoverUiState(
     val searchQuery: String = "",
     val searchResults: List<DiscoverPodcastItem> = emptyList(),
@@ -44,6 +52,13 @@ data class DiscoverUiState(
     /** Feed URLs with a subscription currently in flight, so each row can spin/disable independently. */
     val subscribingFeedUrls: Set<String> = emptySet(),
     val message: String? = null,
+    val chartCategories: List<ChartCategory> = DiscoverViewModel.CHART_CATEGORIES,
+    val selectedChartGenreId: Int = DiscoverViewModel.TOP_CHART_GENRE_ID,
+    val chartResults: List<DiscoverPodcastItem> = emptyList(),
+    val isLoadingChart: Boolean = false,
+    val chartError: String? = null,
+    val chartRegions: List<ChartRegion> = DiscoverViewModel.CHART_REGIONS,
+    val selectedChartCountry: String = "",
 )
 
 @OptIn(FlowPreview::class)
@@ -54,6 +69,7 @@ class DiscoverViewModel @Inject constructor(
     private val searchRepository: PodcastSearchRepository,
     private val podcastDao: PodcastDao,
     private val episodeDao: EpisodeDao,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DiscoverUiState())
@@ -66,6 +82,17 @@ class DiscoverViewModel @Inject constructor(
 
     /** Explicit (e.g. IME "Search" action) queries that should run without the debounce. */
     private val immediateSearch = Channel<String>(Channel.CONFLATED)
+
+    /** Charts already fetched this session, so switching chips back is instant. */
+    private val chartCache = mutableMapOf<Int, List<DiscoverPodcastItem>>()
+
+    // Charts are region-specific. The stored preference wins; blank means
+    // "follow the device locale", falling back to the US chart when the locale
+    // carries no country. Resolved before the first chart load in init.
+    private var chartCountry: String = "us"
+
+    private fun defaultChartCountry(): String =
+        java.util.Locale.getDefault().country.lowercase().ifBlank { "us" }
 
     init {
         viewModelScope.launch {
@@ -80,6 +107,74 @@ class DiscoverViewModel @Inject constructor(
                 immediateSearch.receiveAsFlow(),
             ).collectLatest { query ->
                 performSearch(query)
+            }
+        }
+
+        viewModelScope.launch {
+            val stored = preferencesManager.chartCountry.first()
+            chartCountry = stored.ifBlank { defaultChartCountry() }
+            _uiState.update { it.copy(selectedChartCountry = chartCountry) }
+            loadChart(TOP_CHART_GENRE_ID)
+        }
+    }
+
+    fun selectChartRegion(countryCode: String) {
+        if (countryCode == chartCountry) return
+        chartCountry = countryCode
+        // Cached charts belong to the previous region.
+        chartCache.clear()
+        _uiState.update { it.copy(selectedChartCountry = countryCode, chartResults = emptyList()) }
+        viewModelScope.launch { preferencesManager.setChartCountry(countryCode) }
+        loadChart(_uiState.value.selectedChartGenreId)
+    }
+
+    fun selectChartCategory(genreId: Int) {
+        _uiState.update { it.copy(selectedChartGenreId = genreId) }
+        loadChart(genreId)
+    }
+
+    fun retryChart() {
+        loadChart(_uiState.value.selectedChartGenreId)
+    }
+
+    private fun loadChart(genreId: Int) {
+        chartCache[genreId]?.let { cached ->
+            _uiState.update { it.copy(chartResults = cached, isLoadingChart = false, chartError = null) }
+            return
+        }
+
+        val requestCountry = chartCountry
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingChart = true, chartError = null) }
+            try {
+                val results = searchRepository.topPodcasts(requestCountry, genreId)
+                val items = results.map { result ->
+                    val existing = podcastDao.getByFeedUrl(result.feedUrl)
+                    DiscoverPodcastItem(
+                        title = result.title,
+                        author = result.author,
+                        artworkUrl = result.artworkUrl,
+                        feedUrl = result.feedUrl,
+                        isSubscribed = existing?.subscribed == true,
+                    )
+                }
+                // Only publish/cache if this chip and region are still selected; a
+                // slow response for a deselected category (or the previous region)
+                // must not overwrite or pollute the current chart.
+                if (chartCountry != requestCountry) return@launch
+                chartCache[genreId] = items
+                if (_uiState.value.selectedChartGenreId == genreId) {
+                    _uiState.update { it.copy(chartResults = items, isLoadingChart = false) }
+                }
+            } catch (e: Exception) {
+                if (chartCountry == requestCountry && _uiState.value.selectedChartGenreId == genreId) {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingChart = false,
+                            chartError = "Couldn't load charts: ${e.message}",
+                        )
+                    }
+                }
             }
         }
     }
@@ -184,19 +279,26 @@ class DiscoverViewModel @Inject constructor(
                         publicationDate = episode.publishedAt,
                         durationSeconds = (episode.duration / 1000).toInt(),
                         artworkUrl = episode.artworkUrl ?: "",
+                        transcriptUrl = episode.transcriptUrl ?: "",
+                        transcriptType = episode.transcriptType ?: "",
                     )
                 }
                 episodeDao.insertAll(episodes)
                 prefetchArtwork(feed.artworkUrl)
 
+                fun List<DiscoverPodcastItem>.markSubscribed() = map { item ->
+                    if (item.feedUrl == feedUrl) item.copy(isSubscribed = true) else item
+                }
                 _uiState.update { state ->
                     state.copy(
                         message = "Subscribed to ${feed.title}",
-                        searchResults = state.searchResults.map { item ->
-                            if (item.feedUrl == feedUrl) item.copy(isSubscribed = true)
-                            else item
-                        },
+                        searchResults = state.searchResults.markSubscribed(),
+                        chartResults = state.chartResults.markSubscribed(),
                     )
+                }
+                // Cached charts hold their own isSubscribed flags — keep them honest.
+                for ((genreId, items) in chartCache) {
+                    chartCache[genreId] = items.markSubscribed()
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(message = "Subscription failed: ${e.message}") }
@@ -266,6 +368,8 @@ class DiscoverViewModel @Inject constructor(
                         publicationDate = episode.publishedAt,
                         durationSeconds = (episode.duration / 1000).toInt(),
                         artworkUrl = episode.artworkUrl ?: "",
+                        transcriptUrl = episode.transcriptUrl ?: "",
+                        transcriptType = episode.transcriptType ?: "",
                     )
                 }
                 episodeDao.insertAll(episodes)
@@ -289,5 +393,51 @@ class DiscoverViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.update { it.copy(message = null) }
+    }
+
+    companion object {
+        /** iTunes' root "Podcasts" genre — the overall chart. */
+        const val TOP_CHART_GENRE_ID = 26
+
+        val CHART_REGIONS = listOf(
+            ChartRegion("ie", "Ireland"),
+            ChartRegion("gb", "United Kingdom"),
+            ChartRegion("us", "United States"),
+            ChartRegion("au", "Australia"),
+            ChartRegion("ca", "Canada"),
+            ChartRegion("nz", "New Zealand"),
+            ChartRegion("de", "Germany"),
+            ChartRegion("fr", "France"),
+            ChartRegion("es", "Spain"),
+            ChartRegion("it", "Italy"),
+            ChartRegion("nl", "Netherlands"),
+            ChartRegion("se", "Sweden"),
+            ChartRegion("no", "Norway"),
+            ChartRegion("dk", "Denmark"),
+            ChartRegion("pt", "Portugal"),
+            ChartRegion("pl", "Poland"),
+            ChartRegion("br", "Brazil"),
+            ChartRegion("mx", "Mexico"),
+            ChartRegion("jp", "Japan"),
+            ChartRegion("in", "India"),
+            ChartRegion("za", "South Africa"),
+        )
+
+        val CHART_CATEGORIES = listOf(
+            ChartCategory("Top", TOP_CHART_GENRE_ID),
+            ChartCategory("Comedy", 1303),
+            ChartCategory("News", 1489),
+            ChartCategory("True Crime", 1488),
+            ChartCategory("Technology", 1318),
+            ChartCategory("Society & Culture", 1324),
+            ChartCategory("Sport", 1545),
+            ChartCategory("Business", 1321),
+            ChartCategory("History", 1487),
+            ChartCategory("Science", 1533),
+            ChartCategory("Health & Fitness", 1512),
+            ChartCategory("Music", 1310),
+            ChartCategory("TV & Film", 1309),
+            ChartCategory("Education", 1304),
+        )
     }
 }

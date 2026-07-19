@@ -22,14 +22,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -61,23 +65,41 @@ import com.podbelly.core.common.AppTheme
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
+/**
+ * The settings categories reachable from the Profile tab. Each opens its own
+ * small [SettingsScreen] (the hub-and-spoke pattern Pocket Casts and AntennaPod
+ * use) instead of one endless scroll.
+ */
+enum class SettingsSection(val key: String, val title: String, val subtitle: String) {
+    PLAYBACK("playback", "Playback", "Speeds, silence, ad chapters, volume"),
+    DOWNLOADS("downloads", "Downloads", "Auto-download, cleanup, storage"),
+    APPEARANCE("appearance", "Appearance", "Theme"),
+    FEEDS("feeds", "Feeds", "Refresh interval"),
+    BACKUP("backup", "Import & Export", "Move subscriptions via OPML"),
+    DIAGNOSTICS("diagnostics", "Diagnostics", "Crash logs");
+
+    companion object {
+        fun fromKey(key: String?): SettingsSection =
+            entries.firstOrNull { it.key == key } ?: PLAYBACK
+    }
+}
+
+/**
+ * One settings category as its own screen. The category is picked on the
+ * Profile tab; this screen shows just that category's options under a
+ * back-arrow app bar.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    section: SettingsSection,
     viewModel: SettingsViewModel = hiltViewModel(),
-    onNavigateToStats: () -> Unit = {},
+    onNavigateBack: () -> Unit = {},
     onNavigateToPlaybackSpeeds: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
-    val versionName = remember {
-        try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        } catch (_: PackageManager.NameNotFoundException) {
-            "Unknown"
-        }
-    }
 
     // File picker for OPML import
     val opmlPickerLauncher = rememberLauncherForActivityResult(
@@ -112,9 +134,17 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Settings",
+                        text = section.title,
                         fontWeight = FontWeight.Bold,
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Navigate back",
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -140,320 +170,271 @@ fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // ── Appearance ────────────────────────────────────────────
-
-            item { SectionHeader(title = "Appearance") }
-
-            item {
-                SettingsCard {
-                    ThemePickerRow(
-                        selectedMode = uiState.appTheme,
-                        onModeSelected = { viewModel.setAppTheme(it) },
-                    )
+            when (section) {
+                SettingsSection.APPEARANCE -> item {
+                    SettingsCard {
+                        ThemePickerRow(
+                            selectedMode = uiState.appTheme,
+                            onModeSelected = { viewModel.setAppTheme(it) },
+                        )
+                    }
                 }
-            }
 
-            // ── Playback ──────────────────────────────────────────────
+                SettingsSection.PLAYBACK -> item {
+                    SettingsCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToPlaybackSpeeds() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Playback speeds",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                Text(
+                                    text = "Per-podcast speed settings",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
 
-            item { SectionHeader(title = "Playback") }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-            item {
-                SettingsCard {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToPlaybackSpeeds() }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column {
+                        SwitchRow(
+                            title = "Skip silence",
+                            subtitle = "Automatically skip silent sections",
+                            checked = uiState.skipSilence,
+                            onCheckedChange = { viewModel.setSkipSilence(it) },
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        SwitchRow(
+                            title = "Skip ad chapters",
+                            subtitle = "Jump over chapters marked as ads or sponsors by the show",
+                            checked = uiState.skipAdChapters,
+                            onCheckedChange = { viewModel.setSkipAdChapters(it) },
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        SwitchRow(
+                            title = "Volume boost",
+                            subtitle = "Extra-loud mode for noisy environments",
+                            checked = uiState.volumeBoost,
+                            onCheckedChange = { viewModel.setVolumeBoost(it) },
+                        )
+                    }
+                }
+
+                SettingsSection.DOWNLOADS -> item {
+                    SettingsCard {
+                        SwitchRow(
+                            title = "Auto-download new episodes",
+                            subtitle = "Automatically download new episodes when they arrive",
+                            checked = uiState.autoDownloadEnabled,
+                            onCheckedChange = { viewModel.setAutoDownload(it) },
+                        )
+
+                        AnimatedVisibility(visible = uiState.autoDownloadEnabled) {
+                            Column {
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                DropdownRow(
+                                    title = "Auto-download count",
+                                    selectedValue = uiState.autoDownloadEpisodeCount.toString(),
+                                    options = listOf("1", "3", "5", "10"),
+                                    onOptionSelected = { viewModel.setAutoDownloadEpisodeCount(it.toInt()) },
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        SwitchRow(
+                            title = "Download over Wi-Fi only",
+                            subtitle = "Prevent downloads on mobile data",
+                            checked = uiState.downloadOnWifiOnly,
+                            onCheckedChange = { viewModel.setDownloadOnWifiOnly(it) },
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        SwitchRow(
+                            title = "Smart auto-download",
+                            subtitle = "Download new episodes from shows you've listened to recently",
+                            checked = uiState.smartAutoDownload,
+                            onCheckedChange = { viewModel.setSmartAutoDownload(it) },
+                        )
+
+                        AnimatedVisibility(visible = uiState.smartAutoDownload) {
+                            Column {
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                DropdownRow(
+                                    title = "Listened within",
+                                    selectedValue = formatSmartWindowDays(uiState.smartAutoDownloadWindowDays),
+                                    options = listOf("7 days", "14 days", "30 days", "60 days"),
+                                    onOptionSelected = {
+                                        viewModel.setSmartAutoDownloadWindowDays(parseSmartWindowDays(it))
+                                    },
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                DropdownRow(
+                                    title = "Keep per show",
+                                    selectedValue = formatKeepPerShow(uiState.smartAutoDownloadKeepPerShow),
+                                    options = listOf("All", "1 newest", "3 newest", "5 newest", "10 newest"),
+                                    onOptionSelected = {
+                                        viewModel.setSmartAutoDownloadKeepPerShow(parseKeepPerShow(it))
+                                    },
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                SwitchRow(
+                                    title = "Only while charging",
+                                    subtitle = "Defer auto-downloads until the phone is plugged in",
+                                    checked = uiState.smartAutoDownloadChargingOnly,
+                                    onCheckedChange = { viewModel.setSmartAutoDownloadChargingOnly(it) },
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        DropdownRow(
+                            title = "Auto-delete played downloads",
+                            selectedValue = formatAutoDeleteDays(uiState.autoDeletePlayedAfterDays),
+                            options = listOf("Off", "After 1 day", "After 3 days", "After 7 days", "After 30 days"),
+                            onOptionSelected = { viewModel.setAutoDeletePlayedAfterDays(parseAutoDeleteDays(it)) },
+                        )
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        DeleteAllDownloadsRow(
+                            totalDownloadedBytes = uiState.totalDownloadedBytes,
+                            onConfirm = { viewModel.deleteAllDownloads() },
+                        )
+                    }
+                }
+
+                SettingsSection.FEEDS -> item {
+                    SettingsCard {
+                        DropdownRow(
+                            title = "Refresh interval",
+                            selectedValue = formatRefreshInterval(uiState.feedRefreshIntervalMinutes),
+                            options = listOf(
+                                "15 min",
+                                "30 min",
+                                "1 hour",
+                                "2 hours",
+                                "4 hours",
+                                "12 hours",
+                                "Manual only",
+                            ),
+                            onOptionSelected = { option ->
+                                viewModel.setFeedRefreshInterval(parseRefreshInterval(option))
+                            },
+                        )
+                    }
+                }
+
+                SettingsSection.BACKUP -> item {
+                    SettingsCard {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             Text(
-                                text = "Playback speeds",
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            Text(
-                                text = "Per-podcast speed settings",
+                                text = "Transfer your podcast subscriptions using OPML files",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-                    }
 
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                    SwitchRow(
-                        title = "Skip silence",
-                        subtitle = "Automatically skip silent sections",
-                        checked = uiState.skipSilence,
-                        onCheckedChange = { viewModel.setSkipSilence(it) },
-                    )
-
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                    SwitchRow(
-                        title = "Volume boost",
-                        subtitle = "Extra-loud mode for noisy environments",
-                        checked = uiState.volumeBoost,
-                        onCheckedChange = { viewModel.setVolumeBoost(it) },
-                    )
-                }
-            }
-
-            // ── Queue ──────────────────────────────────────────────────
-
-            item { SectionHeader(title = "Queue") }
-
-            item {
-                SettingsCard {
-                    SwitchRow(
-                        title = "Show queue",
-                        subtitle = "Enable Up Next queue for continuous playback",
-                        checked = uiState.queueEnabled,
-                        onCheckedChange = { viewModel.setQueueEnabled(it) },
-                    )
-                }
-            }
-
-            // ── Downloads ─────────────────────────────────────────────
-
-            item { SectionHeader(title = "Downloads") }
-
-            item {
-                SettingsCard {
-                    SwitchRow(
-                        title = "Auto-download new episodes",
-                        subtitle = "Automatically download new episodes when they arrive",
-                        checked = uiState.autoDownloadEnabled,
-                        onCheckedChange = { viewModel.setAutoDownload(it) },
-                    )
-
-                    AnimatedVisibility(visible = uiState.autoDownloadEnabled) {
-                        Column {
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            DropdownRow(
-                                title = "Auto-download count",
-                                selectedValue = uiState.autoDownloadEpisodeCount.toString(),
-                                options = listOf("1", "3", "5", "10"),
-                                onOptionSelected = { viewModel.setAutoDownloadEpisodeCount(it.toInt()) },
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                    SwitchRow(
-                        title = "Download over Wi-Fi only",
-                        subtitle = "Prevent downloads on mobile data",
-                        checked = uiState.downloadOnWifiOnly,
-                        onCheckedChange = { viewModel.setDownloadOnWifiOnly(it) },
-                    )
-
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                    SwitchRow(
-                        title = "Auto-delete played episodes",
-                        subtitle = "Remove downloaded files after playback completes",
-                        checked = uiState.autoDeletePlayed,
-                        onCheckedChange = { viewModel.setAutoDeletePlayed(it) },
-                    )
-
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                    DeleteAllDownloadsRow(
-                        totalDownloadedBytes = uiState.totalDownloadedBytes,
-                        onConfirm = { viewModel.deleteAllDownloads() },
-                    )
-                }
-            }
-
-            // ── Feed Management ───────────────────────────────────────
-
-            item { SectionHeader(title = "Feed Management") }
-
-            item {
-                SettingsCard {
-                    DropdownRow(
-                        title = "Refresh interval",
-                        selectedValue = formatRefreshInterval(uiState.feedRefreshIntervalMinutes),
-                        options = listOf(
-                            "15 min",
-                            "30 min",
-                            "1 hour",
-                            "2 hours",
-                            "4 hours",
-                            "12 hours",
-                            "Manual only",
-                        ),
-                        onOptionSelected = { option ->
-                            viewModel.setFeedRefreshInterval(parseRefreshInterval(option))
-                        },
-                    )
-                }
-            }
-
-            // ── Import / Export ───────────────────────────────────────
-
-            item { SectionHeader(title = "Import / Export") }
-
-            item {
-                SettingsCard {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = "Transfer your podcast subscriptions using OPML files",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            OutlinedButton(
-                                onClick = { opmlPickerLauncher.launch("*/*") },
-                                modifier = Modifier.weight(1f),
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Text(text = "Import OPML")
-                            }
+                                OutlinedButton(
+                                    onClick = { opmlPickerLauncher.launch("*/*") },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(text = "Import OPML")
+                                }
 
-                            Button(
-                                onClick = {
-                                    viewModel.exportOpml { xml ->
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/xml"
-                                            putExtra(Intent.EXTRA_TEXT, xml)
-                                            putExtra(Intent.EXTRA_SUBJECT, "Podbelly Subscriptions")
-                                        }
-                                        context.startActivity(
-                                            Intent.createChooser(shareIntent, "Share OPML")
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(text = "Export OPML")
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── Diagnostics ───────────────────────────────────────────
-
-            item { SectionHeader(title = "Diagnostics") }
-
-            item {
-                SettingsCard {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = "If the app crashes, the stack trace is saved locally. Share it to help diagnose the problem.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.clearCrashLogs() },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(text = "Clear logs")
-                            }
-
-                            Button(
-                                onClick = {
-                                    viewModel.shareCrashLogs { content ->
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, content)
-                                            putExtra(
-                                                Intent.EXTRA_SUBJECT,
-                                                "Podbelly crash logs (v$versionName)",
+                                Button(
+                                    onClick = {
+                                        viewModel.exportOpml { xml ->
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/xml"
+                                                putExtra(Intent.EXTRA_TEXT, xml)
+                                                putExtra(Intent.EXTRA_SUBJECT, "Podbelly Subscriptions")
+                                            }
+                                            context.startActivity(
+                                                Intent.createChooser(shareIntent, "Share OPML")
                                             )
                                         }
-                                        context.startActivity(
-                                            Intent.createChooser(shareIntent, "Share crash logs")
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(text = "Share crash logs")
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(text = "Export OPML")
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // ── Statistics ─────────────────────────────────────────────
-
-            item { SectionHeader(title = "Statistics") }
-
-            item {
-                SettingsCard {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToStats() }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column {
+                SettingsSection.DIAGNOSTICS -> item {
+                    val versionName = rememberVersionName()
+                    SettingsCard {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             Text(
-                                text = "Listening Statistics",
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            Text(
-                                text = "View your listening history and stats",
+                                text = "If the app crashes, the stack trace is saved locally. Share it to help diagnose the problem.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.clearCrashLogs() },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(text = "Clear logs")
+                                }
+
+                                Button(
+                                    onClick = {
+                                        viewModel.shareCrashLogs { content ->
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, content)
+                                                putExtra(
+                                                    Intent.EXTRA_SUBJECT,
+                                                    "Podbelly crash logs (v$versionName)",
+                                                )
+                                            }
+                                            context.startActivity(
+                                                Intent.createChooser(shareIntent, "Share crash logs")
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(text = "Share crash logs")
+                                }
+                            }
                         }
-                    }
-                }
-            }
-
-            // ── About ─────────────────────────────────────────────────
-
-            item { SectionHeader(title = "About") }
-
-            item {
-                SettingsCard {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = "Podbelly",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = "Version $versionName",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Podbelly - Ad-free podcast player",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
                 }
             }
@@ -757,6 +738,19 @@ internal fun ImportResultDialog(
 // Utility functions
 // =====================================================================
 
+/** The installed app version, read once per composition site. */
+@Composable
+internal fun rememberVersionName(): String {
+    val context = LocalContext.current
+    return remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+        } catch (_: PackageManager.NameNotFoundException) {
+            "Unknown"
+        }
+    }
+}
+
 private fun readTextFromUri(context: Context, uri: android.net.Uri): String? {
     return try {
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -767,6 +761,29 @@ private fun readTextFromUri(context: Context, uri: android.net.Uri): String? {
     } catch (_: Exception) {
         null
     }
+}
+
+internal fun formatSmartWindowDays(days: Int): String = "$days days"
+
+internal fun parseSmartWindowDays(option: String): Int =
+    option.removeSuffix(" days").toIntOrNull() ?: 30
+
+internal fun formatKeepPerShow(count: Int): String =
+    if (count <= 0) "All" else "$count newest"
+
+internal fun parseKeepPerShow(option: String): Int =
+    if (option == "All") 0 else option.removeSuffix(" newest").toIntOrNull() ?: 0
+
+internal fun formatAutoDeleteDays(days: Int): String = when (days) {
+    0 -> "Off"
+    1 -> "After 1 day"
+    else -> "After $days days"
+}
+
+internal fun parseAutoDeleteDays(option: String): Int = when (option) {
+    "Off" -> 0
+    "After 1 day" -> 1
+    else -> option.removePrefix("After ").removeSuffix(" days").toIntOrNull() ?: 0
 }
 
 private fun formatRefreshInterval(minutes: Int): String {

@@ -5,8 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_SMART
 import com.podbelly.core.database.entity.EpisodeEntity
+import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.common.DownloadErrorEvent
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
@@ -36,6 +37,9 @@ data class PodcastUiModel(
     val artworkUrl: String,
     val episodeCount: Int,
     val notifyNewEpisodes: Boolean = true,
+    val skipIntroSeconds: Int = 0,
+    val skipOutroSeconds: Int = 0,
+    val autoDownloadMode: Int = AUTO_DOWNLOAD_SMART,
 )
 
 data class EpisodeUiModel(
@@ -64,16 +68,12 @@ class PodcastDetailViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val searchRepository: PodcastSearchRepository,
     private val downloadManager: DownloadManager,
-    private val queueDao: QueueDao,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     /** Download progress map exposed for the UI (episodeId -> 0.0..1.0). */
     val downloadProgress: StateFlow<Map<Long, Float>> = downloadManager.downloadProgress
     val downloadErrors: SharedFlow<DownloadErrorEvent> = downloadManager.downloadErrors
-
-    val queueEnabled: StateFlow<Boolean> = preferencesManager.queueEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _showMobileDataWarning = MutableStateFlow(false)
     val showMobileDataWarning: StateFlow<Boolean> = _showMobileDataWarning.asStateFlow()
@@ -98,6 +98,9 @@ class PodcastDetailViewModel @Inject constructor(
                 artworkUrl = it.artworkUrl,
                 episodeCount = it.episodeCount,
                 notifyNewEpisodes = it.notifyNewEpisodes,
+                skipIntroSeconds = it.skipIntroSeconds,
+                skipOutroSeconds = it.skipOutroSeconds,
+                autoDownloadMode = it.autoDownloadMode,
             )
         }
 
@@ -153,6 +156,9 @@ class PodcastDetailViewModel @Inject constructor(
                                 publicationDate = rssEpisode.publishedAt,
                                 durationSeconds = (rssEpisode.duration / 1000).toInt(),
                                 artworkUrl = rssEpisode.artworkUrl ?: "",
+                                addedAt = System.currentTimeMillis(),
+                                transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                                transcriptType = rssEpisode.transcriptType ?: "",
                             )
                         )
                     } else {
@@ -167,6 +173,8 @@ class PodcastDetailViewModel @Inject constructor(
                             durationSeconds = (rssEpisode.duration / 1000).toInt(),
                             artworkUrl = rssEpisode.artworkUrl ?: "",
                             fileSize = rssEpisode.fileSize,
+                            transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                            transcriptType = rssEpisode.transcriptType ?: "",
                         )
                     }
                 }
@@ -176,7 +184,13 @@ class PodcastDetailViewModel @Inject constructor(
                 }
 
                 podcastDao.update(
-                    podcastEntity.copy(
+                    podcastEntity.withRefreshedMetadata(
+                        title = rssFeed.title,
+                        author = rssFeed.author,
+                        description = rssFeed.description,
+                        artworkUrl = rssFeed.artworkUrl,
+                        link = rssFeed.link,
+                    ).copy(
                         lastRefreshedAt = System.currentTimeMillis(),
                         // Derive from actual stored rows rather than an additive guess.
                         episodeCount = episodeDao.countByPodcastId(podcastId),
@@ -235,6 +249,13 @@ class PodcastDetailViewModel @Inject constructor(
         _filter.value = filter
     }
 
+    /** Per-show auto-download override; see PodcastEntity.autoDownloadMode. */
+    fun setAutoDownloadMode(mode: Int) {
+        viewModelScope.launch {
+            podcastDao.setAutoDownloadMode(podcastId, mode)
+        }
+    }
+
     fun toggleNotifications() {
         viewModelScope.launch {
             val current = uiState.value.podcast?.notifyNewEpisodes ?: true
@@ -248,19 +269,21 @@ class PodcastDetailViewModel @Inject constructor(
         }
     }
 
-    fun addToQueueNext(episodeId: Long) {
+    /** Persists the per-podcast intro auto-skip (seconds; 0 disables it). */
+    fun setSkipIntroSeconds(seconds: Int) {
         viewModelScope.launch {
-            // addToFront shifts + inserts inside one @Transaction so an interruption or
-            // concurrent mutation can't leave the queue shifted with no head item.
-            queueDao.addToFront(episodeId, System.currentTimeMillis())
+            podcastDao.updateSkipIntroSeconds(podcastId, seconds.coerceAtLeast(0))
+            playbackController.refreshSkipSettings()
         }
     }
 
-    fun addToQueueLast(episodeId: Long) {
+    /** Persists the per-podcast outro auto-skip (seconds; 0 disables it). */
+    fun setSkipOutroSeconds(seconds: Int) {
         viewModelScope.launch {
-            // Read-max + insert atomically (single @Transaction) so two concurrent
-            // enqueues can't both land at the same position.
-            queueDao.addToEnd(episodeId, System.currentTimeMillis())
+            podcastDao.updateSkipOutroSeconds(podcastId, seconds.coerceAtLeast(0))
+            // If this podcast is playing, the outro applies to the current episode too.
+            playbackController.refreshSkipSettings()
         }
     }
+
 }

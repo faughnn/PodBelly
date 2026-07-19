@@ -51,4 +51,8 @@ data class ListeningSessionEntity(
 
     @ColumnInfo(name = "silenceTrimmedMs")
     val silenceTrimmedMs: Long = 0L,
+
+    /** Audio skipped by the per-podcast intro/outro auto-skip during this session. */
+    @ColumnInfo(name = "skipSavedMs", defaultValue = "0")
+    val skipSavedMs: Long = 0L,
 )

@@ -3,21 +3,23 @@ package com.podbelly.feature.home
 import app.cash.turbine.test
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
-import com.podbelly.core.database.dao.QueueDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.playback.PlaybackController
+import com.podbelly.core.playback.PlaybackState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -38,19 +40,24 @@ class HomeViewModelTest {
     private val podcastDao = mockk<PodcastDao>(relaxed = true)
     private val playbackController = mockk<PlaybackController>(relaxed = true)
     private val downloadManager = mockk<DownloadManager>(relaxed = true)
-    private val queueDao = mockk<QueueDao>(relaxed = true)
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
 
     private val episodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
     private val inProgressFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
+    private val newEpisodesFlow = MutableStateFlow<List<EpisodeEntity>>(emptyList())
+    private val playbackStateFlow = MutableStateFlow(PlaybackState())
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        every { playbackController.playbackState } returns playbackStateFlow
         every { episodeDao.getRecentEpisodes(50) } returns episodesFlow
         every { episodeDao.getInProgressEpisodes() } returns inProgressFlow
+        every { episodeDao.getEpisodesAddedSince(any()) } returns newEpisodesFlow
         every { podcastDao.getAll() } returns podcastsFlow
+        every { preferencesManager.homeNewEpisodesCutoff } returns MutableStateFlow(0L)
+        every { preferencesManager.homeNewDismissedAt } returns MutableStateFlow(0L)
     }
 
     @After
@@ -64,7 +71,6 @@ class HomeViewModelTest {
             podcastDao = podcastDao,
             playbackController = playbackController,
             downloadManager = downloadManager,
-            queueDao = queueDao,
             preferencesManager = preferencesManager,
         )
     }
@@ -97,6 +103,7 @@ class HomeViewModelTest {
         downloadPath: String = "",
         playbackPosition: Long = 0L,
         played: Boolean = false,
+        addedAt: Long = 0L,
     ) = EpisodeEntity(
         id = id,
         podcastId = podcastId,
@@ -110,6 +117,7 @@ class HomeViewModelTest {
         downloadPath = downloadPath,
         playbackPosition = playbackPosition,
         played = played,
+        addedAt = addedAt,
     )
 
     // -- Tests --
@@ -223,6 +231,139 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `newly added episodes appear in newEpisodes and are excluded from recentEpisodes`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val oldEpisode = makeEpisode(id = 1L, addedAt = 0L)
+        val freshEpisode = makeEpisode(id = 2L, addedAt = 5_000L)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(freshEpisode, oldEpisode)
+            newEpisodesFlow.value = listOf(freshEpisode)
+
+            val state = awaitItem()
+            assertEquals(listOf(2L), state.newEpisodes.map { it.episodeId })
+            assertEquals(listOf(1L), state.recentEpisodes.map { it.episodeId })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `surfacing new episodes advances the persisted cutoff to the highest addedAt`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val first = makeEpisode(id = 1L, addedAt = 3_000L)
+        val second = makeEpisode(id = 2L, addedAt = 7_000L)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(first, second)
+            newEpisodesFlow.value = listOf(second, first)
+
+            awaitItem()
+            advanceUntilIdle()
+
+            coVerify { preferencesManager.setHomeNewEpisodesCutoff(7_000L) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `query cutoff never exceeds the 30-minute recency floor`() = runTest {
+        // A persisted cutoff in the future (e.g. advanced by a session that died
+        // mid-refresh) must not hide episodes discovered in the last 30 minutes.
+        every { preferencesManager.homeNewEpisodesCutoff } returns MutableStateFlow(Long.MAX_VALUE)
+        val cutoffSlot = slot<Long>()
+        every { episodeDao.getEpisodesAddedSince(capture(cutoffSlot)) } returns newEpisodesFlow
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial; subscribing starts the upstream flows
+            advanceUntilIdle()
+
+            assertTrue(cutoffSlot.isCaptured)
+            assertTrue(cutoffSlot.captured <= System.currentTimeMillis() - 30 * 60 * 1000L)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `re-collection after a short absence reuses the visit cutoff`() = runTest {
+        val viewModel = createViewModel()
+
+        // First visit: subscribes the upstream flows and reads the cutoff.
+        viewModel.uiState.test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        // Let WhileSubscribed(5s) actually cancel the upstream between visits.
+        advanceTimeBy(6_000)
+
+        // Second collection moments later (same visit): must not re-read prefs.
+        viewModel.uiState.test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        advanceUntilIdle()
+
+        verify(exactly = 1) { preferencesManager.homeNewEpisodesCutoff }
+    }
+
+    @Test
+    fun `dismissNewSection persists the dismissal and re-queries with a later cutoff`() = runTest {
+        val capturedCutoffs = mutableListOf<Long>()
+        every { episodeDao.getEpisodesAddedSince(capture(capturedCutoffs)) } returns newEpisodesFlow
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial; subscribing starts the upstream flows
+            advanceUntilIdle()
+
+            viewModel.dismissNewSection()
+            advanceUntilIdle()
+
+            coVerify { preferencesManager.setHomeNewDismissedAt(any()) }
+            coVerify { preferencesManager.setHomeNewEpisodesCutoff(any()) }
+            // The hard cutoff triggers a re-query with a strictly later cutoff
+            // (the dismissal time beats the recency-floored soft cutoff).
+            assertTrue(capturedCutoffs.size >= 2)
+            assertTrue(capturedCutoffs.last() > capturedCutoffs.first())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `cutoff is not persisted when nothing new arrived`() = runTest {
+        val podcast = makePodcast(id = 1L)
+        val episode = makeEpisode(id = 1L, addedAt = 0L)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // initial
+
+            podcastsFlow.value = listOf(podcast)
+            episodesFlow.value = listOf(episode)
+
+            val state = awaitItem()
+            advanceUntilIdle()
+
+            assertTrue(state.newEpisodes.isEmpty())
+            coVerify(exactly = 0) { preferencesManager.setHomeNewEpisodesCutoff(any()) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `playEpisode calls playbackController play with correct params`() = runTest {
         val podcast = makePodcast(id = 1L, title = "Show Title", artworkUrl = "https://art.com/podcast.jpg")
         val episode = makeEpisode(
@@ -250,6 +391,63 @@ class HomeViewModelTest {
                 startPosition = 0L,
                 podcastId = 1L,
             )
+        }
+    }
+
+    @Test
+    fun `playEpisode pauses when the tapped episode is already playing`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = true)
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(5L)
+        advanceUntilIdle()
+
+        verify { playbackController.pause() }
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.resume() }
+    }
+
+    @Test
+    fun `playEpisode resumes when the tapped episode is loaded but paused`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = false)
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(5L)
+        advanceUntilIdle()
+
+        verify { playbackController.resume() }
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.pause() }
+    }
+
+    @Test
+    fun `playEpisode starts a different episode even while another is playing`() = runTest {
+        playbackStateFlow.value = PlaybackState(episodeId = 99L, isPlaying = true)
+        val podcast = makePodcast(id = 1L)
+        val episode = makeEpisode(id = 5L, podcastId = 1L)
+        coEvery { podcastDao.getByIdOnce(1L) } returns podcast
+        coEvery { episodeDao.getByIdOnce(5L) } returns episode
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(5L)
+        advanceUntilIdle()
+
+        verify { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.pause() }
+    }
+
+    @Test
+    fun `nowPlaying mirrors the playback state`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.nowPlaying.test {
+            assertEquals(NowPlayingState(), awaitItem())
+
+            playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = true)
+            assertEquals(NowPlayingState(episodeId = 5L, isPlaying = true), awaitItem())
+
+            playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = false)
+            assertEquals(NowPlayingState(episodeId = 5L, isPlaying = false), awaitItem())
         }
     }
 
