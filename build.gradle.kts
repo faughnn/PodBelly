@@ -10,6 +10,14 @@ plugins {
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.appdistribution) apply false
     alias(libs.plugins.firebase.crashlytics) apply false
+    // Applied for real (not `apply false`): the aggregated jacocoFullReport
+    // task below lives on the root project and needs the plugin's conventions
+    // (jacocoClasspath, report defaults) here, not just in subprojects.
+    jacoco
+}
+
+jacoco {
+    toolVersion = "0.8.12"
 }
 
 // ─── Unit-test coverage (JaCoCo) ────────────────────────────────────────────
@@ -88,5 +96,12 @@ tasks.register<JacocoReport>("jacocoFullReport") {
     reports {
         xml.required.set(true)
         html.required.set(true)
+        // Pinned so the CI summary/upload steps always find them.
+        xml.outputLocation.set(
+            layout.buildDirectory.file("reports/jacoco/jacocoFullReport/jacocoFullReport.xml")
+        )
+        html.outputLocation.set(
+            layout.buildDirectory.dir("reports/jacoco/jacocoFullReport/html")
+        )
     }
 }
