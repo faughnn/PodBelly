@@ -3,8 +3,8 @@ package com.podbelly.ui
 object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
-    // 73 wired up coverage reporting (CI only); no changelog entry.
-    const val LATEST_VERSION_CODE = 73
+    // 73-74 wired up coverage reporting (CI only); no changelog entries.
+    const val LATEST_VERSION_CODE = 74
 
     val changelog: Map<Int, List<String>> = mapOf(
         // 70 never shipped (CI test fix re-roll).

@@ -41,17 +41,18 @@ jobs:
       - name: Decode debug keystore
         run: echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ${{ runner.temp }}/debug.keystore
 
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
-        env:
-          DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
-
-      # Merges the per-module .exec files the test run just produced; the
-      # tests themselves are up to date, so this only builds the report.
-      - name: Generate coverage report
+      # jacocoFullReport depends on every module's testDebugUnitTest, so one
+      # invocation runs the tests and merges their coverage — a failing test
+      # still fails this step and the gate.
+      - name: Run unit tests with coverage
         run: ./gradlew jacocoFullReport
         env:
           DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
+
+      # Temporary diagnostic while the coverage wiring beds in: shows where
+      # the JaCoCo agent actually wrote its execution data.
+      - name: List coverage execution data
+        run: find . -name "*.exec" -path "*/build/*" -o -name "jacocoFullReport.xml" | head -30
 
       - name: Post coverage summary
         run: python3 scripts/coverage_summary.py build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml >> "$GITHUB_STEP_SUMMARY"

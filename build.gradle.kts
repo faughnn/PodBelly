@@ -66,7 +66,15 @@ tasks.register<JacocoReport>("jacocoFullReport") {
     dependsOn(coveredModules.map { "${it.path}:testDebugUnitTest" })
 
     executionData.setFrom(
-        fileTree(rootDir) { include("**/build/jacoco/testDebugUnitTest.exec") }
+        // The Gradle jacoco plugin writes build/jacoco/<task>.exec; AGP's own
+        // coverage support writes under build/outputs/unit_test_code_coverage.
+        // Accept either so the report never silently skips on empty data.
+        fileTree(rootDir) {
+            include(
+                "**/build/jacoco/*.exec",
+                "**/build/outputs/unit_test_code_coverage/**/*.exec",
+            )
+        }
     )
     classDirectories.setFrom(
         coveredModules.map { module ->
