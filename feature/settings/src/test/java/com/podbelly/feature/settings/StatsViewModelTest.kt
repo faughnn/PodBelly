@@ -15,6 +15,10 @@ import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastDownloadStat
 import com.podbelly.core.database.dao.PodcastEngagementStat
 import com.podbelly.core.database.dao.PodcastListeningStat
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_ALWAYS
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_NEVER
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_SMART
+import com.podbelly.core.database.entity.PodcastEntity
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -544,4 +548,47 @@ class StatsViewModelTest {
 
         coVerify { podcastDao.resubscribe(7L) }
     }
+
+    @Test
+    fun `autoDownloadModes maps every podcast to its override`() = runTest {
+        every { podcastDao.getAll() } returns kotlinx.coroutines.flow.flowOf(
+            listOf(
+                makePodcastEntity(id = 1L, autoDownloadMode = AUTO_DOWNLOAD_ALWAYS),
+                makePodcastEntity(id = 2L, autoDownloadMode = AUTO_DOWNLOAD_SMART),
+            )
+        )
+        val viewModel = createViewModel()
+
+        viewModel.autoDownloadModes.test {
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(
+                mapOf(1L to AUTO_DOWNLOAD_ALWAYS, 2L to AUTO_DOWNLOAD_SMART),
+                expectMostRecentItem(),
+            )
+        }
+    }
+
+    @Test
+    fun `setAutoDownloadMode persists the override via the dao`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.setAutoDownloadMode(7L, AUTO_DOWNLOAD_NEVER)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { podcastDao.setAutoDownloadMode(7L, AUTO_DOWNLOAD_NEVER) }
+    }
+
+    private fun makePodcastEntity(id: Long, autoDownloadMode: Int) = PodcastEntity(
+        id = id,
+        feedUrl = "https://example.com/$id",
+        title = "Show $id",
+        author = "Author",
+        description = "Description",
+        artworkUrl = "",
+        link = "",
+        language = "en",
+        lastBuildDate = 0L,
+        subscribedAt = 0L,
+        autoDownloadMode = autoDownloadMode,
+    )
 }

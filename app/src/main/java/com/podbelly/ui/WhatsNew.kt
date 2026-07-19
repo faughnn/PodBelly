@@ -4,9 +4,13 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 75
+    const val LATEST_VERSION_CODE = 76
 
     val changelog: Map<Int, List<String>> = mapOf(
+        76 to listOf(
+            "Pick exactly which shows auto-download: Settings > Downloads > Auto-download per show lists every subscription with its listening history beside a Smart / Always / Never picker",
+            "The same picker now sits on every card in Stats > Podcasts, so the least-listened list doubles as the place to mute shows you never play",
+        ),
         // 70 never shipped (CI test fix re-roll).
         71 to listOf(
             "Tapping a bottom-bar button now always brings you back to that screen's start — even from a podcast or episode page (tap again for a fresh scroll-to-top)",

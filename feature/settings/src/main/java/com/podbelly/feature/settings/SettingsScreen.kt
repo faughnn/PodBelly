@@ -96,6 +96,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit = {},
     onNavigateToPlaybackSpeeds: () -> Unit = {},
+    onNavigateToAutoDownload: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -297,6 +298,28 @@ fun SettingsScreen(
                                     subtitle = "Defer auto-downloads until the phone is plugged in",
                                     checked = uiState.smartAutoDownloadChargingOnly,
                                     onCheckedChange = { viewModel.setSmartAutoDownloadChargingOnly(it) },
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToAutoDownload() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Auto-download per show",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                Text(
+                                    text = "Always or never download specific shows, with your listening stats to guide you",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }

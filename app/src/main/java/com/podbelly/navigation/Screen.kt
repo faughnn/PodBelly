@@ -21,4 +21,5 @@ sealed class Screen(val route: String) {
     }
     data object Stats : Screen("stats")
     data object PlaybackSpeeds : Screen("playback_speeds")
+    data object AutoDownload : Screen("auto_download")
 }
