@@ -46,6 +46,22 @@ jobs:
         env:
           DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
 
+      # Merges the per-module .exec files the test run just produced; the
+      # tests themselves are up to date, so this only builds the report.
+      - name: Generate coverage report
+        run: ./gradlew jacocoFullReport
+        env:
+          DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/debug.keystore
+
+      - name: Post coverage summary
+        run: python3 scripts/coverage_summary.py build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/reports/jacoco/jacocoFullReport/html
+
       - name: Build debug APK
         run: ./gradlew assembleDebug
         env:
