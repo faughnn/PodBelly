@@ -616,13 +616,7 @@ internal fun ThemePickerRow(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = when (mode) {
-                            AppTheme.SYSTEM -> "System default"
-                            AppTheme.LIGHT -> "Light"
-                            AppTheme.DARK -> "Dark"
-                            AppTheme.OLED_DARK -> "OLED Dark"
-                            AppTheme.HIGH_CONTRAST -> "High Contrast"
-                        },
+                        text = mode.displayName,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }

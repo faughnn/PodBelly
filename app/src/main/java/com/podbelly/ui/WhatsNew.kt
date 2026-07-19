@@ -4,9 +4,12 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 78
+    const val LATEST_VERSION_CODE = 79
 
     val changelog: Map<Int, List<String>> = mapOf(
+        79 to listOf(
+            "Eleven new appearance themes in Settings > Appearance, including retro and video-game looks: Game Boy, Nintendo (NES), Super Nintendo, Commodore 64, Terminal Green, Terminal Amber, Synthwave, Vaporwave, Cyberpunk, Arcade and Dracula",
+        ),
         78 to listOf(
             "Tap the About card on the You tab for the complete version history — every update's patch notes in one scrollable list",
         ),
