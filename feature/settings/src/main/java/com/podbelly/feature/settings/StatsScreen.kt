@@ -79,6 +79,7 @@ fun StatsScreen(
     val period by viewModel.period.collectAsStateWithLifecycle()
     val engagementStats by viewModel.engagementStats.collectAsStateWithLifecycle()
     val duplicateGroups by viewModel.duplicateGroups.collectAsStateWithLifecycle()
+    val autoDownloadModes by viewModel.autoDownloadModes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -165,6 +166,10 @@ fun StatsScreen(
                 else -> PodcastEngagementTab(
                     stats = engagementStats,
                     duplicateGroups = duplicateGroups,
+                    autoDownloadModes = autoDownloadModes,
+                    onAutoDownloadModeChange = { podcastId, mode ->
+                        viewModel.setAutoDownloadMode(podcastId, mode)
+                    },
                     onMergeDuplicates = { group ->
                         viewModel.mergeDuplicates(group, keepPodcastId = group.first().podcastId)
                         scope.launch {
