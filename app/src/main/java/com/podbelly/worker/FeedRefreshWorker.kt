@@ -10,8 +10,10 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.podbelly.PodbellApp
+import com.podbelly.core.common.AutoDownloadCandidate
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.shouldAutoDownload
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
@@ -50,11 +52,14 @@ class FeedRefreshWorker @AssistedInject constructor(
             var newEpisodeCount = 0
 
             // Smart auto-download allowlist (see AppViewModel.refreshFeeds).
-            val smartDownload = preferencesManager.smartAutoDownload.first() &&
-                !downloadManager.isDownloadBlockedByWifiSetting()
-            val engagedPodcastIds = if (smartDownload) {
+            val smartEnabled = preferencesManager.smartAutoDownload.first()
+            val autoDownloadBlocked = downloadManager.isDownloadBlockedByWifiSetting() ||
+                downloadManager.isAutoDownloadBlockedByChargingSetting()
+            val keepPerShow = preferencesManager.smartAutoDownloadKeepPerShow.first()
+            val engagedPodcastIds = if (smartEnabled && !autoDownloadBlocked) {
+                val windowDays = preferencesManager.smartAutoDownloadWindowDays.first()
                 listeningSessionDao
-                    .getEngagedPodcastIds(System.currentTimeMillis() - 30L * 86_400_000L)
+                    .getEngagedPodcastIds(System.currentTimeMillis() - windowDays * 86_400_000L)
                     .toSet()
             } else emptySet()
 
@@ -119,9 +124,19 @@ class FeedRefreshWorker @AssistedInject constructor(
                     if (newEpisodes.isNotEmpty()) {
                         val insertedIds = episodeDao.insertAll(newEpisodes)
                         newEpisodeCount += newEpisodes.size
-                        if (smartDownload && podcast.id in engagedPodcastIds) {
-                            insertedIds.filter { it > 0L }
-                                .forEach { downloadManager.enqueueDownload(it) }
+                        val autoDownload = !autoDownloadBlocked && shouldAutoDownload(
+                            autoDownloadMode = podcast.autoDownloadMode,
+                            smartEnabled = smartEnabled,
+                            engaged = podcast.id in engagedPodcastIds,
+                        )
+                        if (autoDownload) {
+                            downloadManager.autoDownloadNewEpisodes(
+                                podcastId = podcast.id,
+                                inserted = newEpisodes.zip(insertedIds) { ep, id ->
+                                    AutoDownloadCandidate(id, ep.publicationDate)
+                                },
+                                keepPerShow = keepPerShow,
+                            )
                         }
 
                         // Track for notification if podcast has notifications enabled

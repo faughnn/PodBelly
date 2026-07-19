@@ -59,6 +59,10 @@ class DownloadManagerTest {
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
         every { connectivityManager.activeNetwork } returns mockNetwork
         every { connectivityManager.getNetworkCapabilities(mockNetwork) } returns mockCapabilities
+        // enqueueDownload's optimistic progress seed checks general connectivity.
+        every {
+            mockCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } returns true
         coEvery { episodeDao.getByIdOnce(1L) } returns testEpisode
     }
 
@@ -222,5 +226,71 @@ class DownloadManagerTest {
         val count = downloadManager.deleteAllDownloads()
 
         org.junit.Assert.assertEquals(0, count)
+    }
+
+    // -- Smart auto-download ------------------------------------------------
+
+    @Test
+    fun `autoDownloadNewEpisodes queues every fresh row when uncapped`() = runTest {
+        val downloadManager = createDownloadManager()
+
+        downloadManager.autoDownloadNewEpisodes(
+            podcastId = 1L,
+            inserted = listOf(
+                AutoDownloadCandidate(episodeId = 11L, publicationDate = 1000L),
+                // -1 = IGNORE conflict, the row already existed: never re-queued.
+                AutoDownloadCandidate(episodeId = -1L, publicationDate = 2000L),
+                AutoDownloadCandidate(episodeId = 12L, publicationDate = 3000L),
+            ),
+            keepPerShow = 0,
+        )
+
+        coVerify { episodeDao.markAutoDownloaded(11L) }
+        coVerify { episodeDao.markAutoDownloaded(12L) }
+        verify(exactly = 2) {
+            workManager.enqueueUniqueWork(any(), any(), any<androidx.work.OneTimeWorkRequest>())
+        }
+        // No cap, no cleanup pass.
+        coVerify(exactly = 0) { episodeDao.getAutoDownloadsBeyondNewest(any(), any()) }
+    }
+
+    @Test
+    fun `autoDownloadNewEpisodes keeps only the newest N and deletes beyond the cap`() = runTest {
+        coEvery { episodeDao.getAutoDownloadsBeyondNewest(1L, 0) } returns listOf(5L)
+        coEvery { episodeDao.getByIdOnce(5L) } returns testEpisode.copy(id = 5L, downloadPath = "")
+
+        val downloadManager = createDownloadManager()
+        downloadManager.autoDownloadNewEpisodes(
+            podcastId = 1L,
+            inserted = listOf(
+                AutoDownloadCandidate(episodeId = 11L, publicationDate = 1000L),
+                AutoDownloadCandidate(episodeId = 12L, publicationDate = 3000L),
+            ),
+            keepPerShow = 1,
+        )
+
+        // Only the newest arrival is queued...
+        coVerify { episodeDao.markAutoDownloaded(12L) }
+        coVerify(exactly = 0) { episodeDao.markAutoDownloaded(11L) }
+        // ...and the older auto-download beyond the cap is removed.
+        coVerify { episodeDao.clearDownload(5L) }
+    }
+
+    @Test
+    fun `charging-only gate blocks auto-downloads only while unplugged`() = runTest {
+        val batteryManager = mockk<android.os.BatteryManager>()
+        every { context.getSystemService(Context.BATTERY_SERVICE) } returns batteryManager
+        val downloadManager = createDownloadManager()
+
+        every { preferencesManager.smartAutoDownloadChargingOnly } returns flowOf(true)
+        every { batteryManager.isCharging } returns false
+        org.junit.Assert.assertTrue(downloadManager.isAutoDownloadBlockedByChargingSetting())
+
+        every { batteryManager.isCharging } returns true
+        org.junit.Assert.assertFalse(downloadManager.isAutoDownloadBlockedByChargingSetting())
+
+        every { preferencesManager.smartAutoDownloadChargingOnly } returns flowOf(false)
+        every { batteryManager.isCharging } returns false
+        org.junit.Assert.assertFalse(downloadManager.isAutoDownloadBlockedByChargingSetting())
     }
 }

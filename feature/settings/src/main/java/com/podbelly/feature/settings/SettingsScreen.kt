@@ -266,10 +266,40 @@ fun SettingsScreen(
 
                         SwitchRow(
                             title = "Smart auto-download",
-                            subtitle = "Download new episodes from shows you've listened to in the last 30 days",
+                            subtitle = "Download new episodes from shows you've listened to recently",
                             checked = uiState.smartAutoDownload,
                             onCheckedChange = { viewModel.setSmartAutoDownload(it) },
                         )
+
+                        AnimatedVisibility(visible = uiState.smartAutoDownload) {
+                            Column {
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                DropdownRow(
+                                    title = "Listened within",
+                                    selectedValue = formatSmartWindowDays(uiState.smartAutoDownloadWindowDays),
+                                    options = listOf("7 days", "14 days", "30 days", "60 days"),
+                                    onOptionSelected = {
+                                        viewModel.setSmartAutoDownloadWindowDays(parseSmartWindowDays(it))
+                                    },
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                DropdownRow(
+                                    title = "Keep per show",
+                                    selectedValue = formatKeepPerShow(uiState.smartAutoDownloadKeepPerShow),
+                                    options = listOf("All", "1 newest", "3 newest", "5 newest", "10 newest"),
+                                    onOptionSelected = {
+                                        viewModel.setSmartAutoDownloadKeepPerShow(parseKeepPerShow(it))
+                                    },
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                SwitchRow(
+                                    title = "Only while charging",
+                                    subtitle = "Defer auto-downloads until the phone is plugged in",
+                                    checked = uiState.smartAutoDownloadChargingOnly,
+                                    onCheckedChange = { viewModel.setSmartAutoDownloadChargingOnly(it) },
+                                )
+                            }
+                        }
 
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
@@ -732,6 +762,17 @@ private fun readTextFromUri(context: Context, uri: android.net.Uri): String? {
         null
     }
 }
+
+internal fun formatSmartWindowDays(days: Int): String = "$days days"
+
+internal fun parseSmartWindowDays(option: String): Int =
+    option.removeSuffix(" days").toIntOrNull() ?: 30
+
+internal fun formatKeepPerShow(count: Int): String =
+    if (count <= 0) "All" else "$count newest"
+
+internal fun parseKeepPerShow(option: String): Int =
+    if (option == "All") 0 else option.removeSuffix(" newest").toIntOrNull() ?: 0
 
 internal fun formatAutoDeleteDays(days: Int): String = when (days) {
     0 -> "Off"

@@ -9,6 +9,8 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_ALWAYS
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_NEVER
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.network.model.RssEpisode
@@ -17,7 +19,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,8 +58,11 @@ class AppViewModelTest {
         every { preferencesManager.feedRefreshIntervalMinutes } returns MutableStateFlow(60)
         every { preferencesManager.lastFeedRefreshAt } returns MutableStateFlow(0L)
         every { preferencesManager.smartAutoDownload } returns MutableStateFlow(false)
+        every { preferencesManager.smartAutoDownloadWindowDays } returns MutableStateFlow(30)
+        every { preferencesManager.smartAutoDownloadKeepPerShow } returns MutableStateFlow(0)
         coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns emptyList()
         coEvery { downloadManager.isDownloadBlockedByWifiSetting() } returns false
+        coEvery { downloadManager.isAutoDownloadBlockedByChargingSetting() } returns false
 
         val packageInfo = PackageInfo().apply {
             @Suppress("DEPRECATION")
@@ -344,7 +348,7 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `smart auto-download enqueues new episodes from engaged podcasts`() = runTest {
+    fun `smart auto-download queues new episodes from engaged podcasts`() = runTest {
         val podcast = makePodcast(id = 1L)
         podcastsFlow.value = listOf(podcast)
         every { preferencesManager.smartAutoDownload } returns MutableStateFlow(true)
@@ -355,8 +359,13 @@ class AppViewModelTest {
         createViewModel()
         advanceUntilIdle()
 
-        verify { downloadManager.enqueueDownload(11L) }
-        verify { downloadManager.enqueueDownload(12L) }
+        coVerify {
+            downloadManager.autoDownloadNewEpisodes(
+                podcastId = 1L,
+                inserted = match { list -> list.map { it.episodeId } == listOf(11L, 12L) },
+                keepPerShow = 0,
+            )
+        }
     }
 
     @Test
@@ -371,7 +380,7 @@ class AppViewModelTest {
         createViewModel()
         advanceUntilIdle()
 
-        verify(exactly = 0) { downloadManager.enqueueDownload(any()) }
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
     }
 
     @Test
@@ -384,6 +393,56 @@ class AppViewModelTest {
         createViewModel()
         advanceUntilIdle()
 
-        verify(exactly = 0) { downloadManager.enqueueDownload(any()) }
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
+    }
+
+    @Test
+    fun `per-show Always override downloads even with smart auto-download off`() = runTest {
+        val podcast = makePodcast(id = 1L).copy(autoDownloadMode = AUTO_DOWNLOAD_ALWAYS)
+        podcastsFlow.value = listOf(podcast)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify {
+            downloadManager.autoDownloadNewEpisodes(
+                podcastId = 1L,
+                inserted = match { list -> list.map { it.episodeId } == listOf(11L) },
+                keepPerShow = 0,
+            )
+        }
+    }
+
+    @Test
+    fun `per-show Never override blocks an engaged podcast`() = runTest {
+        val podcast = makePodcast(id = 1L).copy(autoDownloadMode = AUTO_DOWNLOAD_NEVER)
+        podcastsFlow.value = listOf(podcast)
+        every { preferencesManager.smartAutoDownload } returns MutableStateFlow(true)
+        coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns listOf(1L)
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
+    }
+
+    @Test
+    fun `charging-only gate blocks all auto-downloads`() = runTest {
+        val podcast = makePodcast(id = 1L).copy(autoDownloadMode = AUTO_DOWNLOAD_ALWAYS)
+        podcastsFlow.value = listOf(podcast)
+        every { preferencesManager.smartAutoDownload } returns MutableStateFlow(true)
+        coEvery { listeningSessionDao.getEngagedPodcastIds(any()) } returns listOf(1L)
+        coEvery { downloadManager.isAutoDownloadBlockedByChargingSetting() } returns true
+        coEvery { searchRepository.fetchFeed(any()) } returns makeRssFeed(episodeCount = 1)
+        coEvery { episodeDao.insertAll(any()) } returns listOf(11L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadManager.autoDownloadNewEpisodes(any(), any(), any()) }
     }
 }

@@ -41,6 +41,9 @@ data class SettingsUiState(
     val autoDownloadEpisodeCount: Int = 3,
     val autoDeletePlayedAfterDays: Int = 0,
     val smartAutoDownload: Boolean = false,
+    val smartAutoDownloadWindowDays: Int = 30,
+    val smartAutoDownloadKeepPerShow: Int = 0,
+    val smartAutoDownloadChargingOnly: Boolean = false,
     val downloadOnWifiOnly: Boolean = true,
     val skipSilence: Boolean = false,
     val skipAdChapters: Boolean = false,
@@ -88,6 +91,9 @@ class SettingsViewModel @Inject constructor(
             _importExportMessage,
             preferencesManager.smartAutoDownload,
             preferencesManager.skipAdChapters,
+            preferencesManager.smartAutoDownloadWindowDays,
+            preferencesManager.smartAutoDownloadKeepPerShow,
+            preferencesManager.smartAutoDownloadChargingOnly,
         ) { values ->
             @Suppress("UNCHECKED_CAST")
             SecondaryState(
@@ -97,6 +103,9 @@ class SettingsViewModel @Inject constructor(
                 importExportMessage = values[3] as? String,
                 smartAutoDownload = values[4] as Boolean,
                 skipAdChapters = values[5] as Boolean,
+                smartAutoDownloadWindowDays = values[6] as Int,
+                smartAutoDownloadKeepPerShow = values[7] as Int,
+                smartAutoDownloadChargingOnly = values[8] as Boolean,
             )
         }
     ) { partial, secondary ->
@@ -107,6 +116,9 @@ class SettingsViewModel @Inject constructor(
             autoDownloadEpisodeCount = partial.autoDownloadEpisodeCount,
             autoDeletePlayedAfterDays = partial.autoDeletePlayedAfterDays,
             smartAutoDownload = secondary.smartAutoDownload,
+            smartAutoDownloadWindowDays = secondary.smartAutoDownloadWindowDays,
+            smartAutoDownloadKeepPerShow = secondary.smartAutoDownloadKeepPerShow,
+            smartAutoDownloadChargingOnly = secondary.smartAutoDownloadChargingOnly,
             downloadOnWifiOnly = secondary.downloadOnWifiOnly,
             skipSilence = secondary.skipSilence,
             skipAdChapters = secondary.skipAdChapters,
@@ -157,6 +169,18 @@ class SettingsViewModel @Inject constructor(
 
     fun setSmartAutoDownload(enabled: Boolean) {
         viewModelScope.launch { preferencesManager.setSmartAutoDownload(enabled) }
+    }
+
+    fun setSmartAutoDownloadWindowDays(days: Int) {
+        viewModelScope.launch { preferencesManager.setSmartAutoDownloadWindowDays(days) }
+    }
+
+    fun setSmartAutoDownloadKeepPerShow(count: Int) {
+        viewModelScope.launch { preferencesManager.setSmartAutoDownloadKeepPerShow(count) }
+    }
+
+    fun setSmartAutoDownloadChargingOnly(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setSmartAutoDownloadChargingOnly(enabled) }
     }
 
     fun setFeedRefreshInterval(minutes: Int) {
@@ -337,5 +361,8 @@ class SettingsViewModel @Inject constructor(
         val importExportMessage: String?,
         val smartAutoDownload: Boolean,
         val skipAdChapters: Boolean,
+        val smartAutoDownloadWindowDays: Int,
+        val smartAutoDownloadKeepPerShow: Int,
+        val smartAutoDownloadChargingOnly: Boolean,
     )
 }

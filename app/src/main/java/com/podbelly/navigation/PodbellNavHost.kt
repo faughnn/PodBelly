@@ -100,6 +100,44 @@ private val bottomNavItems = listOf(
     BottomNavItem.Profile,
 )
 
+/**
+ * Bottom-nav tap behavior. Three cases, in order:
+ *
+ * 1. Already on the tab's root: reset it to a fresh root — scroll back to top,
+ *    search cleared (the "pop to root on reselect" pattern from Pocket Casts).
+ * 2. Somewhere above the tab's root (a podcast/episode page pushed from it, or
+ *    from another tab): pop straight back to that root. Detail routes aren't
+ *    nested under a tab in this flat graph, so the old selected-only check
+ *    never fired here and tapping used to just re-restore the detail screen.
+ *    Combined with case 1, a double-tap always lands on a fresh tab root.
+ * 3. The tab isn't on the back stack: normal tab switch, saving/restoring each
+ *    tab's state so scroll position and search text survive switching.
+ */
+internal fun NavHostController.onTabClick(route: String) {
+    val currentRoute = currentBackStackEntry?.destination?.route
+    when {
+        currentRoute == route -> navigate(route) {
+            popUpTo(route) { inclusive = true }
+            launchSingleTop = true
+        }
+        isRouteOnBackStack(route) -> popBackStack(route, inclusive = false, saveState = true)
+        else -> navigate(route) {
+            popUpTo(graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+}
+
+private fun NavHostController.isRouteOnBackStack(route: String): Boolean = try {
+    getBackStackEntry(route)
+    true
+} catch (_: IllegalArgumentException) {
+    false
+}
+
 @Composable
 fun PodbellNavHost(
     playbackController: PlaybackController,
@@ -165,30 +203,7 @@ fun PodbellNavHost(
 
                             NavigationBarItem(
                                 selected = selected,
-                                onClick = {
-                                    if (selected) {
-                                        // Re-tapping the current tab (the second tap of a
-                                        // quick double-tap) resets it to a fresh root —
-                                        // scroll back to top, search cleared — the
-                                        // "pop to root on reselect" pattern from
-                                        // Pocket Casts' bottom navigation.
-                                        navController.navigate(item.route) {
-                                            popUpTo(item.route) { inclusive = true }
-                                            launchSingleTop = true
-                                        }
-                                    } else {
-                                        navController.navigate(item.route) {
-                                            // Save/restore each tab's back stack + state so
-                                            // switching tabs doesn't reset scroll position,
-                                            // search text, or screen-scoped ViewModels.
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                },
+                                onClick = { navController.onTabClick(item.route) },
                                 icon = {
                                     Icon(
                                         imageVector = item.icon,

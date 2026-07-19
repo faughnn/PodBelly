@@ -68,4 +68,17 @@ data class PodcastEntity(
      */
     @ColumnInfo(name = "skipOutroSeconds", defaultValue = "0")
     val skipOutroSeconds: Int = 0,
+
+    /**
+     * Per-show auto-download override (Pocket Casts' per-podcast auto-download):
+     * [AUTO_DOWNLOAD_SMART] follows the global smart auto-download setting,
+     * [AUTO_DOWNLOAD_ALWAYS] downloads new episodes regardless of listening
+     * activity, [AUTO_DOWNLOAD_NEVER] never auto-downloads this show.
+     */
+    @ColumnInfo(name = "autoDownloadMode", defaultValue = "0")
+    val autoDownloadMode: Int = AUTO_DOWNLOAD_SMART,
 )
+
+const val AUTO_DOWNLOAD_SMART = 0
+const val AUTO_DOWNLOAD_ALWAYS = 1
+const val AUTO_DOWNLOAD_NEVER = 2

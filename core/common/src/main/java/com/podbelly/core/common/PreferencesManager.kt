@@ -79,6 +79,9 @@ class PreferencesManager @Inject constructor(
         val FEED_REFRESH_INTERVAL_MINUTES = intPreferencesKey("feed_refresh_interval_minutes")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
         val SMART_AUTO_DOWNLOAD = booleanPreferencesKey("smart_auto_download")
+        val SMART_AUTO_DOWNLOAD_WINDOW_DAYS = intPreferencesKey("smart_auto_download_window_days")
+        val SMART_AUTO_DOWNLOAD_KEEP_PER_SHOW = intPreferencesKey("smart_auto_download_keep_per_show")
+        val SMART_AUTO_DOWNLOAD_CHARGING_ONLY = booleanPreferencesKey("smart_auto_download_charging_only")
         val AUTO_DOWNLOAD_EPISODE_COUNT = intPreferencesKey("auto_download_episode_count")
         val AUTO_DELETE_PLAYED = booleanPreferencesKey("auto_delete_played")
         val AUTO_DELETE_PLAYED_AFTER_DAYS = intPreferencesKey("auto_delete_played_after_days")
@@ -113,6 +116,24 @@ class PreferencesManager @Inject constructor(
     /** Auto-download new episodes, but only from shows listened to recently. */
     val smartAutoDownload: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.SMART_AUTO_DOWNLOAD] ?: false
+    }
+
+    /** How recently a show must have been listened to for smart auto-download. */
+    val smartAutoDownloadWindowDays: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD_WINDOW_DAYS] ?: 30
+    }
+
+    /**
+     * Cap on auto-downloaded, unplayed episodes kept per show (newest first);
+     * 0 = unlimited. Manual downloads never count against the cap.
+     */
+    val smartAutoDownloadKeepPerShow: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD_KEEP_PER_SHOW] ?: 0
+    }
+
+    /** Defer auto-downloads until the device is charging. */
+    val smartAutoDownloadChargingOnly: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_AUTO_DOWNLOAD_CHARGING_ONLY] ?: false
     }
 
     val autoDownloadEpisodeCount: Flow<Int> = dataStore.data.map { prefs ->
@@ -218,6 +239,24 @@ class PreferencesManager @Inject constructor(
     suspend fun setSmartAutoDownload(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.SMART_AUTO_DOWNLOAD] = enabled
+        }
+    }
+
+    suspend fun setSmartAutoDownloadWindowDays(days: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD_WINDOW_DAYS] = days
+        }
+    }
+
+    suspend fun setSmartAutoDownloadKeepPerShow(count: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD_KEEP_PER_SHOW] = count
+        }
+    }
+
+    suspend fun setSmartAutoDownloadChargingOnly(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SMART_AUTO_DOWNLOAD_CHARGING_ONLY] = enabled
         }
     }
 

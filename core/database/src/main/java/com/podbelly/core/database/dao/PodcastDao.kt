@@ -74,6 +74,10 @@ interface PodcastDao {
     /** Intro/outro auto-skip settings for one podcast; null when the podcast doesn't exist. */
     @Query("SELECT skipIntroSeconds, skipOutroSeconds FROM podcasts WHERE id = :id LIMIT 1")
     suspend fun getSkipSettings(id: Long): PodcastSkipSettings?
+
+    /** Per-show auto-download override; see PodcastEntity.autoDownloadMode. */
+    @Query("UPDATE podcasts SET autoDownloadMode = :mode WHERE id = :id")
+    suspend fun setAutoDownloadMode(id: Long, mode: Int)
 }
 
 data class PodcastSkipSettings(
