@@ -25,6 +25,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Lets AGP's JaCoCo integration record unit-test coverage for the
+            // root jacocoFullReport task (see the root build file).
+            enableUnitTestCoverage = true
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

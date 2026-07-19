@@ -17,8 +17,8 @@ android {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 35
-        versionCode = 72
-        versionName = "1.6.24"
+        versionCode = 75
+        versionName = "1.6.27"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -41,6 +41,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // Unit-test coverage for the root jacocoFullReport task.
+            enableUnitTestCoverage = true
             signingConfig = signingConfigs.getByName("debug")
             firebaseAppDistribution {
                 artifactType = "APK"

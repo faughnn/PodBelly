@@ -11,6 +11,15 @@ android {
     namespace = "com.podbelly.feature.home"
     compileSdk = 35
     defaultConfig { minSdk = 26 }
+
+    buildTypes {
+        debug {
+            // Lets AGP's JaCoCo integration record unit-test coverage for the
+            // root jacocoFullReport task (see the root build file).
+            enableUnitTestCoverage = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
