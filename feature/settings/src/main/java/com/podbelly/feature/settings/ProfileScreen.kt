@@ -53,6 +53,7 @@ fun ProfileScreen(
     statsViewModel: StatsViewModel = hiltViewModel(),
     onNavigateToStats: () -> Unit = {},
     onNavigateToSection: (SettingsSection) -> Unit = {},
+    onNavigateToVersionHistory: () -> Unit = {},
 ) {
     val stats by statsViewModel.uiState.collectAsStateWithLifecycle()
     val versionName = rememberVersionName()
@@ -115,27 +116,38 @@ fun ProfileScreen(
 
             item {
                 SettingsCard {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { onNavigateToVersionHistory() }
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = "Podbelly",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = "Version $versionName",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Podbelly - Ad-free podcast player",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = "Podbelly",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "Version $versionName",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Version history & patch notes",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

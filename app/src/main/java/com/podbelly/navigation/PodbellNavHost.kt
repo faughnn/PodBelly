@@ -76,6 +76,7 @@ import com.podbelly.feature.settings.SettingsSection
 import com.podbelly.feature.settings.StatsScreen
 import com.podbelly.ui.DownloadsScreen
 import com.podbelly.ui.LibraryScreen
+import com.podbelly.ui.VersionHistoryScreen
 import com.podbelly.feature.player.MiniPlayer
 import com.podbelly.feature.player.PlayerScreen
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -283,6 +284,9 @@ fun PodbellNavHost(
                     onNavigateToSection = { section ->
                         navController.navigate(Screen.SettingsSection.createRoute(section.key))
                     },
+                    onNavigateToVersionHistory = {
+                        navController.navigate(Screen.VersionHistory.route)
+                    },
                 )
             }
 
@@ -308,6 +312,14 @@ fun PodbellNavHost(
 
             composable(Screen.AutoDownload.route) {
                 AutoDownloadScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(Screen.VersionHistory.route) {
+                VersionHistoryScreen(
                     onNavigateBack = {
                         navController.popBackStack()
                     }

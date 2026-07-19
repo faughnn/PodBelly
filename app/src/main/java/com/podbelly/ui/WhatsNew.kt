@@ -4,9 +4,12 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 77
+    const val LATEST_VERSION_CODE = 78
 
     val changelog: Map<Int, List<String>> = mapOf(
+        78 to listOf(
+            "Tap the About card on the You tab for the complete version history — every update's patch notes in one scrollable list",
+        ),
         77 to listOf(
             "The player now shows when the episode came out and how long it runs, right under the show name",
             "New Notes button on the player opens the episode's full show notes without leaving playback",
