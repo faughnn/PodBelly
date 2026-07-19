@@ -160,8 +160,29 @@ interface EpisodeDao {
     @Query("UPDATE episodes SET downloadPath = :path, fileSize = :fileSize, downloadedAt = :downloadedAt WHERE id = :id")
     suspend fun setDownloadPath(id: Long, path: String, fileSize: Long, downloadedAt: Long)
 
-    @Query("UPDATE episodes SET downloadPath = '', fileSize = 0, downloadedAt = 0 WHERE id = :id")
+    @Query("UPDATE episodes SET downloadPath = '', fileSize = 0, downloadedAt = 0, autoDownloaded = 0 WHERE id = :id")
     suspend fun clearDownload(id: Long)
+
+    /** Flags a download as auto-queued (smart auto-download); see EpisodeEntity.autoDownloaded. */
+    @Query("UPDATE episodes SET autoDownloaded = 1 WHERE id = :id")
+    suspend fun markAutoDownloaded(id: Long)
+
+    /**
+     * Auto-downloaded, unplayed downloads of one show beyond the newest [keep]
+     * (by publication date) — the ones "keep newest N per show" should delete.
+     * Manual downloads (autoDownloaded = 0) and played episodes are never returned;
+     * played ones are the auto-delete-after-N-days setting's business.
+     */
+    @Query(
+        """
+        SELECT id FROM episodes
+        WHERE podcastId = :podcastId AND downloadPath != ''
+          AND played = 0 AND autoDownloaded = 1
+        ORDER BY publicationDate DESC
+        LIMIT -1 OFFSET :keep
+        """
+    )
+    suspend fun getAutoDownloadsBeyondNewest(podcastId: Long, keep: Int): List<Long>
 
     @Query("DELETE FROM episodes WHERE podcastId = :podcastId")
     suspend fun deleteByPodcastId(podcastId: Long)

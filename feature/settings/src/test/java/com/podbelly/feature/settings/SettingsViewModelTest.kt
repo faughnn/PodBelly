@@ -54,6 +54,9 @@ class SettingsViewModelTest {
     private val autoDownloadCountFlow = MutableStateFlow(3)
     private val autoDeletePlayedAfterDaysFlow = MutableStateFlow(0)
     private val smartAutoDownloadFlow = MutableStateFlow(false)
+    private val smartWindowDaysFlow = MutableStateFlow(30)
+    private val smartKeepPerShowFlow = MutableStateFlow(0)
+    private val smartChargingOnlyFlow = MutableStateFlow(false)
     private val downloadOnWifiOnlyFlow = MutableStateFlow(true)
     private val skipSilenceFlow = MutableStateFlow(false)
     private val skipAdChaptersFlow = MutableStateFlow(false)
@@ -72,6 +75,9 @@ class SettingsViewModelTest {
         every { preferencesManager.autoDownloadEpisodeCount } returns autoDownloadCountFlow
         every { preferencesManager.autoDeletePlayedAfterDays } returns autoDeletePlayedAfterDaysFlow
         every { preferencesManager.smartAutoDownload } returns smartAutoDownloadFlow
+        every { preferencesManager.smartAutoDownloadWindowDays } returns smartWindowDaysFlow
+        every { preferencesManager.smartAutoDownloadKeepPerShow } returns smartKeepPerShowFlow
+        every { preferencesManager.smartAutoDownloadChargingOnly } returns smartChargingOnlyFlow
         every { preferencesManager.downloadOnWifiOnly } returns downloadOnWifiOnlyFlow
         every { preferencesManager.skipSilence } returns skipSilenceFlow
         every { preferencesManager.skipAdChapters } returns skipAdChaptersFlow
@@ -174,6 +180,19 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { preferencesManager.setSkipSilence(true) }
+    }
+
+    @Test
+    fun `smart auto-download setters update preferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.setSmartAutoDownloadWindowDays(14)
+        viewModel.setSmartAutoDownloadKeepPerShow(3)
+        viewModel.setSmartAutoDownloadChargingOnly(true)
+        advanceUntilIdle()
+
+        coVerify { preferencesManager.setSmartAutoDownloadWindowDays(14) }
+        coVerify { preferencesManager.setSmartAutoDownloadKeepPerShow(3) }
+        coVerify { preferencesManager.setSmartAutoDownloadChargingOnly(true) }
     }
 
     @Test

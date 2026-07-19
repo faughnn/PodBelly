@@ -397,4 +397,43 @@ class EpisodeDaoTest {
         // User state is untouched by the feed-field refresh.
         assertEquals(5000L, episode.playbackPosition)
     }
+
+    @Test
+    fun `getAutoDownloadsBeyondNewest returns only older auto-downloads past the cap`() = runTest {
+        val ids = episodeDao.insertAll(
+            listOf(
+                createEpisode(guid = "a", publicationDate = 4000L, downloadPath = "/f/a.mp3"),
+                createEpisode(guid = "b", publicationDate = 3000L, downloadPath = "/f/b.mp3"),
+                createEpisode(guid = "c", publicationDate = 2000L, downloadPath = "/f/c.mp3"),
+                // Manual download: never eligible for the cap cleanup.
+                createEpisode(guid = "d", publicationDate = 1000L, downloadPath = "/f/d.mp3"),
+                // Played: the auto-delete-after-N-days setting's business, not this one's.
+                createEpisode(guid = "e", publicationDate = 500L, downloadPath = "/f/e.mp3", played = true),
+            )
+        )
+        episodeDao.markAutoDownloaded(ids[0])
+        episodeDao.markAutoDownloaded(ids[1])
+        episodeDao.markAutoDownloaded(ids[2])
+        episodeDao.markAutoDownloaded(ids[4])
+
+        val beyond = episodeDao.getAutoDownloadsBeyondNewest(podcastId, 1)
+
+        // Newest auto-download (a) is kept; b and c are beyond the cap; d (manual)
+        // and e (played) are untouched.
+        assertEquals(listOf(ids[1], ids[2]), beyond)
+    }
+
+    @Test
+    fun `clearDownload resets the autoDownloaded flag`() = runTest {
+        val ids = episodeDao.insertAll(
+            listOf(createEpisode(guid = "a", publicationDate = 1000L, downloadPath = "/f/a.mp3"))
+        )
+        episodeDao.markAutoDownloaded(ids[0])
+        assertEquals(listOf(ids[0]), episodeDao.getAutoDownloadsBeyondNewest(podcastId, 0))
+
+        episodeDao.clearDownload(ids[0])
+
+        assertTrue(episodeDao.getAutoDownloadsBeyondNewest(podcastId, 0).isEmpty())
+        assertEquals(false, episodeDao.getByIdOnce(ids[0])!!.autoDownloaded)
+    }
 }

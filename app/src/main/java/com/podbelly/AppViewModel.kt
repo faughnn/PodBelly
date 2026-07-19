@@ -4,9 +4,11 @@ import android.app.Application
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.podbelly.core.common.AutoDownloadCandidate
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.common.RefreshProgress
+import com.podbelly.core.common.shouldAutoDownload
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
@@ -140,13 +142,17 @@ class AppViewModel @Inject constructor(
                 // safe now that feeds stream straight into the parser (memory per
                 // in-flight feed is just its parsed episodes, bounded by the 10MB
                 // read cap) — buffering whole documents was the old reason for 5.
-                // Smart auto-download: new arrivals from shows listened to in the
-                // last 30 days start downloading as soon as the refresh finds them.
-                val smartDownload = preferencesManager.smartAutoDownload.first() &&
-                    !downloadManager.isDownloadBlockedByWifiSetting()
-                val engagedPodcastIds = if (smartDownload) {
+                // Smart auto-download: new arrivals from engaged shows (or per-show
+                // Always overrides) start downloading as soon as the refresh finds
+                // them, unless the Wi-Fi or charging gate blocks auto-downloads.
+                val smartEnabled = preferencesManager.smartAutoDownload.first()
+                val autoDownloadBlocked = downloadManager.isDownloadBlockedByWifiSetting() ||
+                    downloadManager.isAutoDownloadBlockedByChargingSetting()
+                val keepPerShow = preferencesManager.smartAutoDownloadKeepPerShow.first()
+                val engagedPodcastIds = if (smartEnabled && !autoDownloadBlocked) {
+                    val windowDays = preferencesManager.smartAutoDownloadWindowDays.first()
                     listeningSessionDao
-                        .getEngagedPodcastIds(System.currentTimeMillis() - 30L * 86_400_000L)
+                        .getEngagedPodcastIds(System.currentTimeMillis() - windowDays * 86_400_000L)
                         .toSet()
                 } else emptySet()
 
@@ -216,9 +222,19 @@ class AppViewModel @Inject constructor(
                                 if (newEpisodes.isNotEmpty()) {
                                     val insertedIds = episodeDao.insertAll(newEpisodes)
                                     insertCounts.addAndGet(newEpisodes.size)
-                                    if (smartDownload && podcast.id in engagedPodcastIds) {
-                                        insertedIds.filter { it > 0L }
-                                            .forEach { downloadManager.enqueueDownload(it) }
+                                    val autoDownload = !autoDownloadBlocked && shouldAutoDownload(
+                                        autoDownloadMode = podcast.autoDownloadMode,
+                                        smartEnabled = smartEnabled,
+                                        engaged = podcast.id in engagedPodcastIds,
+                                    )
+                                    if (autoDownload) {
+                                        downloadManager.autoDownloadNewEpisodes(
+                                            podcastId = podcast.id,
+                                            inserted = newEpisodes.zip(insertedIds) { ep, id ->
+                                                AutoDownloadCandidate(id, ep.publicationDate)
+                                            },
+                                            keepPerShow = keepPerShow,
+                                        )
                                     }
                                 }
 

@@ -6,6 +6,7 @@ import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_NEVER
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.network.api.PodcastSearchRepository
@@ -420,6 +421,18 @@ class PodcastDetailViewModelTest {
 
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    // -- auto-download override tests --
+
+    @Test
+    fun `setAutoDownloadMode persists the per-show override`() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.setAutoDownloadMode(AUTO_DOWNLOAD_NEVER)
+        advanceUntilIdle()
+
+        coVerify { podcastDao.setAutoDownloadMode(1L, AUTO_DOWNLOAD_NEVER) }
     }
 
     // -- unsubscribe tests --

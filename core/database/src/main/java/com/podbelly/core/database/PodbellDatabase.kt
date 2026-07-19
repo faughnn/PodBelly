@@ -23,7 +23,7 @@ import com.podbelly.core.database.entity.QueueItemEntity
         ListeningSessionEntity::class,
         DownloadErrorEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class PodbellDatabase : RoomDatabase() {
@@ -34,6 +34,22 @@ abstract class PodbellDatabase : RoomDatabase() {
     abstract fun duplicateMergeDao(): DuplicateMergeDao
 
     companion object {
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Per-show auto-download override: 0 = follow the smart setting,
+                // 1 = always download new episodes, 2 = never (Pocket Casts'
+                // per-podcast auto-download pattern).
+                db.execSQL(
+                    "ALTER TABLE podcasts ADD COLUMN autoDownloadMode INTEGER NOT NULL DEFAULT 0"
+                )
+                // Marks downloads queued automatically, so the "keep newest N per
+                // show" cleanup never touches downloads the user started manually.
+                db.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN autoDownloaded INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Time saved by per-podcast intro/outro auto-skip, accumulated onto

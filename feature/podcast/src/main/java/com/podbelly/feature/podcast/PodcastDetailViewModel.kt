@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_SMART
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.common.DownloadErrorEvent
@@ -38,6 +39,7 @@ data class PodcastUiModel(
     val notifyNewEpisodes: Boolean = true,
     val skipIntroSeconds: Int = 0,
     val skipOutroSeconds: Int = 0,
+    val autoDownloadMode: Int = AUTO_DOWNLOAD_SMART,
 )
 
 data class EpisodeUiModel(
@@ -98,6 +100,7 @@ class PodcastDetailViewModel @Inject constructor(
                 notifyNewEpisodes = it.notifyNewEpisodes,
                 skipIntroSeconds = it.skipIntroSeconds,
                 skipOutroSeconds = it.skipOutroSeconds,
+                autoDownloadMode = it.autoDownloadMode,
             )
         }
 
@@ -244,6 +247,13 @@ class PodcastDetailViewModel @Inject constructor(
 
     fun setFilter(filter: EpisodeFilter) {
         _filter.value = filter
+    }
+
+    /** Per-show auto-download override; see PodcastEntity.autoDownloadMode. */
+    fun setAutoDownloadMode(mode: Int) {
+        viewModelScope.launch {
+            podcastDao.setAutoDownloadMode(podcastId, mode)
+        }
     }
 
     fun toggleNotifications() {

@@ -158,6 +158,67 @@ class NavigationTest {
     }
 
     @Test
+    fun `tapping the current tab from a detail screen pops back to that tab's root`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Library.route)
+            navController.navigate(Screen.PodcastDetail.createRoute(42L))
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Library.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Library.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
+    fun `double-tapping a tab from a detail screen lands on a fresh tab root`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Library.route)
+            navController.navigate(Screen.PodcastDetail.createRoute(42L))
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Library.route)
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Library.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Library.route, navController.currentBackStackEntry?.destination?.route)
+            // The detail screen is gone from the back stack: back returns to Home.
+            navController.popBackStack()
+            assertEquals(Screen.Home.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
+    fun `tapping a different tab from a detail screen leaves the detail stack`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Library.route)
+            navController.navigate(Screen.PodcastDetail.createRoute(42L))
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Home.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Home.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
+    fun `reselecting a tab on its own root resets it in place`() {
+        composeTestRule.runOnIdle {
+            navController.navigate(Screen.Discover.route)
+        }
+        composeTestRule.runOnIdle {
+            navController.onTabClick(Screen.Discover.route)
+        }
+        composeTestRule.runOnIdle {
+            assertEquals(Screen.Discover.route, navController.currentBackStackEntry?.destination?.route)
+        }
+    }
+
+    @Test
     fun `PodcastDetail route extracts podcastId correctly`() {
         assertEquals("podcast/99", Screen.PodcastDetail.createRoute(99L))
         assertEquals("podcast/0", Screen.PodcastDetail.createRoute(0L))

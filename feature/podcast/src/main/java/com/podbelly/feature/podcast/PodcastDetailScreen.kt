@@ -65,9 +65,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import com.podbelly.core.common.AutoDownloadModeDialog
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.common.SkipIntroOutroDialog
+import com.podbelly.core.database.entity.AUTO_DOWNLOAD_SMART
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +83,7 @@ fun PodcastDetailScreen(
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showSkipSettings by remember { mutableStateOf(false) }
+    var showAutoDownloadSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.downloadErrors.collect { error ->
@@ -101,6 +104,7 @@ fun PodcastDetailScreen(
                 onNavigateBack = onNavigateBack,
                 onToggleNotifications = { viewModel.toggleNotifications() },
                 onSkipSettings = { showSkipSettings = true },
+                onAutoDownloadSettings = { showAutoDownloadSettings = true },
                 onUnsubscribe = {
                     viewModel.unsubscribe()
                     onNavigateBack()
@@ -162,6 +166,14 @@ fun PodcastDetailScreen(
             onDismiss = { showSkipSettings = false },
         )
     }
+
+    if (showAutoDownloadSettings) {
+        AutoDownloadModeDialog(
+            currentMode = uiState.podcast?.autoDownloadMode ?: AUTO_DOWNLOAD_SMART,
+            onSelect = { viewModel.setAutoDownloadMode(it) },
+            onDismiss = { showAutoDownloadSettings = false },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,6 +184,7 @@ private fun PodcastDetailTopBar(
     onNavigateBack: () -> Unit,
     onToggleNotifications: () -> Unit,
     onSkipSettings: () -> Unit,
+    onAutoDownloadSettings: () -> Unit,
     onUnsubscribe: () -> Unit,
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -231,6 +244,13 @@ private fun PodcastDetailTopBar(
                         onClick = {
                             showOverflowMenu = false
                             onSkipSettings()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Auto-download") },
+                        onClick = {
+                            showOverflowMenu = false
+                            onAutoDownloadSettings()
                         }
                     )
                     DropdownMenuItem(

@@ -88,6 +88,16 @@ data class EpisodeEntity(
     /** MIME type declared for [transcriptUrl] (e.g. "text/vtt"); empty when unknown. */
     @ColumnInfo(name = "transcriptType", defaultValue = "")
     val transcriptType: String = "",
+
+    /**
+     * True when the download was queued automatically (smart auto-download or a
+     * per-show Always override) rather than by the user. Only auto-downloaded,
+     * unplayed episodes are eligible for the "keep newest N per show" cleanup, so
+     * manual downloads are never deleted behind the user's back. Cleared again by
+     * `EpisodeDao.clearDownload`.
+     */
+    @ColumnInfo(name = "autoDownloaded", defaultValue = "0")
+    val autoDownloaded: Boolean = false,
 )
 
 /**
