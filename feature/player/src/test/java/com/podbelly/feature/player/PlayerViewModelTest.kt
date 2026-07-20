@@ -444,6 +444,49 @@ class PlayerViewModelTest {
     )
 
     @Test
+    fun `episodeInfo follows the playing episode`() = runTest {
+        every { episodeDao.getById(5L) } returns MutableStateFlow(
+            com.podbelly.core.database.entity.EpisodeEntity(
+                id = 5L,
+                podcastId = 7L,
+                guid = "g5",
+                title = "Episode 5",
+                description = "<p>Show notes</p>",
+                audioUrl = "https://a.com/5.mp3",
+                publicationDate = 123_000L,
+                durationSeconds = 3600,
+                artworkUrl = "",
+            )
+        )
+        playbackStateFlow.value = PlaybackState(episodeId = 5L)
+
+        val viewModel = createViewModel()
+
+        viewModel.episodeInfo.test {
+            assertEquals(null, awaitItem())
+            assertEquals(
+                PlayingEpisodeInfo(
+                    publicationDate = 123_000L,
+                    durationSeconds = 3600,
+                    description = "<p>Show notes</p>",
+                ),
+                awaitItem(),
+            )
+        }
+    }
+
+    @Test
+    fun `showEpisodeNotes and hideEpisodeNotes toggle the sheet`() = runTest {
+        val viewModel = createViewModel()
+
+        assertFalse(viewModel.episodeNotesVisible.value)
+        viewModel.showEpisodeNotes()
+        assertTrue(viewModel.episodeNotesVisible.value)
+        viewModel.hideEpisodeNotes()
+        assertFalse(viewModel.episodeNotesVisible.value)
+    }
+
+    @Test
     fun `skipSettings follows the playing podcast`() = runTest {
         every { podcastDao.getById(7L) } returns
             MutableStateFlow(makePodcast(id = 7L, skipIntro = 15, skipOutro = 45))

@@ -4,9 +4,58 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 75
+    // 83-84 were docs-only (CLAUDE.md); no changelog entries.
+    const val LATEST_VERSION_CODE = 85
 
     val changelog: Map<Int, List<String>> = mapOf(
+        85 to listOf(
+            "Tidied up the theme list: trimmed a batch of near-duplicate themes so the Appearance picker is easier to browse (if you were on one of the removed themes, the app falls back to System default)",
+        ),
+        82 to listOf(
+            "Ten more theme categories in Settings > Appearance — over 50 new looks to explore",
+            "Cinema & Sci-Fi and Anime & Manga: Lightsaber, Xenomorph, Grid Rider, Red Eye, Spice Planet, Shonen, Magical Girl, Mecha, Ink Wash and Cyber Ronin",
+            "Y2K / Frutiger Aero: Aqua Gel, Lime Gloss, Chrome, Bubble Blue and Frost Glass",
+            "Weather & Sky and Space extras: Storm, Golden Hour, Fog, Rainbow and Clear Night",
+            "Fantasy & RPG: Dungeon, Elven, Dragonfire, Potion, Mana Blue and Necromancer",
+            "Gemstones and Materials & Metals: Amethyst, Sapphire, Ruby, Jade, Opal, Gold, Rose Gold, Copper, Gunmetal, Emerald and Obsidian",
+            "Food & Drink: Matcha, Coffee, Watermelon, Neapolitan, Blood Orange and Mango",
+            "Seasonal & Holiday: Halloween, Christmas, Autumn, Winter Frost, Spring Bloom and Valentine",
+            "Mood & Focus: Calm, Energize, Deep Focus, Cozy and Night Shift (a warm, low-blue-light theme for night listening)",
+        ),
+        81 to listOf(
+            "Six more theme categories with dozens of new looks to try in Settings > Appearance",
+            "Modern Consoles: PlayStation, Xbox, Nintendo Switch, Dreamcast, GameCube and Steam Deck",
+            "Game Worlds: colourful looks inspired by famous games — Blocky Overworld, Rip & Tear, Test Chamber, Hero of Time, Monster Trainer, Blue Blur and Pip Terminal",
+            "Music & Audio: Vinyl, Lo-fi, Jazz Club, Punk and Radio Static",
+            "Space & Cosmic: Nebula, Mars, Galaxy, Solar Flare and Deep Space",
+            "Pastel & Soft: Cotton Candy, Catppuccin, Bubblegum, Pastel Goth and Mint",
+            "Monochrome & Minimal: Grayscale, Sepia, E-Ink, Newspaper and Blueprint",
+        ),
+        80 to listOf(
+            "The theme picker is now organised into browsable categories with a colour preview beside each theme — tap a category to expand it",
+            "Loads more themes to choose from, grouped as Classic, Retro Consoles, Arcade, Retro Computing & Terminals, Synthwave & Aesthetic, Developer and Nature & Scenic",
+            "New retro-console looks: Game Boy Color, Sega Genesis, Virtual Boy and Atari 2600",
+            "New arcade looks: Space Invaders, Tetris, Donkey Kong, Neon Cabinet and Frogger",
+            "New retro-computing looks: MS-DOS, ZX Spectrum, Amiga Workbench and Apple II",
+            "New synthwave & aesthetic looks: Outrun, Miami Vice, Hologram and Laser Grid",
+            "New developer looks: Nord, Gruvbox, Solarized Dark, Solarized Light, Monokai and Tokyo Night",
+            "New nature looks: Forest, Deep Ocean, Sunset, Aurora, Cherry Blossom and Desert",
+        ),
+        79 to listOf(
+            "Eleven new appearance themes in Settings > Appearance, including retro and video-game looks: Game Boy, Nintendo (NES), Super Nintendo, Commodore 64, Terminal Green, Terminal Amber, Synthwave, Vaporwave, Cyberpunk, Arcade and Dracula",
+        ),
+        78 to listOf(
+            "Tap the About card on the You tab for the complete version history — every update's patch notes in one scrollable list",
+        ),
+        77 to listOf(
+            "The player now shows when the episode came out and how long it runs, right under the show name",
+            "New Notes button on the player opens the episode's full show notes without leaving playback",
+            "The transcript button is now labelled \"Transcript\" instead of a bare icon, so it's easier to spot on shows that provide one",
+        ),
+        76 to listOf(
+            "Pick exactly which shows auto-download: Settings > Downloads > Auto-download per show lists every subscription with its listening history beside a Smart / Always / Never picker",
+            "The same picker now sits on every card in Stats > Podcasts, so the least-listened list doubles as the place to mute shows you never play",
+        ),
         // 70 never shipped (CI test fix re-roll).
         71 to listOf(
             "Tapping a bottom-bar button now always brings you back to that screen's start — even from a podcast or episode page (tap again for a fresh scroll-to-top)",

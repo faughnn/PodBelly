@@ -41,12 +41,167 @@ enum class DownloadsSortOrder {
     }
 }
 
+/**
+ * Stable identity for each selectable appearance theme; persisted by name, so
+ * entries must not be renamed. Display name, category and colors live in the
+ * theme catalog (see [com.podbelly.core.common.theme.ThemeCatalog]).
+ */
 enum class AppTheme {
+    // Classic
     SYSTEM,
     LIGHT,
     DARK,
-    OLED_DARK,
-    HIGH_CONTRAST;
+    HIGH_CONTRAST,
+
+    // Retro consoles
+    GAME_BOY,
+    GAME_BOY_COLOR,
+    NES,
+    SNES,
+    SEGA_GENESIS,
+    VIRTUAL_BOY,
+    ATARI_2600,
+
+    // Arcade
+    ARCADE,
+    SPACE_INVADERS,
+    TETRIS,
+    DONKEY_KONG,
+    NEON_CABINET,
+    FROGGER,
+
+    // Retro computing & terminals
+    COMMODORE_64,
+    TERMINAL_GREEN,
+    TERMINAL_AMBER,
+    MS_DOS,
+    ZX_SPECTRUM,
+    AMIGA,
+    APPLE_II,
+
+    // Synthwave & aesthetic
+    SYNTHWAVE,
+    VAPORWAVE,
+    CYBERPUNK,
+    OUTRUN,
+    MIAMI_VICE,
+    HOLOGRAM,
+
+    // Developer
+    DRACULA,
+    NORD,
+    GRUVBOX,
+    SOLARIZED_DARK,
+    SOLARIZED_LIGHT,
+    MONOKAI,
+    TOKYO_NIGHT,
+
+    // Nature & scenic
+    FOREST,
+    DEEP_OCEAN,
+    SUNSET,
+    AURORA,
+    CHERRY_BLOSSOM,
+    DESERT,
+
+    // Modern consoles
+    PLAYSTATION,
+    XBOX,
+    NINTENDO_SWITCH,
+    DREAMCAST,
+    GAMECUBE,
+    STEAM_DECK,
+
+    // Game worlds (inspired-by)
+    BLOCKY_OVERWORLD,
+    RIP_AND_TEAR,
+    TEST_CHAMBER,
+    HERO_OF_TIME,
+    MONSTER_TRAINER,
+    BLUE_BLUR,
+    PIP_TERMINAL,
+
+    // Music & audio
+    LOFI,
+    PUNK,
+
+    // Space & cosmic
+    NEBULA,
+    MARS,
+    GALAXY,
+    DEEP_SPACE,
+
+    // Pastel & soft
+    BUBBLEGUM,
+    MINT,
+
+    // Monochrome & minimal
+    GRAYSCALE,
+    SEPIA,
+    E_INK,
+    NEWSPAPER,
+    BLUEPRINT,
+
+    // Cinema & sci-fi (inspired-by)
+    LIGHTSABER,
+    XENOMORPH,
+    GRID_RIDER,
+    RED_EYE,
+    SPICE_PLANET,
+
+    // Anime & manga
+    SHONEN,
+    MECHA,
+    CYBER_RONIN,
+
+    // Y2K / Frutiger Aero
+    AQUA_GEL,
+    LIME_GLOSS,
+    CHROME,
+    BUBBLE_BLUE,
+    FROST_GLASS,
+
+    // Weather & sky
+    STORM,
+    GOLDEN_HOUR,
+    RAINBOW,
+    CLEAR_NIGHT,
+
+    // Fantasy & RPG
+    DUNGEON,
+    POTION,
+    MANA_BLUE,
+    NECROMANCER,
+
+    // Gemstones
+    AMETHYST,
+    SAPPHIRE,
+    RUBY,
+    OPAL,
+
+    // Materials & metals
+    GOLD,
+    ROSE_GOLD,
+    COPPER,
+    OBSIDIAN,
+
+    // Food & drink
+    MATCHA,
+    COFFEE,
+    WATERMELON,
+    NEAPOLITAN,
+    BLOOD_ORANGE,
+    MANGO,
+
+    // Seasonal & holiday
+    HALLOWEEN,
+    CHRISTMAS,
+    AUTUMN,
+    VALENTINE,
+
+    // Mood & focus
+    ENERGIZE,
+    NIGHT_SHIFT;
 
     companion object {
         fun fromString(value: String): AppTheme {

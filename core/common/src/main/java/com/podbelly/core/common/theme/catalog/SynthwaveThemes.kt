@@ -1,0 +1,157 @@
+package com.podbelly.core.common.theme.catalog
+
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.ui.graphics.Color
+import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.theme.ThemeCategory
+import com.podbelly.core.common.theme.ThemeSpec
+
+object SynthwaveThemes {
+
+    private val synthwaveScheme = darkColorScheme(
+        primary = Color(0xFFFF2E97),
+        onPrimary = Color(0xFF1A0B2E),
+        primaryContainer = Color(0xFF5C0A3D),
+        onPrimaryContainer = Color(0xFFFFB3DC),
+        secondary = Color(0xFF00E5FF),
+        onSecondary = Color(0xFF001F26),
+        secondaryContainer = Color(0xFF0A3D47),
+        onSecondaryContainer = Color(0xFF9CF3FF),
+        tertiary = Color(0xFFFF9E00),
+        onTertiary = Color(0xFF241400),
+        tertiaryContainer = Color(0xFF5C3A00),
+        onTertiaryContainer = Color(0xFFFFDDA8),
+        background = Color(0xFF1A0B2E),
+        onBackground = Color(0xFFF0E6FF),
+        surface = Color(0xFF241245),
+        onSurface = Color(0xFFF0E6FF),
+        surfaceVariant = Color(0xFF33195C),
+        onSurfaceVariant = Color(0xFFC7A8F0),
+        outline = Color(0xFFFF2E97),
+        outlineVariant = Color(0xFF3D1F5C),
+    )
+
+    private val vaporwaveScheme = darkColorScheme(
+        primary = Color(0xFFFF6AD5),
+        onPrimary = Color(0xFF2B1B3D),
+        primaryContainer = Color(0xFF6B2E5C),
+        onPrimaryContainer = Color(0xFFFFD1F0),
+        secondary = Color(0xFF94D0FF),
+        onSecondary = Color(0xFF0A2138),
+        secondaryContainer = Color(0xFF2E4A6B),
+        onSecondaryContainer = Color(0xFFD1E8FF),
+        tertiary = Color(0xFFC774E8),
+        onTertiary = Color(0xFF2B1B3D),
+        tertiaryContainer = Color(0xFF4A2E5C),
+        onTertiaryContainer = Color(0xFFF0D1FF),
+        background = Color(0xFF2B1B3D),
+        onBackground = Color(0xFFF5E6FF),
+        surface = Color(0xFF352447),
+        onSurface = Color(0xFFF5E6FF),
+        surfaceVariant = Color(0xFF43305A),
+        onSurfaceVariant = Color(0xFFCDB3E0),
+        outline = Color(0xFF94D0FF),
+        outlineVariant = Color(0xFF43305A),
+    )
+
+    private val cyberpunkScheme = darkColorScheme(
+        primary = Color(0xFFFCEE0A),
+        onPrimary = Color(0xFF14160A),
+        primaryContainer = Color(0xFF3D3A00),
+        onPrimaryContainer = Color(0xFFFFF69C),
+        secondary = Color(0xFF00F0FF),
+        onSecondary = Color(0xFF001F24),
+        secondaryContainer = Color(0xFF00363D),
+        onSecondaryContainer = Color(0xFF9CF6FF),
+        tertiary = Color(0xFFFF003C),
+        onTertiary = Color(0xFFFFFFFF),
+        tertiaryContainer = Color(0xFF5C0016),
+        onTertiaryContainer = Color(0xFFFFB3C2),
+        background = Color(0xFF0A0E12),
+        onBackground = Color(0xFFE6F7FA),
+        surface = Color(0xFF12181F),
+        onSurface = Color(0xFFE6F7FA),
+        surfaceVariant = Color(0xFF1C242D),
+        onSurfaceVariant = Color(0xFF8FA5B0),
+        outline = Color(0xFF00F0FF),
+        outlineVariant = Color(0xFF1C242D),
+    )
+
+    private val outrunScheme = darkColorScheme(
+        primary = Color(0xFFFF1E56),
+        onPrimary = Color(0xFF2B0011),
+        primaryContainer = Color(0xFF6B0A28),
+        onPrimaryContainer = Color(0xFFFFB3C6),
+        secondary = Color(0xFFFF8A00),
+        onSecondary = Color(0xFF2B1500),
+        secondaryContainer = Color(0xFF5C3200),
+        onSecondaryContainer = Color(0xFFFFD9A8),
+        tertiary = Color(0xFF7A1FA2),
+        onTertiary = Color(0xFFF7E6FF),
+        tertiaryContainer = Color(0xFF3D0F52),
+        onTertiaryContainer = Color(0xFFE9BBFF),
+        background = Color(0xFF1A0526),
+        onBackground = Color(0xFFF7E6FF),
+        surface = Color(0xFF260B36),
+        onSurface = Color(0xFFF7E6FF),
+        surfaceVariant = Color(0xFF361348),
+        onSurfaceVariant = Color(0xFFCBA8E0),
+        outline = Color(0xFFFF8A00),
+        outlineVariant = Color(0xFF3D1552),
+    )
+
+    private val miamiViceScheme = darkColorScheme(
+        primary = Color(0xFFFF6F9C),
+        onPrimary = Color(0xFF2E0716),
+        primaryContainer = Color(0xFF5C1A38),
+        onPrimaryContainer = Color(0xFFFFC7D9),
+        secondary = Color(0xFF19E5C6),
+        onSecondary = Color(0xFF00201B),
+        secondaryContainer = Color(0xFF00403A),
+        onSecondaryContainer = Color(0xFFA8FFF0),
+        tertiary = Color(0xFFB0A8FF),
+        onTertiary = Color(0xFF16123D),
+        tertiaryContainer = Color(0xFF302B5C),
+        onTertiaryContainer = Color(0xFFDDD8FF),
+        background = Color(0xFF10262E),
+        onBackground = Color(0xFFE6FAF7),
+        surface = Color(0xFF163540),
+        onSurface = Color(0xFFE6FAF7),
+        surfaceVariant = Color(0xFF1E4652),
+        onSurfaceVariant = Color(0xFFA8CBD1),
+        outline = Color(0xFF19E5C6),
+        outlineVariant = Color(0xFF1E4652),
+    )
+
+    private val hologramScheme = darkColorScheme(
+        primary = Color(0xFF6EF0FF),
+        onPrimary = Color(0xFF00252E),
+        primaryContainer = Color(0xFF0A4552),
+        onPrimaryContainer = Color(0xFFBBF6FF),
+        secondary = Color(0xFFB388FF),
+        onSecondary = Color(0xFF1B0A3D),
+        secondaryContainer = Color(0xFF33205C),
+        onSecondaryContainer = Color(0xFFE0D1FF),
+        tertiary = Color(0xFFFF9EEA),
+        onTertiary = Color(0xFF2E0A26),
+        tertiaryContainer = Color(0xFF521A47),
+        onTertiaryContainer = Color(0xFFFFD1F5),
+        background = Color(0xFF060812),
+        onBackground = Color(0xFFE6EEFF),
+        surface = Color(0xFF0E121F),
+        onSurface = Color(0xFFE6EEFF),
+        surfaceVariant = Color(0xFF181D2E),
+        onSurfaceVariant = Color(0xFFA8B0CB),
+        outline = Color(0xFF6EF0FF),
+        outlineVariant = Color(0xFF181D2E),
+    )
+
+    val specs: List<ThemeSpec> = listOf(
+        ThemeSpec(AppTheme.SYNTHWAVE, "Synthwave", ThemeCategory.SYNTHWAVE, synthwaveScheme),
+        ThemeSpec(AppTheme.VAPORWAVE, "Vaporwave", ThemeCategory.SYNTHWAVE, vaporwaveScheme),
+        ThemeSpec(AppTheme.CYBERPUNK, "Cyberpunk", ThemeCategory.SYNTHWAVE, cyberpunkScheme),
+        ThemeSpec(AppTheme.OUTRUN, "Outrun", ThemeCategory.SYNTHWAVE, outrunScheme),
+        ThemeSpec(AppTheme.MIAMI_VICE, "Miami Vice", ThemeCategory.SYNTHWAVE, miamiViceScheme),
+        ThemeSpec(AppTheme.HOLOGRAM, "Hologram", ThemeCategory.SYNTHWAVE, hologramScheme),
+    )
+}

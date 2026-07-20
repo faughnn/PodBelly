@@ -176,6 +176,25 @@ class StatsViewModel @Inject constructor(
                 initialValue = emptyList(),
             )
 
+    /**
+     * Per-show auto-download modes, so the Podcasts tab can offer the
+     * Smart/Always/Never picker right where the listening evidence is.
+     */
+    val autoDownloadModes: StateFlow<Map<Long, Int>> =
+        podcastDao.getAll()
+            .map { podcasts -> podcasts.associate { it.id to it.autoDownloadMode } }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyMap(),
+            )
+
+    fun setAutoDownloadMode(podcastId: Long, mode: Int) {
+        viewModelScope.launch {
+            podcastDao.setAutoDownloadMode(podcastId, mode)
+        }
+    }
+
     fun unsubscribe(podcastId: Long) {
         viewModelScope.launch {
             podcastDao.unsubscribe(podcastId)

@@ -68,6 +68,7 @@ import com.podbelly.feature.discover.DiscoverScreen
 import com.podbelly.feature.home.HomeScreen
 import com.podbelly.feature.podcast.EpisodeDetailScreen
 import com.podbelly.feature.podcast.PodcastDetailScreen
+import com.podbelly.feature.settings.AutoDownloadScreen
 import com.podbelly.feature.settings.PlaybackSpeedScreen
 import com.podbelly.feature.settings.ProfileScreen
 import com.podbelly.feature.settings.SettingsScreen
@@ -75,6 +76,7 @@ import com.podbelly.feature.settings.SettingsSection
 import com.podbelly.feature.settings.StatsScreen
 import com.podbelly.ui.DownloadsScreen
 import com.podbelly.ui.LibraryScreen
+import com.podbelly.ui.VersionHistoryScreen
 import com.podbelly.feature.player.MiniPlayer
 import com.podbelly.feature.player.PlayerScreen
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -282,6 +284,9 @@ fun PodbellNavHost(
                     onNavigateToSection = { section ->
                         navController.navigate(Screen.SettingsSection.createRoute(section.key))
                     },
+                    onNavigateToVersionHistory = {
+                        navController.navigate(Screen.VersionHistory.route)
+                    },
                 )
             }
 
@@ -299,6 +304,25 @@ fun PodbellNavHost(
                     onNavigateToPlaybackSpeeds = {
                         navController.navigate(Screen.PlaybackSpeeds.route)
                     },
+                    onNavigateToAutoDownload = {
+                        navController.navigate(Screen.AutoDownload.route)
+                    },
+                )
+            }
+
+            composable(Screen.AutoDownload.route) {
+                AutoDownloadScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(Screen.VersionHistory.route) {
+                VersionHistoryScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
                 )
             }
 

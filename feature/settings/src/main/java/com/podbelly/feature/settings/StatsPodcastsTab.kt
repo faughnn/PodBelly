@@ -66,6 +66,8 @@ internal fun PodcastEngagementTab(
     onPodcastClick: (Long) -> Unit = {},
     duplicateGroups: List<List<PodcastEngagementStat>> = emptyList(),
     onMergeDuplicates: (List<PodcastEngagementStat>) -> Unit = {},
+    autoDownloadModes: Map<Long, Int> = emptyMap(),
+    onAutoDownloadModeChange: (Long, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     var sort by rememberSaveable { mutableStateOf(EngagementSort.LEAST_LISTENED) }
@@ -168,6 +170,10 @@ internal fun PodcastEngagementTab(
                 stat = stat,
                 onClick = { onPodcastClick(stat.podcastId) },
                 onUnsubscribeClick = { confirmTarget = stat },
+                autoDownloadMode = autoDownloadModes[stat.podcastId],
+                onAutoDownloadModeChange = { mode ->
+                    onAutoDownloadModeChange(stat.podcastId, mode)
+                },
             )
         }
     }
@@ -340,6 +346,8 @@ internal fun PodcastEngagementCard(
     stat: PodcastEngagementStat,
     onUnsubscribeClick: () -> Unit,
     onClick: () -> Unit = {},
+    autoDownloadMode: Int? = null,
+    onAutoDownloadModeChange: (Int) -> Unit = {},
 ) {
     val podcastsFallback = rememberVectorPainter(Icons.Default.Podcasts)
 
@@ -440,6 +448,22 @@ internal fun PodcastEngagementCard(
                         } else "0",
                     )
                 }
+            }
+
+            // The engagement evidence above is exactly what decides whether a
+            // show deserves auto-downloading — so the picker lives right here.
+            if (autoDownloadMode != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Auto-download",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                AutoDownloadModeChips(
+                    selectedMode = autoDownloadMode,
+                    onModeSelected = onAutoDownloadModeChange,
+                )
             }
         }
     }
