@@ -78,52 +78,6 @@ object MaterialThemes {
         outlineVariant = Color(0xFF4B3B2A),
     )
 
-    private val Gunmetal = darkColorScheme(
-        primary = Color(0xFF8A98A6),
-        onPrimary = Color(0xFF10171E),
-        primaryContainer = Color(0xFF2C3742),
-        onPrimaryContainer = Color(0xFFCEDAE6),
-        secondary = Color(0xFF7C8896),
-        onSecondary = Color(0xFF11181F),
-        secondaryContainer = Color(0xFF2A343E),
-        onSecondaryContainer = Color(0xFFC6D1DC),
-        tertiary = Color(0xFFB6C2CE),
-        onTertiary = Color(0xFF1A222B),
-        tertiaryContainer = Color(0xFF37424D),
-        onTertiaryContainer = Color(0xFFDDE6EF),
-        background = Color(0xFF14181C),
-        onBackground = Color(0xFFE1E6EB),
-        surface = Color(0xFF191E23),
-        onSurface = Color(0xFFE1E6EB),
-        surfaceVariant = Color(0xFF283038),
-        onSurfaceVariant = Color(0xFFB2BCC6),
-        outline = Color(0xFF7C8791),
-        outlineVariant = Color(0xFF3C454E),
-    )
-
-    private val Emerald = darkColorScheme(
-        primary = Color(0xFF2ECC71),
-        onPrimary = Color(0xFF00280F),
-        primaryContainer = Color(0xFF0E4325),
-        onPrimaryContainer = Color(0xFFAFEEC6),
-        secondary = Color(0xFF2FA99A),
-        onSecondary = Color(0xFF00302A),
-        secondaryContainer = Color(0xFF0D453E),
-        onSecondaryContainer = Color(0xFFAEEDE3),
-        tertiary = Color(0xFFD9C878),
-        onTertiary = Color(0xFF2E2800),
-        tertiaryContainer = Color(0xFF473F13),
-        onTertiaryContainer = Color(0xFFF3E9B6),
-        background = Color(0xFF0C1A12),
-        onBackground = Color(0xFFDCEBE1),
-        surface = Color(0xFF112117),
-        onSurface = Color(0xFFDCEBE1),
-        surfaceVariant = Color(0xFF1E3327),
-        onSurfaceVariant = Color(0xFFB4CBBD),
-        outline = Color(0xFF7C9587),
-        outlineVariant = Color(0xFF334A3B),
-    )
-
     private val Obsidian = darkColorScheme(
         primary = Color(0xFF8A6FD1),
         onPrimary = Color(0xFF190A38),
@@ -151,8 +105,6 @@ object MaterialThemes {
         ThemeSpec(AppTheme.GOLD, "Gold", ThemeCategory.MATERIALS, Gold),
         ThemeSpec(AppTheme.ROSE_GOLD, "Rose Gold", ThemeCategory.MATERIALS, RoseGold),
         ThemeSpec(AppTheme.COPPER, "Copper", ThemeCategory.MATERIALS, Copper),
-        ThemeSpec(AppTheme.GUNMETAL, "Gunmetal", ThemeCategory.MATERIALS, Gunmetal),
-        ThemeSpec(AppTheme.EMERALD, "Emerald", ThemeCategory.MATERIALS, Emerald),
         ThemeSpec(AppTheme.OBSIDIAN, "Obsidian", ThemeCategory.MATERIALS, Obsidian),
     )
 }

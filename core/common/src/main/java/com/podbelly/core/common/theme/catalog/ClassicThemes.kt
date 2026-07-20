@@ -78,37 +78,6 @@ object ClassicThemes {
         inversePrimary = Color(0xFFC62828),
     )
 
-    // ── OLED Dark — pure black backgrounds, same accents ───────────
-    private val oled = darkColorScheme(
-        primary = Color(0xFFFF6B6B),
-        onPrimary = Color(0xFF0F1218),
-        primaryContainer = Color(0xFF3D1A1A),
-        onPrimaryContainer = Color(0xFFFFB4B4),
-        secondary = Color(0xFF4ECDC4),
-        onSecondary = Color(0xFF0A1210),
-        secondaryContainer = Color(0xFF1A3D3A),
-        onSecondaryContainer = Color(0xFFA8E8E4),
-        tertiary = Color(0xFFFFA502),
-        onTertiary = Color(0xFF1A0E00),
-        tertiaryContainer = Color(0xFF3D2800),
-        onTertiaryContainer = Color(0xFFFFD080),
-        error = Color(0xFFFF6B6B),
-        onError = Color(0xFF0F1218),
-        errorContainer = Color(0xFF3D1A1A),
-        onErrorContainer = Color(0xFFFFB4B4),
-        background = Color(0xFF000000),
-        onBackground = Color(0xFFE0E4F0),
-        surface = Color(0xFF000000),
-        onSurface = Color(0xFFE0E4F0),
-        surfaceVariant = Color(0xFF0A0A12),
-        onSurfaceVariant = Color(0xFF8892A8),
-        outline = Color(0xFF3A4060),
-        outlineVariant = Color(0xFF252B3D),
-        inverseSurface = Color(0xFFE0E4F0),
-        inverseOnSurface = Color(0xFF000000),
-        inversePrimary = Color(0xFFC62828),
-    )
-
     // ── High Contrast — brighter colors, maximum readability ───────
     private val highContrast = darkColorScheme(
         primary = Color(0xFFFF8080),
@@ -145,7 +114,6 @@ object ClassicThemes {
         ThemeSpec(AppTheme.SYSTEM, "System default", ThemeCategory.CLASSIC, null),
         ThemeSpec(AppTheme.LIGHT, "Light", ThemeCategory.CLASSIC, light),
         ThemeSpec(AppTheme.DARK, "Dark", ThemeCategory.CLASSIC, dark),
-        ThemeSpec(AppTheme.OLED_DARK, "OLED Dark", ThemeCategory.CLASSIC, oled),
         ThemeSpec(AppTheme.HIGH_CONTRAST, "High Contrast", ThemeCategory.CLASSIC, highContrast),
     )
 }

@@ -51,7 +51,6 @@ enum class AppTheme {
     SYSTEM,
     LIGHT,
     DARK,
-    OLED_DARK,
     HIGH_CONTRAST,
 
     // Retro consoles
@@ -87,7 +86,6 @@ enum class AppTheme {
     OUTRUN,
     MIAMI_VICE,
     HOLOGRAM,
-    LASER_GRID,
 
     // Developer
     DRACULA,
@@ -124,24 +122,17 @@ enum class AppTheme {
     PIP_TERMINAL,
 
     // Music & audio
-    VINYL,
     LOFI,
-    JAZZ_CLUB,
     PUNK,
-    RADIO_STATIC,
 
     // Space & cosmic
     NEBULA,
     MARS,
     GALAXY,
-    SOLAR_FLARE,
     DEEP_SPACE,
 
     // Pastel & soft
-    COTTON_CANDY,
-    CATPPUCCIN,
     BUBBLEGUM,
-    PASTEL_GOTH,
     MINT,
 
     // Monochrome & minimal
@@ -160,9 +151,7 @@ enum class AppTheme {
 
     // Anime & manga
     SHONEN,
-    MAGICAL_GIRL,
     MECHA,
-    INK_WASH,
     CYBER_RONIN,
 
     // Y2K / Frutiger Aero
@@ -175,14 +164,11 @@ enum class AppTheme {
     // Weather & sky
     STORM,
     GOLDEN_HOUR,
-    FOG,
     RAINBOW,
     CLEAR_NIGHT,
 
     // Fantasy & RPG
     DUNGEON,
-    ELVEN,
-    DRAGONFIRE,
     POTION,
     MANA_BLUE,
     NECROMANCER,
@@ -191,15 +177,12 @@ enum class AppTheme {
     AMETHYST,
     SAPPHIRE,
     RUBY,
-    JADE,
     OPAL,
 
     // Materials & metals
     GOLD,
     ROSE_GOLD,
     COPPER,
-    GUNMETAL,
-    EMERALD,
     OBSIDIAN,
 
     // Food & drink
@@ -214,15 +197,10 @@ enum class AppTheme {
     HALLOWEEN,
     CHRISTMAS,
     AUTUMN,
-    WINTER_FROST,
-    SPRING_BLOOM,
     VALENTINE,
 
     // Mood & focus
-    CALM,
     ENERGIZE,
-    DEEP_FOCUS,
-    COZY,
     NIGHT_SHIFT;
 
     companion object {

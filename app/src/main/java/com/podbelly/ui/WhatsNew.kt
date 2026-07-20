@@ -4,9 +4,13 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 82
+    // 83-84 were docs-only (CLAUDE.md); no changelog entries.
+    const val LATEST_VERSION_CODE = 85
 
     val changelog: Map<Int, List<String>> = mapOf(
+        85 to listOf(
+            "Tidied up the theme list: trimmed a batch of near-duplicate themes so the Appearance picker is easier to browse (if you were on one of the removed themes, the app falls back to System default)",
+        ),
         82 to listOf(
             "Ten more theme categories in Settings > Appearance — over 50 new looks to explore",
             "Cinema & Sci-Fi and Anime & Manga: Lightsaber, Xenomorph, Grid Rider, Red Eye, Spice Planet, Shonen, Magical Girl, Mecha, Ink Wash and Cyber Ronin",
