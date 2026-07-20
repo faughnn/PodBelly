@@ -4,9 +4,39 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 79
+    const val LATEST_VERSION_CODE = 82
 
     val changelog: Map<Int, List<String>> = mapOf(
+        82 to listOf(
+            "Ten more theme categories in Settings > Appearance — over 50 new looks to explore",
+            "Cinema & Sci-Fi and Anime & Manga: Lightsaber, Xenomorph, Grid Rider, Red Eye, Spice Planet, Shonen, Magical Girl, Mecha, Ink Wash and Cyber Ronin",
+            "Y2K / Frutiger Aero: Aqua Gel, Lime Gloss, Chrome, Bubble Blue and Frost Glass",
+            "Weather & Sky and Space extras: Storm, Golden Hour, Fog, Rainbow and Clear Night",
+            "Fantasy & RPG: Dungeon, Elven, Dragonfire, Potion, Mana Blue and Necromancer",
+            "Gemstones and Materials & Metals: Amethyst, Sapphire, Ruby, Jade, Opal, Gold, Rose Gold, Copper, Gunmetal, Emerald and Obsidian",
+            "Food & Drink: Matcha, Coffee, Watermelon, Neapolitan, Blood Orange and Mango",
+            "Seasonal & Holiday: Halloween, Christmas, Autumn, Winter Frost, Spring Bloom and Valentine",
+            "Mood & Focus: Calm, Energize, Deep Focus, Cozy and Night Shift (a warm, low-blue-light theme for night listening)",
+        ),
+        81 to listOf(
+            "Six more theme categories with dozens of new looks to try in Settings > Appearance",
+            "Modern Consoles: PlayStation, Xbox, Nintendo Switch, Dreamcast, GameCube and Steam Deck",
+            "Game Worlds: colourful looks inspired by famous games — Blocky Overworld, Rip & Tear, Test Chamber, Hero of Time, Monster Trainer, Blue Blur and Pip Terminal",
+            "Music & Audio: Vinyl, Lo-fi, Jazz Club, Punk and Radio Static",
+            "Space & Cosmic: Nebula, Mars, Galaxy, Solar Flare and Deep Space",
+            "Pastel & Soft: Cotton Candy, Catppuccin, Bubblegum, Pastel Goth and Mint",
+            "Monochrome & Minimal: Grayscale, Sepia, E-Ink, Newspaper and Blueprint",
+        ),
+        80 to listOf(
+            "The theme picker is now organised into browsable categories with a colour preview beside each theme — tap a category to expand it",
+            "Loads more themes to choose from, grouped as Classic, Retro Consoles, Arcade, Retro Computing & Terminals, Synthwave & Aesthetic, Developer and Nature & Scenic",
+            "New retro-console looks: Game Boy Color, Sega Genesis, Virtual Boy and Atari 2600",
+            "New arcade looks: Space Invaders, Tetris, Donkey Kong, Neon Cabinet and Frogger",
+            "New retro-computing looks: MS-DOS, ZX Spectrum, Amiga Workbench and Apple II",
+            "New synthwave & aesthetic looks: Outrun, Miami Vice, Hologram and Laser Grid",
+            "New developer looks: Nord, Gruvbox, Solarized Dark, Solarized Light, Monokai and Tokyo Night",
+            "New nature looks: Forest, Deep Ocean, Sunset, Aurora, Cherry Blossom and Desert",
+        ),
         79 to listOf(
             "Eleven new appearance themes in Settings > Appearance, including retro and video-game looks: Game Boy, Nintendo (NES), Super Nintendo, Commodore 64, Terminal Green, Terminal Amber, Synthwave, Vaporwave, Cyberpunk, Arcade and Dracula",
         ),

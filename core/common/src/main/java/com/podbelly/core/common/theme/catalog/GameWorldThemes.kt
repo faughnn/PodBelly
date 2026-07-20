@@ -1,0 +1,182 @@
+package com.podbelly.core.common.theme.catalog
+
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.Color
+import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.theme.ThemeCategory
+import com.podbelly.core.common.theme.ThemeSpec
+
+object GameWorldThemes {
+
+    private val blockyOverworldScheme = darkColorScheme(
+        primary = Color(0xFF5FA845),
+        onPrimary = Color(0xFF0E2408),
+        primaryContainer = Color(0xFF2F5522),
+        onPrimaryContainer = Color(0xFFC6E8B4),
+        secondary = Color(0xFF8B5A2B),
+        onSecondary = Color(0xFF2A1608),
+        secondaryContainer = Color(0xFF4A3018),
+        onSecondaryContainer = Color(0xFFE9CBA8),
+        tertiary = Color(0xFF5AB4E5),
+        onTertiary = Color(0xFF04222F),
+        tertiaryContainer = Color(0xFF1F4E64),
+        onTertiaryContainer = Color(0xFFC0E6F8),
+        background = Color(0xFF15120D),
+        onBackground = Color(0xFFEAE3D6),
+        surface = Color(0xFF15120D),
+        onSurface = Color(0xFFEAE3D6),
+        surfaceVariant = Color(0xFF23201A),
+        onSurfaceVariant = Color(0xFFB8B0A0),
+        outline = Color(0xFF847B6A),
+        outlineVariant = Color(0xFF3A362D),
+    )
+
+    private val ripAndTearScheme = darkColorScheme(
+        primary = Color(0xFFC81E1E),
+        onPrimary = Color(0xFFFFEBEB),
+        primaryContainer = Color(0xFF5A0C0C),
+        onPrimaryContainer = Color(0xFFFFC9C9),
+        secondary = Color(0xFFFF6A00),
+        onSecondary = Color(0xFF2B1200),
+        secondaryContainer = Color(0xFF5C2800),
+        onSecondaryContainer = Color(0xFFFFD3B0),
+        tertiary = Color(0xFF7CBF3F),
+        onTertiary = Color(0xFF152400),
+        tertiaryContainer = Color(0xFF34521A),
+        onTertiaryContainer = Color(0xFFD6EFB4),
+        background = Color(0xFF0B0808),
+        onBackground = Color(0xFFEDDDDD),
+        surface = Color(0xFF0B0808),
+        onSurface = Color(0xFFEDDDDD),
+        surfaceVariant = Color(0xFF1E1616),
+        onSurfaceVariant = Color(0xFFBBA8A8),
+        outline = Color(0xFF876E6E),
+        outlineVariant = Color(0xFF352626),
+    )
+
+    private val testChamberScheme = lightColorScheme(
+        primary = Color(0xFF2CA6E0),
+        onPrimary = Color(0xFFFFFFFF),
+        primaryContainer = Color(0xFFC6EAFA),
+        onPrimaryContainer = Color(0xFF073349),
+        secondary = Color(0xFFF08A24),
+        onSecondary = Color(0xFFFFFFFF),
+        secondaryContainer = Color(0xFFFEE0C2),
+        onSecondaryContainer = Color(0xFF4A2A05),
+        tertiary = Color(0xFF5B6470),
+        onTertiary = Color(0xFFFFFFFF),
+        tertiaryContainer = Color(0xFFD8DEE6),
+        onTertiaryContainer = Color(0xFF1B222B),
+        background = Color(0xFFFAFCFE),
+        onBackground = Color(0xFF141A1F),
+        surface = Color(0xFFFAFCFE),
+        onSurface = Color(0xFF141A1F),
+        surfaceVariant = Color(0xFFE7EDF2),
+        onSurfaceVariant = Color(0xFF4A555F),
+        outline = Color(0xFF7A858F),
+        outlineVariant = Color(0xFFCAD3DB),
+    )
+
+    private val heroOfTimeScheme = darkColorScheme(
+        primary = Color(0xFFE8C34A),
+        onPrimary = Color(0xFF2A2005),
+        primaryContainer = Color(0xFF564218),
+        onPrimaryContainer = Color(0xFFF7E3A6),
+        secondary = Color(0xFF3E8E41),
+        onSecondary = Color(0xFF04220A),
+        secondaryContainer = Color(0xFF1D4A21),
+        onSecondaryContainer = Color(0xFFBCE5BC),
+        tertiary = Color(0xFF3A5BA0),
+        onTertiary = Color(0xFFE8EEFB),
+        tertiaryContainer = Color(0xFF223761),
+        onTertiaryContainer = Color(0xFFC5D3F2),
+        background = Color(0xFF10130C),
+        onBackground = Color(0xFFE6E7DC),
+        surface = Color(0xFF10130C),
+        onSurface = Color(0xFFE6E7DC),
+        surfaceVariant = Color(0xFF1F2318),
+        onSurfaceVariant = Color(0xFFB2B4A2),
+        outline = Color(0xFF7E8070),
+        outlineVariant = Color(0xFF34382A),
+    )
+
+    private val monsterTrainerScheme = lightColorScheme(
+        primary = Color(0xFFE3350D),
+        onPrimary = Color(0xFFFFFFFF),
+        primaryContainer = Color(0xFFFBD3CA),
+        onPrimaryContainer = Color(0xFF4E0F02),
+        secondary = Color(0xFFF6C544),
+        onSecondary = Color(0xFF352800),
+        secondaryContainer = Color(0xFFFCEEC2),
+        onSecondaryContainer = Color(0xFF453400),
+        tertiary = Color(0xFF3A7BD5),
+        onTertiary = Color(0xFFFFFFFF),
+        tertiaryContainer = Color(0xFFCEE0F8),
+        onTertiaryContainer = Color(0xFF0C2A50),
+        background = Color(0xFFFCFCFC),
+        onBackground = Color(0xFF1A1A1A),
+        surface = Color(0xFFFCFCFC),
+        onSurface = Color(0xFF1A1A1A),
+        surfaceVariant = Color(0xFFECECEC),
+        onSurfaceVariant = Color(0xFF525252),
+        outline = Color(0xFF858585),
+        outlineVariant = Color(0xFFD2D2D2),
+    )
+
+    private val blueBlurScheme = darkColorScheme(
+        primary = Color(0xFF2A6DE0),
+        onPrimary = Color(0xFFEAF1FF),
+        primaryContainer = Color(0xFF163C7E),
+        onPrimaryContainer = Color(0xFFC4D8FA),
+        secondary = Color(0xFF4CAF50),
+        onSecondary = Color(0xFF04220A),
+        secondaryContainer = Color(0xFF1F4E22),
+        onSecondaryContainer = Color(0xFFC1E9C3),
+        tertiary = Color(0xFFF2C438),
+        onTertiary = Color(0xFF2C2200),
+        tertiaryContainer = Color(0xFF574618),
+        onTertiaryContainer = Color(0xFFF9E5A3),
+        background = Color(0xFF0A1224),
+        onBackground = Color(0xFFDEE6F5),
+        surface = Color(0xFF0A1224),
+        onSurface = Color(0xFFDEE6F5),
+        surfaceVariant = Color(0xFF182135),
+        onSurfaceVariant = Color(0xFFAAB4C9),
+        outline = Color(0xFF71809A),
+        outlineVariant = Color(0xFF2A3550),
+    )
+
+    private val pipTerminalScheme = darkColorScheme(
+        primary = Color(0xFF5FD35A),
+        onPrimary = Color(0xFF07200A),
+        primaryContainer = Color(0xFF204A1D),
+        onPrimaryContainer = Color(0xFFBFF0BB),
+        secondary = Color(0xFFB6A44E),
+        onSecondary = Color(0xFF221D04),
+        secondaryContainer = Color(0xFF433A16),
+        onSecondaryContainer = Color(0xFFE9DCA6),
+        tertiary = Color(0xFF3F7FB0),
+        onTertiary = Color(0xFF041A29),
+        tertiaryContainer = Color(0xFF1D3F58),
+        onTertiaryContainer = Color(0xFFBCDBF0),
+        background = Color(0xFF0E1408),
+        onBackground = Color(0xFFD3E4C6),
+        surface = Color(0xFF0E1408),
+        onSurface = Color(0xFFD3E4C6),
+        surfaceVariant = Color(0xFF1C2413),
+        onSurfaceVariant = Color(0xFFA6B598),
+        outline = Color(0xFF75845F),
+        outlineVariant = Color(0xFF313B24),
+    )
+
+    val specs: List<ThemeSpec> = listOf(
+        ThemeSpec(AppTheme.BLOCKY_OVERWORLD, "Blocky Overworld", ThemeCategory.GAME_WORLDS, blockyOverworldScheme),
+        ThemeSpec(AppTheme.RIP_AND_TEAR, "Rip & Tear", ThemeCategory.GAME_WORLDS, ripAndTearScheme),
+        ThemeSpec(AppTheme.TEST_CHAMBER, "Test Chamber", ThemeCategory.GAME_WORLDS, testChamberScheme),
+        ThemeSpec(AppTheme.HERO_OF_TIME, "Hero of Time", ThemeCategory.GAME_WORLDS, heroOfTimeScheme),
+        ThemeSpec(AppTheme.MONSTER_TRAINER, "Monster Trainer", ThemeCategory.GAME_WORLDS, monsterTrainerScheme),
+        ThemeSpec(AppTheme.BLUE_BLUR, "Blue Blur", ThemeCategory.GAME_WORLDS, blueBlurScheme),
+        ThemeSpec(AppTheme.PIP_TERMINAL, "Pip Terminal", ThemeCategory.GAME_WORLDS, pipTerminalScheme),
+    )
+}

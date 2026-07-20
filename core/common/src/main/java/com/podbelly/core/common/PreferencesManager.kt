@@ -41,25 +41,189 @@ enum class DownloadsSortOrder {
     }
 }
 
-enum class AppTheme(val displayName: String) {
-    SYSTEM("System default"),
-    LIGHT("Light"),
-    DARK("Dark"),
-    OLED_DARK("OLED Dark"),
-    HIGH_CONTRAST("High Contrast"),
+/**
+ * Stable identity for each selectable appearance theme; persisted by name, so
+ * entries must not be renamed. Display name, category and colors live in the
+ * theme catalog (see [com.podbelly.core.common.theme.ThemeCatalog]).
+ */
+enum class AppTheme {
+    // Classic
+    SYSTEM,
+    LIGHT,
+    DARK,
+    OLED_DARK,
+    HIGH_CONTRAST,
 
-    // ── Retro & video-game themes ──────────────────────────────────
-    GAME_BOY("Game Boy"),
-    NES("Nintendo (NES)"),
-    SNES("Super Nintendo"),
-    SYNTHWAVE("Synthwave"),
-    VAPORWAVE("Vaporwave"),
-    COMMODORE_64("Commodore 64"),
-    TERMINAL_GREEN("Terminal Green"),
-    TERMINAL_AMBER("Terminal Amber"),
-    CYBERPUNK("Cyberpunk"),
-    ARCADE("Arcade"),
-    DRACULA("Dracula");
+    // Retro consoles
+    GAME_BOY,
+    GAME_BOY_COLOR,
+    NES,
+    SNES,
+    SEGA_GENESIS,
+    VIRTUAL_BOY,
+    ATARI_2600,
+
+    // Arcade
+    ARCADE,
+    SPACE_INVADERS,
+    TETRIS,
+    DONKEY_KONG,
+    NEON_CABINET,
+    FROGGER,
+
+    // Retro computing & terminals
+    COMMODORE_64,
+    TERMINAL_GREEN,
+    TERMINAL_AMBER,
+    MS_DOS,
+    ZX_SPECTRUM,
+    AMIGA,
+    APPLE_II,
+
+    // Synthwave & aesthetic
+    SYNTHWAVE,
+    VAPORWAVE,
+    CYBERPUNK,
+    OUTRUN,
+    MIAMI_VICE,
+    HOLOGRAM,
+    LASER_GRID,
+
+    // Developer
+    DRACULA,
+    NORD,
+    GRUVBOX,
+    SOLARIZED_DARK,
+    SOLARIZED_LIGHT,
+    MONOKAI,
+    TOKYO_NIGHT,
+
+    // Nature & scenic
+    FOREST,
+    DEEP_OCEAN,
+    SUNSET,
+    AURORA,
+    CHERRY_BLOSSOM,
+    DESERT,
+
+    // Modern consoles
+    PLAYSTATION,
+    XBOX,
+    NINTENDO_SWITCH,
+    DREAMCAST,
+    GAMECUBE,
+    STEAM_DECK,
+
+    // Game worlds (inspired-by)
+    BLOCKY_OVERWORLD,
+    RIP_AND_TEAR,
+    TEST_CHAMBER,
+    HERO_OF_TIME,
+    MONSTER_TRAINER,
+    BLUE_BLUR,
+    PIP_TERMINAL,
+
+    // Music & audio
+    VINYL,
+    LOFI,
+    JAZZ_CLUB,
+    PUNK,
+    RADIO_STATIC,
+
+    // Space & cosmic
+    NEBULA,
+    MARS,
+    GALAXY,
+    SOLAR_FLARE,
+    DEEP_SPACE,
+
+    // Pastel & soft
+    COTTON_CANDY,
+    CATPPUCCIN,
+    BUBBLEGUM,
+    PASTEL_GOTH,
+    MINT,
+
+    // Monochrome & minimal
+    GRAYSCALE,
+    SEPIA,
+    E_INK,
+    NEWSPAPER,
+    BLUEPRINT,
+
+    // Cinema & sci-fi (inspired-by)
+    LIGHTSABER,
+    XENOMORPH,
+    GRID_RIDER,
+    RED_EYE,
+    SPICE_PLANET,
+
+    // Anime & manga
+    SHONEN,
+    MAGICAL_GIRL,
+    MECHA,
+    INK_WASH,
+    CYBER_RONIN,
+
+    // Y2K / Frutiger Aero
+    AQUA_GEL,
+    LIME_GLOSS,
+    CHROME,
+    BUBBLE_BLUE,
+    FROST_GLASS,
+
+    // Weather & sky
+    STORM,
+    GOLDEN_HOUR,
+    FOG,
+    RAINBOW,
+    CLEAR_NIGHT,
+
+    // Fantasy & RPG
+    DUNGEON,
+    ELVEN,
+    DRAGONFIRE,
+    POTION,
+    MANA_BLUE,
+    NECROMANCER,
+
+    // Gemstones
+    AMETHYST,
+    SAPPHIRE,
+    RUBY,
+    JADE,
+    OPAL,
+
+    // Materials & metals
+    GOLD,
+    ROSE_GOLD,
+    COPPER,
+    GUNMETAL,
+    EMERALD,
+    OBSIDIAN,
+
+    // Food & drink
+    MATCHA,
+    COFFEE,
+    WATERMELON,
+    NEAPOLITAN,
+    BLOOD_ORANGE,
+    MANGO,
+
+    // Seasonal & holiday
+    HALLOWEEN,
+    CHRISTMAS,
+    AUTUMN,
+    WINTER_FROST,
+    SPRING_BLOOM,
+    VALENTINE,
+
+    // Mood & focus
+    CALM,
+    ENERGIZE,
+    DEEP_FOCUS,
+    COZY,
+    NIGHT_SHIFT;
 
     companion object {
         fun fromString(value: String): AppTheme {
