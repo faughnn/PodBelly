@@ -41,25 +41,70 @@ enum class DownloadsSortOrder {
     }
 }
 
-enum class AppTheme(val displayName: String) {
-    SYSTEM("System default"),
-    LIGHT("Light"),
-    DARK("Dark"),
-    OLED_DARK("OLED Dark"),
-    HIGH_CONTRAST("High Contrast"),
+/**
+ * Stable identity for each selectable appearance theme; persisted by name, so
+ * entries must not be renamed. Display name, category and colors live in the
+ * theme catalog (see [com.podbelly.core.common.theme.ThemeCatalog]).
+ */
+enum class AppTheme {
+    // Classic
+    SYSTEM,
+    LIGHT,
+    DARK,
+    OLED_DARK,
+    HIGH_CONTRAST,
 
-    // ── Retro & video-game themes ──────────────────────────────────
-    GAME_BOY("Game Boy"),
-    NES("Nintendo (NES)"),
-    SNES("Super Nintendo"),
-    SYNTHWAVE("Synthwave"),
-    VAPORWAVE("Vaporwave"),
-    COMMODORE_64("Commodore 64"),
-    TERMINAL_GREEN("Terminal Green"),
-    TERMINAL_AMBER("Terminal Amber"),
-    CYBERPUNK("Cyberpunk"),
-    ARCADE("Arcade"),
-    DRACULA("Dracula");
+    // Retro consoles
+    GAME_BOY,
+    GAME_BOY_COLOR,
+    NES,
+    SNES,
+    SEGA_GENESIS,
+    VIRTUAL_BOY,
+    ATARI_2600,
+
+    // Arcade
+    ARCADE,
+    SPACE_INVADERS,
+    TETRIS,
+    DONKEY_KONG,
+    NEON_CABINET,
+    FROGGER,
+
+    // Retro computing & terminals
+    COMMODORE_64,
+    TERMINAL_GREEN,
+    TERMINAL_AMBER,
+    MS_DOS,
+    ZX_SPECTRUM,
+    AMIGA,
+    APPLE_II,
+
+    // Synthwave & aesthetic
+    SYNTHWAVE,
+    VAPORWAVE,
+    CYBERPUNK,
+    OUTRUN,
+    MIAMI_VICE,
+    HOLOGRAM,
+    LASER_GRID,
+
+    // Developer
+    DRACULA,
+    NORD,
+    GRUVBOX,
+    SOLARIZED_DARK,
+    SOLARIZED_LIGHT,
+    MONOKAI,
+    TOKYO_NIGHT,
+
+    // Nature & scenic
+    FOREST,
+    DEEP_OCEAN,
+    SUNSET,
+    AURORA,
+    CHERRY_BLOSSOM,
+    DESERT;
 
     companion object {
         fun fromString(value: String): AppTheme {

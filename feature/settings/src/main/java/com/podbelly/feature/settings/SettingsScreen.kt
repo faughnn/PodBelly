@@ -6,7 +6,9 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +26,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -54,6 +58,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.theme.ThemeCatalog
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -587,6 +594,13 @@ internal fun ThemePickerRow(
     selectedMode: AppTheme,
     onModeSelected: (AppTheme) -> Unit,
 ) {
+    val darkSystem = isSystemInDarkTheme()
+    // Start with the category holding the current selection expanded; the user
+    // can open/close others and their choices persist across selections.
+    var expanded by remember {
+        mutableStateOf(setOf(ThemeCatalog.specFor(selectedMode).category))
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -596,31 +610,96 @@ internal fun ThemePickerRow(
             text = "Theme",
             style = MaterialTheme.typography.bodyLarge,
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Column(modifier = Modifier.selectableGroup()) {
-            AppTheme.entries.forEach { mode ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(
-                            selected = selectedMode == mode,
-                            onClick = { onModeSelected(mode) },
-                            role = Role.RadioButton,
-                        )
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = selectedMode == mode,
-                        onClick = null,
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = mode.displayName,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        val categories = ThemeCatalog.categoriesInOrder()
+        categories.forEachIndexed { index, category ->
+            val themes = ThemeCatalog.themesIn(category)
+            val isOpen = category in expanded
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        expanded = if (isOpen) expanded - category else expanded + category
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = category.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = themes.size.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = if (isOpen) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = if (isOpen) "Collapse ${category.displayName}" else "Expand ${category.displayName}",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            AnimatedVisibility(visible = isOpen) {
+                Column(modifier = Modifier.selectableGroup()) {
+                    themes.forEach { spec ->
+                        val selected = spec.id == selectedMode
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = selected,
+                                    onClick = { onModeSelected(spec.id) },
+                                    role = Role.RadioButton,
+                                )
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = selected,
+                                onClick = null,
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            ThemeSwatch(colors = ThemeCatalog.swatchFor(spec.id, darkSystem))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = spec.displayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
                 }
             }
+
+            if (index < categories.lastIndex) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
+    }
+}
+
+/** A small preview strip of a theme's key colors (background, primary, secondary, tertiary). */
+@Composable
+private fun ThemeSwatch(colors: List<Color>) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.outlineVariant)
+            .padding(1.dp),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        colors.forEach { swatchColor ->
+            Box(
+                modifier = Modifier
+                    .width(10.dp)
+                    .height(22.dp)
+                    .background(swatchColor),
+            )
         }
     }
 }

@@ -4,9 +4,19 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 79
+    const val LATEST_VERSION_CODE = 80
 
     val changelog: Map<Int, List<String>> = mapOf(
+        80 to listOf(
+            "The theme picker is now organised into browsable categories with a colour preview beside each theme — tap a category to expand it",
+            "Loads more themes to choose from, grouped as Classic, Retro Consoles, Arcade, Retro Computing & Terminals, Synthwave & Aesthetic, Developer and Nature & Scenic",
+            "New retro-console looks: Game Boy Color, Sega Genesis, Virtual Boy and Atari 2600",
+            "New arcade looks: Space Invaders, Tetris, Donkey Kong, Neon Cabinet and Frogger",
+            "New retro-computing looks: MS-DOS, ZX Spectrum, Amiga Workbench and Apple II",
+            "New synthwave & aesthetic looks: Outrun, Miami Vice, Hologram and Laser Grid",
+            "New developer looks: Nord, Gruvbox, Solarized Dark, Solarized Light, Monokai and Tokyo Night",
+            "New nature looks: Forest, Deep Ocean, Sunset, Aurora, Cherry Blossom and Desert",
+        ),
         79 to listOf(
             "Eleven new appearance themes in Settings > Appearance, including retro and video-game looks: Game Boy, Nintendo (NES), Super Nintendo, Commodore 64, Terminal Green, Terminal Amber, Synthwave, Vaporwave, Cyberpunk, Arcade and Dracula",
         ),
