@@ -104,7 +104,52 @@ enum class AppTheme {
     SUNSET,
     AURORA,
     CHERRY_BLOSSOM,
-    DESERT;
+    DESERT,
+
+    // Modern consoles
+    PLAYSTATION,
+    XBOX,
+    NINTENDO_SWITCH,
+    DREAMCAST,
+    GAMECUBE,
+    STEAM_DECK,
+
+    // Game worlds (inspired-by)
+    BLOCKY_OVERWORLD,
+    RIP_AND_TEAR,
+    TEST_CHAMBER,
+    HERO_OF_TIME,
+    MONSTER_TRAINER,
+    BLUE_BLUR,
+    PIP_TERMINAL,
+
+    // Music & audio
+    VINYL,
+    LOFI,
+    JAZZ_CLUB,
+    PUNK,
+    RADIO_STATIC,
+
+    // Space & cosmic
+    NEBULA,
+    MARS,
+    GALAXY,
+    SOLAR_FLARE,
+    DEEP_SPACE,
+
+    // Pastel & soft
+    COTTON_CANDY,
+    CATPPUCCIN,
+    BUBBLEGUM,
+    PASTEL_GOTH,
+    MINT,
+
+    // Monochrome & minimal
+    GRAYSCALE,
+    SEPIA,
+    E_INK,
+    NEWSPAPER,
+    BLUEPRINT;
 
     companion object {
         fun fromString(value: String): AppTheme {

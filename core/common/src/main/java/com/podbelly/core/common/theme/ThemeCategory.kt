@@ -8,9 +8,15 @@ package com.podbelly.core.common.theme
 enum class ThemeCategory(val displayName: String) {
     CLASSIC("Classic"),
     RETRO_CONSOLES("Retro Consoles"),
+    MODERN_CONSOLES("Modern Consoles"),
     ARCADE("Arcade"),
+    GAME_WORLDS("Game Worlds"),
     RETRO_COMPUTING("Retro Computing & Terminals"),
     SYNTHWAVE("Synthwave & Aesthetic"),
+    MUSIC("Music & Audio"),
+    SPACE("Space & Cosmic"),
     DEVELOPER("Developer"),
     NATURE("Nature & Scenic"),
+    PASTEL("Pastel & Soft"),
+    MONOCHROME("Monochrome & Minimal"),
 }

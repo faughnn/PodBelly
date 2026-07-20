@@ -6,9 +6,15 @@ import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.theme.catalog.ArcadeThemes
 import com.podbelly.core.common.theme.catalog.ClassicThemes
 import com.podbelly.core.common.theme.catalog.DeveloperThemes
+import com.podbelly.core.common.theme.catalog.GameWorldThemes
+import com.podbelly.core.common.theme.catalog.ModernConsoleThemes
+import com.podbelly.core.common.theme.catalog.MonochromeThemes
+import com.podbelly.core.common.theme.catalog.MusicThemes
 import com.podbelly.core.common.theme.catalog.NatureThemes
+import com.podbelly.core.common.theme.catalog.PastelThemes
 import com.podbelly.core.common.theme.catalog.RetroComputingThemes
 import com.podbelly.core.common.theme.catalog.RetroConsoleThemes
+import com.podbelly.core.common.theme.catalog.SpaceThemes
 import com.podbelly.core.common.theme.catalog.SynthwaveThemes
 
 /**
@@ -24,11 +30,17 @@ object ThemeCatalog {
     val specs: List<ThemeSpec> = buildList {
         addAll(ClassicThemes.specs)
         addAll(RetroConsoleThemes.specs)
+        addAll(ModernConsoleThemes.specs)
         addAll(ArcadeThemes.specs)
+        addAll(GameWorldThemes.specs)
         addAll(RetroComputingThemes.specs)
         addAll(SynthwaveThemes.specs)
+        addAll(MusicThemes.specs)
+        addAll(SpaceThemes.specs)
         addAll(DeveloperThemes.specs)
         addAll(NatureThemes.specs)
+        addAll(PastelThemes.specs)
+        addAll(MonochromeThemes.specs)
     }
 
     private val byId: Map<AppTheme, ThemeSpec> = specs.associateBy { it.id }

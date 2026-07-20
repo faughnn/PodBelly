@@ -4,9 +4,18 @@ object WhatsNew {
     // 65 was a test-stability fix with no user-facing changes; no changelog entry.
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
-    const val LATEST_VERSION_CODE = 80
+    const val LATEST_VERSION_CODE = 81
 
     val changelog: Map<Int, List<String>> = mapOf(
+        81 to listOf(
+            "Six more theme categories with dozens of new looks to try in Settings > Appearance",
+            "Modern Consoles: PlayStation, Xbox, Nintendo Switch, Dreamcast, GameCube and Steam Deck",
+            "Game Worlds: colourful looks inspired by famous games — Blocky Overworld, Rip & Tear, Test Chamber, Hero of Time, Monster Trainer, Blue Blur and Pip Terminal",
+            "Music & Audio: Vinyl, Lo-fi, Jazz Club, Punk and Radio Static",
+            "Space & Cosmic: Nebula, Mars, Galaxy, Solar Flare and Deep Space",
+            "Pastel & Soft: Cotton Candy, Catppuccin, Bubblegum, Pastel Goth and Mint",
+            "Monochrome & Minimal: Grayscale, Sepia, E-Ink, Newspaper and Blueprint",
+        ),
         80 to listOf(
             "The theme picker is now organised into browsable categories with a colour preview beside each theme — tap a category to expand it",
             "Loads more themes to choose from, grouped as Classic, Retro Consoles, Arcade, Retro Computing & Terminals, Synthwave & Aesthetic, Developer and Nature & Scenic",
