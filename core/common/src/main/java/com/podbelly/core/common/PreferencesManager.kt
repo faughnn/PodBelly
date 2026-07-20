@@ -41,12 +41,25 @@ enum class DownloadsSortOrder {
     }
 }
 
-enum class AppTheme {
-    SYSTEM,
-    LIGHT,
-    DARK,
-    OLED_DARK,
-    HIGH_CONTRAST;
+enum class AppTheme(val displayName: String) {
+    SYSTEM("System default"),
+    LIGHT("Light"),
+    DARK("Dark"),
+    OLED_DARK("OLED Dark"),
+    HIGH_CONTRAST("High Contrast"),
+
+    // ── Retro & video-game themes ──────────────────────────────────
+    GAME_BOY("Game Boy"),
+    NES("Nintendo (NES)"),
+    SNES("Super Nintendo"),
+    SYNTHWAVE("Synthwave"),
+    VAPORWAVE("Vaporwave"),
+    COMMODORE_64("Commodore 64"),
+    TERMINAL_GREEN("Terminal Green"),
+    TERMINAL_AMBER("Terminal Amber"),
+    CYBERPUNK("Cyberpunk"),
+    ARCADE("Arcade"),
+    DRACULA("Dracula");
 
     companion object {
         fun fromString(value: String): AppTheme {
