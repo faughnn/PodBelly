@@ -3,19 +3,29 @@ package com.podbelly.core.common.theme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.theme.catalog.AnimeThemes
 import com.podbelly.core.common.theme.catalog.ArcadeThemes
+import com.podbelly.core.common.theme.catalog.CinemaThemes
 import com.podbelly.core.common.theme.catalog.ClassicThemes
 import com.podbelly.core.common.theme.catalog.DeveloperThemes
+import com.podbelly.core.common.theme.catalog.FantasyThemes
+import com.podbelly.core.common.theme.catalog.FoodThemes
 import com.podbelly.core.common.theme.catalog.GameWorldThemes
+import com.podbelly.core.common.theme.catalog.GemstoneThemes
+import com.podbelly.core.common.theme.catalog.MaterialThemes
 import com.podbelly.core.common.theme.catalog.ModernConsoleThemes
 import com.podbelly.core.common.theme.catalog.MonochromeThemes
+import com.podbelly.core.common.theme.catalog.MoodThemes
 import com.podbelly.core.common.theme.catalog.MusicThemes
 import com.podbelly.core.common.theme.catalog.NatureThemes
 import com.podbelly.core.common.theme.catalog.PastelThemes
 import com.podbelly.core.common.theme.catalog.RetroComputingThemes
 import com.podbelly.core.common.theme.catalog.RetroConsoleThemes
+import com.podbelly.core.common.theme.catalog.SeasonalThemes
 import com.podbelly.core.common.theme.catalog.SpaceThemes
 import com.podbelly.core.common.theme.catalog.SynthwaveThemes
+import com.podbelly.core.common.theme.catalog.WeatherThemes
+import com.podbelly.core.common.theme.catalog.Y2kThemes
 
 /**
  * The single source of truth for every selectable appearance theme.
@@ -33,14 +43,24 @@ object ThemeCatalog {
         addAll(ModernConsoleThemes.specs)
         addAll(ArcadeThemes.specs)
         addAll(GameWorldThemes.specs)
+        addAll(CinemaThemes.specs)
+        addAll(AnimeThemes.specs)
         addAll(RetroComputingThemes.specs)
+        addAll(DeveloperThemes.specs)
         addAll(SynthwaveThemes.specs)
+        addAll(Y2kThemes.specs)
         addAll(MusicThemes.specs)
         addAll(SpaceThemes.specs)
-        addAll(DeveloperThemes.specs)
+        addAll(WeatherThemes.specs)
         addAll(NatureThemes.specs)
+        addAll(FantasyThemes.specs)
+        addAll(GemstoneThemes.specs)
+        addAll(MaterialThemes.specs)
+        addAll(FoodThemes.specs)
         addAll(PastelThemes.specs)
         addAll(MonochromeThemes.specs)
+        addAll(SeasonalThemes.specs)
+        addAll(MoodThemes.specs)
     }
 
     private val byId: Map<AppTheme, ThemeSpec> = specs.associateBy { it.id }

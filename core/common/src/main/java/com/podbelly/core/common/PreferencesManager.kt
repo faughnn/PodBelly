@@ -149,7 +149,81 @@ enum class AppTheme {
     SEPIA,
     E_INK,
     NEWSPAPER,
-    BLUEPRINT;
+    BLUEPRINT,
+
+    // Cinema & sci-fi (inspired-by)
+    LIGHTSABER,
+    XENOMORPH,
+    GRID_RIDER,
+    RED_EYE,
+    SPICE_PLANET,
+
+    // Anime & manga
+    SHONEN,
+    MAGICAL_GIRL,
+    MECHA,
+    INK_WASH,
+    CYBER_RONIN,
+
+    // Y2K / Frutiger Aero
+    AQUA_GEL,
+    LIME_GLOSS,
+    CHROME,
+    BUBBLE_BLUE,
+    FROST_GLASS,
+
+    // Weather & sky
+    STORM,
+    GOLDEN_HOUR,
+    FOG,
+    RAINBOW,
+    CLEAR_NIGHT,
+
+    // Fantasy & RPG
+    DUNGEON,
+    ELVEN,
+    DRAGONFIRE,
+    POTION,
+    MANA_BLUE,
+    NECROMANCER,
+
+    // Gemstones
+    AMETHYST,
+    SAPPHIRE,
+    RUBY,
+    JADE,
+    OPAL,
+
+    // Materials & metals
+    GOLD,
+    ROSE_GOLD,
+    COPPER,
+    GUNMETAL,
+    EMERALD,
+    OBSIDIAN,
+
+    // Food & drink
+    MATCHA,
+    COFFEE,
+    WATERMELON,
+    NEAPOLITAN,
+    BLOOD_ORANGE,
+    MANGO,
+
+    // Seasonal & holiday
+    HALLOWEEN,
+    CHRISTMAS,
+    AUTUMN,
+    WINTER_FROST,
+    SPRING_BLOOM,
+    VALENTINE,
+
+    // Mood & focus
+    CALM,
+    ENERGIZE,
+    DEEP_FOCUS,
+    COZY,
+    NIGHT_SHIFT;
 
     companion object {
         fun fromString(value: String): AppTheme {
