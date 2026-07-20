@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260720-why-your-ci-deploy-chases-a-commit-that-never-existed-the-merge-sha-race",
+      "title": "Why Your CI Deploy Chases a Commit That Never Existed: The Merge-SHA Race",
+      "description": "A per-PR deploy hunted an image tagged with a commit that had been regenerated out from under it \u2014 a merge-SHA race. Why merge commits get a new SHA with identical parents, why the head SHA is the stable identifier, and the two-registry gotcha that made the first fix only half a fix.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260720-why-your-ci-deploy-chases-a-commit-that-never-existed-the-merge-sha-race.m4a",
+      "bytes": 46634406,
+      "duration_sec": 1449,
+      "pubdate_rfc822": "Mon, 20 Jul 2026 13:40:17 +0000",
+      "guid": "podbelly-20260720-why-your-ci-deploy-chases-a-commit-that-never-existed-the-merge-sha-race",
+      "number": 15
+    },
+    {
       "id": "20260706-when-healthy-lies-a-missing-iam-role-a-schedule-that-ran-nothing-and-an-s3-write-that-wasn-t-fixed",
       "title": "When 'Healthy' Lies: A Missing IAM Role, a Schedule That Ran Nothing, and an S3 Write That Wasn't Fixed",
       "description": "Three QA debugging stories where things looked fine until you checked the source, plus a config-registry isolation problem and a GitHub/Slack review-bot bug.",

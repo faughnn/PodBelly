@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>15. Why Your CI Deploy Chases a Commit That Never Existed: The Merge-SHA Race</title>
+      <description>A per-PR deploy hunted an image tagged with a commit that had been regenerated out from under it — a merge-SHA race. Why merge commits get a new SHA with identical parents, why the head SHA is the stable identifier, and the two-registry gotcha that made the first fix only half a fix.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260720-why-your-ci-deploy-chases-a-commit-that-never-existed-the-merge-sha-race.m4a" length="46634406" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260720-why-your-ci-deploy-chases-a-commit-that-never-existed-the-merge-sha-race</guid>
+      <pubDate>Mon, 20 Jul 2026 13:40:17 +0000</pubDate>
+      <itunes:episode>15</itunes:episode>
+      <itunes:duration>24:09</itunes:duration>
+    </item>
+    <item>
       <title>14. When 'Healthy' Lies: A Missing IAM Role, a Schedule That Ran Nothing, and an S3 Write That Wasn't Fixed</title>
       <description>Three QA debugging stories where things looked fine until you checked the source, plus a config-registry isolation problem and a GitHub/Slack review-bot bug.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260706-when-healthy-lies-a-missing-iam-role-a-schedule-that-ran-nothing-and-an-s3-write-that-wasn-t-fixed.m4a" length="46821913" type="audio/x-m4a"/>
