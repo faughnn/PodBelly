@@ -48,6 +48,27 @@ When bumping the version, also update `app/src/main/java/com/podbelly/ui/WhatsNe
 3. Write **user-facing** descriptions — no commit messages, branch names, or technical jargon. Describe what the user will notice (e.g. "Queue: long-press episodes to Play Next or Play Last"), not implementation details (e.g. "gate advanceQueue on queueEnabled preference")
 4. Skip purely internal changes (refactors, test fixes, docs) — only list things the user can see or interact with
 
+## Building & CI
+
+**Do not attempt a local Gradle build in the cloud/agent environment.** The
+outbound network policy blocks `dl.google.com` (the Android Gradle Plugin and
+dependencies) and the Gradle distribution host with `403`, and there is no
+pre-populated dependency cache — so `./gradlew` and the system `gradle` both
+fail to resolve plugins. Don't burn time retrying; it will not succeed here.
+
+**Compilation and tests are verified by GitHub Actions instead.** When a pull
+request is opened (or updated), the `build` check runs the Gradle build and
+unit tests on CI. Treat that check as the source of truth for whether the code
+compiles:
+
+1. Make the change, then verify by hand what you can (id/coverage checks,
+   reading the diff, confirming exhaustive `when`s and imports).
+2. Push and open/refresh the PR — let the `build` check compile it.
+3. If `build` fails, read the CI logs, fix, and push again.
+
+State plainly in the PR/description that local compilation could not be run and
+CI is the compile check.
+
 ## Key Principle
 
 Always prefer using a known working feature pattern from an established open-source podcast app over designing from scratch. The reference apps have been battle-tested on millions of devices. When in doubt, look at how Pocket Casts does it.
