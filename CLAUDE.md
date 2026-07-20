@@ -56,18 +56,36 @@ dependencies) and the Gradle distribution host with `403`, and there is no
 pre-populated dependency cache — so `./gradlew` and the system `gradle` both
 fail to resolve plugins. Don't burn time retrying; it will not succeed here.
 
-**Compilation and tests are verified by GitHub Actions instead.** When a pull
-request is opened (or updated), the `build` check runs the Gradle build and
-unit tests on CI. Treat that check as the source of truth for whether the code
-compiles:
+**Compilation and tests are verified by GitHub Actions instead.** The workflows
+live in `.github/workflows/`:
 
-1. Make the change, then verify by hand what you can (id/coverage checks,
-   reading the diff, confirming exhaustive `when`s and imports).
-2. Push and open/refresh the PR — let the `build` check compile it.
-3. If `build` fails, read the CI logs, fix, and push again.
+- **`pr-build.yml` — "PR Build & Test"** runs on every pull request targeting
+  `main` or `develop`. Its single `build` job (Ubuntu, JDK 17) runs:
+  1. `./gradlew jacocoFullReport` — this transitively runs **every module's
+     `testDebugUnitTest`**, so a failing unit test anywhere fails the gate, then
+     merges coverage and posts a summary.
+  2. `./gradlew assembleDebug` — the actual compile / APK build.
+  So the PR gate = **all unit tests + a debug build**. Treat this `build` check
+  as the source of truth for whether the code compiles and tests pass. A new
+  push to the same PR cancels the previous run (concurrency group per PR).
+- **`distribute.yml` — "Build & Distribute"** runs on *push* to `main`/`develop`
+  (i.e. **after a PR merges**, not on the PR itself): it runs the tests, builds
+  the debug APK, and uploads it to Firebase App Distribution (the `dev` tester
+  group for `develop`, `testers,dev` for `main`). Merging to `develop`
+  therefore ships a build to testers — make sure the PR gate is green first.
 
-State plainly in the PR/description that local compilation could not be run and
-CI is the compile check.
+Workflow when a change is ready:
+
+1. Make the change, bump the version, update What's New; verify by hand what you
+   can (id/coverage checks, reading the diff, confirming exhaustive `when`s and
+   imports). You cannot compile locally — see above.
+2. Push and open/refresh the PR — the `build` check compiles and tests it.
+3. If `build` fails, read the CI logs (`get_job_logs` / the run URL), fix, and
+   push again (which supersedes the running job).
+4. Merge only once `build` is green — that also triggers Firebase distribution.
+
+State plainly in the PR description that local compilation could not be run and
+the CI `build` check is the compile check.
 
 ## Key Principle
 
