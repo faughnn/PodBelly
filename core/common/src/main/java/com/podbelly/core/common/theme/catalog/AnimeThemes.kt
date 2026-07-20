@@ -32,29 +32,6 @@ object AnimeThemes {
         outlineVariant = Color(0xFF453E34),
     )
 
-    private val MagicalGirlScheme = lightColorScheme(
-        primary = Color(0xFFEC5AA0),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFFFD5E8),
-        onPrimaryContainer = Color(0xFF4A0F2E),
-        secondary = Color(0xFFB07BE0),
-        onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFEBDBFB),
-        onSecondaryContainer = Color(0xFF33124F),
-        tertiary = Color(0xFF6AB8E8),
-        onTertiary = Color(0xFF002438),
-        tertiaryContainer = Color(0xFFD3EDFB),
-        onTertiaryContainer = Color(0xFF0B3247),
-        background = Color(0xFFFFF4FA),
-        onBackground = Color(0xFF3A1B2E),
-        surface = Color(0xFFFFFFFF),
-        onSurface = Color(0xFF3A1B2E),
-        surfaceVariant = Color(0xFFF6E4EE),
-        onSurfaceVariant = Color(0xFF6E5460),
-        outline = Color(0xFFA88494),
-        outlineVariant = Color(0xFFEBCFDD),
-    )
-
     private val MechaScheme = darkColorScheme(
         primary = Color(0xFF2E5BD0),
         onPrimary = Color(0xFFEAF0FF),
@@ -76,29 +53,6 @@ object AnimeThemes {
         onSurfaceVariant = Color(0xFFBAC2CE),
         outline = Color(0xFF7C8593),
         outlineVariant = Color(0xFF3B424D),
-    )
-
-    private val InkWashScheme = lightColorScheme(
-        primary = Color(0xFF1C1A17),
-        onPrimary = Color(0xFFF6F3EC),
-        primaryContainer = Color(0xFFDAD5C9),
-        onPrimaryContainer = Color(0xFF1C1A17),
-        secondary = Color(0xFF6E6A62),
-        onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFE3DFD5),
-        onSecondaryContainer = Color(0xFF2B2823),
-        tertiary = Color(0xFFC0392B),
-        onTertiary = Color(0xFFFFFFFF),
-        tertiaryContainer = Color(0xFFF6D9D4),
-        onTertiaryContainer = Color(0xFF4A0F09),
-        background = Color(0xFFF4F1EA),
-        onBackground = Color(0xFF1C1A17),
-        surface = Color(0xFFFBF9F3),
-        onSurface = Color(0xFF1C1A17),
-        surfaceVariant = Color(0xFFE7E3D9),
-        onSurfaceVariant = Color(0xFF55524A),
-        outline = Color(0xFF8C887E),
-        outlineVariant = Color(0xFFD5D0C4),
     )
 
     private val CyberRoninScheme = darkColorScheme(
@@ -126,9 +80,7 @@ object AnimeThemes {
 
     val specs: List<ThemeSpec> = listOf(
         ThemeSpec(AppTheme.SHONEN, "Shonen", ThemeCategory.ANIME, ShonenScheme),
-        ThemeSpec(AppTheme.MAGICAL_GIRL, "Magical Girl", ThemeCategory.ANIME, MagicalGirlScheme),
         ThemeSpec(AppTheme.MECHA, "Mecha", ThemeCategory.ANIME, MechaScheme),
-        ThemeSpec(AppTheme.INK_WASH, "Ink Wash", ThemeCategory.ANIME, InkWashScheme),
         ThemeSpec(AppTheme.CYBER_RONIN, "Cyber Ronin", ThemeCategory.ANIME, CyberRoninScheme),
     )
 }

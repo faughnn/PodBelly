@@ -55,29 +55,6 @@ object WeatherThemes {
         outlineVariant = Color(0xFFDBCAB0),
     )
 
-    private val fogScheme = lightColorScheme(
-        primary = Color(0xFF5F7A8C),
-        onPrimary = Color(0xFFF3F7FA),
-        primaryContainer = Color(0xFFD3DEE6),
-        onPrimaryContainer = Color(0xFF243441),
-        secondary = Color(0xFF7C8891),
-        onSecondary = Color(0xFFF4F6F8),
-        secondaryContainer = Color(0xFFDDE2E6),
-        onSecondaryContainer = Color(0xFF323A40),
-        tertiary = Color(0xFF4E9490),
-        onTertiary = Color(0xFFF1FAF9),
-        tertiaryContainer = Color(0xFFCEE7E4),
-        onTertiaryContainer = Color(0xFF1E3B39),
-        background = Color(0xFFEEF1F4),
-        onBackground = Color(0xFF2C333A),
-        surface = Color(0xFFEEF1F4),
-        onSurface = Color(0xFF2C333A),
-        surfaceVariant = Color(0xFFE0E5EA),
-        onSurfaceVariant = Color(0xFF5A636B),
-        outline = Color(0xFF8C949C),
-        outlineVariant = Color(0xFFCBD2D8),
-    )
-
     private val rainbowScheme = lightColorScheme(
         primary = Color(0xFFE83A3A),
         onPrimary = Color(0xFFFFFFFF),
@@ -127,7 +104,6 @@ object WeatherThemes {
     val specs: List<ThemeSpec> = listOf(
         ThemeSpec(AppTheme.STORM, "Storm", ThemeCategory.WEATHER, stormScheme),
         ThemeSpec(AppTheme.GOLDEN_HOUR, "Golden Hour", ThemeCategory.WEATHER, goldenHourScheme),
-        ThemeSpec(AppTheme.FOG, "Fog", ThemeCategory.WEATHER, fogScheme),
         ThemeSpec(AppTheme.RAINBOW, "Rainbow", ThemeCategory.WEATHER, rainbowScheme),
         ThemeSpec(AppTheme.CLEAR_NIGHT, "Clear Night", ThemeCategory.WEATHER, clearNightScheme),
     )

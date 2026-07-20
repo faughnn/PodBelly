@@ -31,52 +31,6 @@ object FantasyThemes {
         outlineVariant = Color(0xFF423B2C)
     )
 
-    private val ElvenScheme = darkColorScheme(
-        primary = Color(0xFF8FD46A),
-        onPrimary = Color(0xFF0E2607),
-        primaryContainer = Color(0xFF2A4718),
-        onPrimaryContainer = Color(0xFFCDF0AF),
-        secondary = Color(0xFF7FC9C0),
-        onSecondary = Color(0xFF04231F),
-        secondaryContainer = Color(0xFF17403B),
-        onSecondaryContainer = Color(0xFFC0EAE4),
-        tertiary = Color(0xFFE8D9A0),
-        onTertiary = Color(0xFF33290A),
-        tertiaryContainer = Color(0xFF4C401C),
-        onTertiaryContainer = Color(0xFFF6ECC7),
-        background = Color(0xFF0E1A18),
-        onBackground = Color(0xFFDDECE6),
-        surface = Color(0xFF142320),
-        onSurface = Color(0xFFDDECE6),
-        surfaceVariant = Color(0xFF1E322D),
-        onSurfaceVariant = Color(0xFFA9C2B8),
-        outline = Color(0xFF6C8A80),
-        outlineVariant = Color(0xFF33463F)
-    )
-
-    private val DragonfireScheme = darkColorScheme(
-        primary = Color(0xFFF04E1A),
-        onPrimary = Color(0xFF3A0E00),
-        primaryContainer = Color(0xFF631E06),
-        onPrimaryContainer = Color(0xFFFFD0BC),
-        secondary = Color(0xFFF2B02E),
-        onSecondary = Color(0xFF3A2600),
-        secondaryContainer = Color(0xFF5E4008),
-        onSecondaryContainer = Color(0xFFFFE6B0),
-        tertiary = Color(0xFFC03430),
-        onTertiary = Color(0xFF2E0605),
-        tertiaryContainer = Color(0xFF5A1512),
-        onTertiaryContainer = Color(0xFFFFCFCB),
-        background = Color(0xFF1A0E08),
-        onBackground = Color(0xFFF4E0D4),
-        surface = Color(0xFF241410),
-        onSurface = Color(0xFFF4E0D4),
-        surfaceVariant = Color(0xFF33201A),
-        onSurfaceVariant = Color(0xFFD3AE9E),
-        outline = Color(0xFF8A6558),
-        outlineVariant = Color(0xFF4A2E26)
-    )
-
     private val PotionScheme = darkColorScheme(
         primary = Color(0xFFA24EE0),
         onPrimary = Color(0xFF250840),
@@ -148,8 +102,6 @@ object FantasyThemes {
 
     val specs: List<ThemeSpec> = listOf(
         ThemeSpec(AppTheme.DUNGEON, "Dungeon", ThemeCategory.FANTASY, DungeonScheme),
-        ThemeSpec(AppTheme.ELVEN, "Elven", ThemeCategory.FANTASY, ElvenScheme),
-        ThemeSpec(AppTheme.DRAGONFIRE, "Dragonfire", ThemeCategory.FANTASY, DragonfireScheme),
         ThemeSpec(AppTheme.POTION, "Potion", ThemeCategory.FANTASY, PotionScheme),
         ThemeSpec(AppTheme.MANA_BLUE, "Mana Blue", ThemeCategory.FANTASY, ManaBlueScheme),
         ThemeSpec(AppTheme.NECROMANCER, "Necromancer", ThemeCategory.FANTASY, NecromancerScheme)

@@ -81,54 +81,6 @@ object SeasonalThemes {
         outlineVariant = Color(0xFFD8C4A6),
     )
 
-    // 4. Winter Frost — icy calm (light)
-    private val winterFrostScheme = lightColorScheme(
-        primary = Color(0xFF3F8FD6),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFCDE4F8),
-        onPrimaryContainer = Color(0xFF07263F),
-        secondary = Color(0xFF6E8CA6),
-        onSecondary = Color(0xFFFFFFFF),
-        secondaryContainer = Color(0xFFDBE6F0),
-        onSecondaryContainer = Color(0xFF17222E),
-        tertiary = Color(0xFF3AA6A6),
-        onTertiary = Color(0xFFFFFFFF),
-        tertiaryContainer = Color(0xFFCCECEC),
-        onTertiaryContainer = Color(0xFF042A2A),
-        background = Color(0xFFF0F6FB),
-        onBackground = Color(0xFF1E2A33),
-        surface = Color(0xFFF0F6FB),
-        onSurface = Color(0xFF1E2A33),
-        surfaceVariant = Color(0xFFDEE7EF),
-        onSurfaceVariant = Color(0xFF4E5C68),
-        outline = Color(0xFF7E8C99),
-        outlineVariant = Color(0xFFC5D0DA),
-    )
-
-    // 5. Spring Bloom — fresh florals (light)
-    private val springBloomScheme = lightColorScheme(
-        primary = Color(0xFFE86AA0),
-        onPrimary = Color(0xFFFFFFFF),
-        primaryContainer = Color(0xFFFAD3E4),
-        onPrimaryContainer = Color(0xFF43102A),
-        secondary = Color(0xFF6BBF5A),
-        onSecondary = Color(0xFF08290A),
-        secondaryContainer = Color(0xFFD5F0CD),
-        onSecondaryContainer = Color(0xFF143808),
-        tertiary = Color(0xFF4FA8E0),
-        onTertiary = Color(0xFFFFFFFF),
-        tertiaryContainer = Color(0xFFCEE9F8),
-        onTertiaryContainer = Color(0xFF042C42),
-        background = Color(0xFFF4FBF2),
-        onBackground = Color(0xFF1F2A1E),
-        surface = Color(0xFFF4FBF2),
-        onSurface = Color(0xFF1F2A1E),
-        surfaceVariant = Color(0xFFE3EEDF),
-        onSurfaceVariant = Color(0xFF52604F),
-        outline = Color(0xFF849181),
-        outlineVariant = Color(0xFFCBD8C6),
-    )
-
     // 6. Valentine — romantic (light)
     private val valentineScheme = lightColorScheme(
         primary = Color(0xFFE0325A),
@@ -157,8 +109,6 @@ object SeasonalThemes {
         ThemeSpec(AppTheme.HALLOWEEN, "Halloween", ThemeCategory.SEASONAL, halloweenScheme),
         ThemeSpec(AppTheme.CHRISTMAS, "Christmas", ThemeCategory.SEASONAL, christmasScheme),
         ThemeSpec(AppTheme.AUTUMN, "Autumn", ThemeCategory.SEASONAL, autumnScheme),
-        ThemeSpec(AppTheme.WINTER_FROST, "Winter Frost", ThemeCategory.SEASONAL, winterFrostScheme),
-        ThemeSpec(AppTheme.SPRING_BLOOM, "Spring Bloom", ThemeCategory.SEASONAL, springBloomScheme),
         ThemeSpec(AppTheme.VALENTINE, "Valentine", ThemeCategory.SEASONAL, valentineScheme),
     )
 }

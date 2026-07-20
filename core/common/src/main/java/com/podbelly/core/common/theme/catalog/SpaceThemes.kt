@@ -77,29 +77,6 @@ object SpaceThemes {
         outlineVariant = Color(0xFF32325E),
     )
 
-    private val solarFlareScheme = darkColorScheme(
-        primary = Color(0xFFFF7A18),
-        onPrimary = Color(0xFF2E1000),
-        primaryContainer = Color(0xFF7A3600),
-        onPrimaryContainer = Color(0xFFFFDCC1),
-        secondary = Color(0xFFFFC21E),
-        onSecondary = Color(0xFF362700),
-        secondaryContainer = Color(0xFF6E5300),
-        onSecondaryContainer = Color(0xFFFFEDBD),
-        tertiary = Color(0xFFE33030),
-        onTertiary = Color(0xFF350303),
-        tertiaryContainer = Color(0xFF6E1414),
-        onTertiaryContainer = Color(0xFFFFD3D0),
-        background = Color(0xFF160A02),
-        onBackground = Color(0xFFF6E4D6),
-        surface = Color(0xFF1D0F04),
-        onSurface = Color(0xFFF6E4D6),
-        surfaceVariant = Color(0xFF33200F),
-        onSurfaceVariant = Color(0xFFD8B79C),
-        outline = Color(0xFF8F6440),
-        outlineVariant = Color(0xFF46301C),
-    )
-
     private val deepSpaceScheme = darkColorScheme(
         primary = Color(0xFF4FC3F7),
         onPrimary = Color(0xFF002435),
@@ -127,7 +104,6 @@ object SpaceThemes {
         ThemeSpec(AppTheme.NEBULA, "Nebula", ThemeCategory.SPACE, nebulaScheme),
         ThemeSpec(AppTheme.MARS, "Mars", ThemeCategory.SPACE, marsScheme),
         ThemeSpec(AppTheme.GALAXY, "Galaxy", ThemeCategory.SPACE, galaxyScheme),
-        ThemeSpec(AppTheme.SOLAR_FLARE, "Solar Flare", ThemeCategory.SPACE, solarFlareScheme),
         ThemeSpec(AppTheme.DEEP_SPACE, "Deep Space", ThemeCategory.SPACE, deepSpaceScheme),
     )
 }

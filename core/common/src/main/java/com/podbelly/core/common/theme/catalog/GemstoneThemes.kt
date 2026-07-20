@@ -78,29 +78,6 @@ object GemstoneThemes {
         outlineVariant = Color(0xFF593238),
     )
 
-    private val JadeScheme = darkColorScheme(
-        primary = Color(0xFF2EB88A),
-        onPrimary = Color(0xFF03251A),
-        primaryContainer = Color(0xFF135840),
-        onPrimaryContainer = Color(0xFFCFF6E6),
-        secondary = Color(0xFF74E0B4),
-        onSecondary = Color(0xFF03301F),
-        secondaryContainer = Color(0xFF1A4C39),
-        onSecondaryContainer = Color(0xFFD6F7E9),
-        tertiary = Color(0xFFE6CF7A),
-        onTertiary = Color(0xFF352A05),
-        tertiaryContainer = Color(0xFF52451A),
-        onTertiaryContainer = Color(0xFFFAEFC4),
-        background = Color(0xFF0C1A14),
-        onBackground = Color(0xFFDEEEE6),
-        surface = Color(0xFF0C1A14),
-        onSurface = Color(0xFFDEEEE6),
-        surfaceVariant = Color(0xFF1A2E26),
-        onSurfaceVariant = Color(0xFFAECABE),
-        outline = Color(0xFF6E8C80),
-        outlineVariant = Color(0xFF334740),
-    )
-
     private val OpalScheme = lightColorScheme(
         primary = Color(0xFF2FA8B0),
         onPrimary = Color(0xFFFFFFFF),
@@ -128,7 +105,6 @@ object GemstoneThemes {
         ThemeSpec(AppTheme.AMETHYST, "Amethyst", ThemeCategory.GEMSTONES, AmethystScheme),
         ThemeSpec(AppTheme.SAPPHIRE, "Sapphire", ThemeCategory.GEMSTONES, SapphireScheme),
         ThemeSpec(AppTheme.RUBY, "Ruby", ThemeCategory.GEMSTONES, RubyScheme),
-        ThemeSpec(AppTheme.JADE, "Jade", ThemeCategory.GEMSTONES, JadeScheme),
         ThemeSpec(AppTheme.OPAL, "Opal", ThemeCategory.GEMSTONES, OpalScheme),
     )
 }

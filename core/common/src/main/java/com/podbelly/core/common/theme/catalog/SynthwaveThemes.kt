@@ -146,29 +146,6 @@ object SynthwaveThemes {
         outlineVariant = Color(0xFF181D2E),
     )
 
-    private val laserGridScheme = darkColorScheme(
-        primary = Color(0xFFFF2BD1),
-        onPrimary = Color(0xFF2E0026),
-        primaryContainer = Color(0xFF5C0A4E),
-        onPrimaryContainer = Color(0xFFFFB3EE),
-        secondary = Color(0xFF00E0FF),
-        onSecondary = Color(0xFF001E24),
-        secondaryContainer = Color(0xFF003D47),
-        onSecondaryContainer = Color(0xFF9CF3FF),
-        tertiary = Color(0xFF39FF14),
-        onTertiary = Color(0xFF042E00),
-        tertiaryContainer = Color(0xFF0F5200),
-        onTertiaryContainer = Color(0xFFB8FFA8),
-        background = Color(0xFF03040A),
-        onBackground = Color(0xFFE6FAFF),
-        surface = Color(0xFF090B14),
-        onSurface = Color(0xFFE6FAFF),
-        surfaceVariant = Color(0xFF12151F),
-        onSurfaceVariant = Color(0xFF9CA5B8),
-        outline = Color(0xFF00E0FF),
-        outlineVariant = Color(0xFF12151F),
-    )
-
     val specs: List<ThemeSpec> = listOf(
         ThemeSpec(AppTheme.SYNTHWAVE, "Synthwave", ThemeCategory.SYNTHWAVE, synthwaveScheme),
         ThemeSpec(AppTheme.VAPORWAVE, "Vaporwave", ThemeCategory.SYNTHWAVE, vaporwaveScheme),
@@ -176,6 +153,5 @@ object SynthwaveThemes {
         ThemeSpec(AppTheme.OUTRUN, "Outrun", ThemeCategory.SYNTHWAVE, outrunScheme),
         ThemeSpec(AppTheme.MIAMI_VICE, "Miami Vice", ThemeCategory.SYNTHWAVE, miamiViceScheme),
         ThemeSpec(AppTheme.HOLOGRAM, "Hologram", ThemeCategory.SYNTHWAVE, hologramScheme),
-        ThemeSpec(AppTheme.LASER_GRID, "Laser Grid", ThemeCategory.SYNTHWAVE, laserGridScheme),
     )
 }
