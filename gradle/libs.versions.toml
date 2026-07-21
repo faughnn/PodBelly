@@ -25,6 +25,7 @@ google-services = "4.4.4"
 firebase-bom = "34.9.0"
 firebase-appdistribution = "5.1.1"
 firebase-crashlytics-plugin = "3.0.3"
+play-publisher = "3.12.1"
 
 [libraries]
 # AndroidX Core
@@ -137,3 +138,4 @@ paparazzi = { id = "app.cash.paparazzi", version.ref = "paparazzi" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
 firebase-appdistribution = { id = "com.google.firebase.appdistribution", version.ref = "firebase-appdistribution" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase-crashlytics-plugin" }
+play-publisher = { id = "com.github.triplet.play", version.ref = "play-publisher" }
