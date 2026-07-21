@@ -4,9 +4,12 @@ Podbelly ships to two places:
 
 - **Firebase App Distribution** — automatic on every push to `develop`/`main`
   (debug APK, `distribute.yml`). This is the fast internal-tester loop.
-- **Google Play** — manual, via the **Release to Play** workflow
-  (`release-play.yml`), which builds a signed release **App Bundle** (`.aab`)
-  and uploads it with the Gradle Play Publisher plugin.
+- **Google Play** — the **Release to Play** workflow (`release-play.yml`)
+  builds a signed release **App Bundle** (`.aab`) and uploads it with the
+  Gradle Play Publisher plugin. It runs **automatically on push to `main`**
+  (publishing to the `internal` track), and can also be run manually to target
+  another track. Until the Play secrets are configured the publish step is
+  **skipped**, so pushes to `main` stay green.
 
 This doc covers the Play path.
 
@@ -55,13 +58,21 @@ Add these under Settings → Secrets and variables → Actions:
 
 ## Cutting a release
 
-1. Make sure `versionCode`/`versionName` in `app/build.gradle.kts` are bumped
-   (every commit does this already) and the change is on `main`.
-2. GitHub → Actions → **Release to Play** → *Run workflow*, pick the track
-   (defaults to `internal`).
-3. The job builds a signed `.aab` and uploads it to that track. Watch it in
-   Play Console → Testing/Production.
-4. Promote between tracks (internal → closed → production) from the console.
+**Automatic (the normal path):** merge/promote to `main`. Every push to `main`
+runs **Release to Play**, which builds the signed `.aab` and uploads it to the
+**internal** track. `versionCode`/`versionName` are bumped on every commit
+already, so each release carries a fresh version code (Play rejects duplicates).
+Then promote internal → closed → production in the Play Console when ready.
+
+**Manual (to target another track):** GitHub → Actions → **Release to Play** →
+*Run workflow*, pick the track. Useful for pushing straight to `production` (or
+`beta`) once your account is cleared for it.
+
+> Auto-publish targets `internal` on purpose — production is a deliberate
+> console promotion, and new personal accounts are gated behind the
+> 12-testers/14-days rule anyway. To make `main` publish somewhere else by
+> default, change the `internal` fallback for `PLAY_TRACK` in
+> `release-play.yml`.
 
 ## Verifying the release build
 

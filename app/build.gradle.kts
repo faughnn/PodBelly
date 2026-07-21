@@ -20,8 +20,8 @@ android {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 35
-        versionCode = 86
-        versionName = "1.6.38"
+        versionCode = 87
+        versionName = "1.6.39"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -117,7 +117,7 @@ play {
         serviceAccountCredentials.set(file(it))
     }
     defaultToAppBundles.set(true)
-    track.set(System.getenv("PLAY_TRACK") ?: "internal")
+    track.set(System.getenv("PLAY_TRACK")?.takeIf { it.isNotBlank() } ?: "internal")
 }
 
 dependencies {
