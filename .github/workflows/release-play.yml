@@ -1,0 +1,62 @@
+# Build a signed release App Bundle and upload it to Google Play.
+#
+# Manual only (workflow_dispatch): releasing to the store is a deliberate act,
+# not something every push should trigger. Pick the track when you run it;
+# it defaults to `internal`.
+#
+# Requires these repository secrets (see RELEASING.md):
+#   GOOGLE_SERVICES_JSON       - base64 of app/google-services.json
+#   UPLOAD_KEYSTORE_BASE64     - base64 of the upload keystore (.jks)
+#   UPLOAD_KEYSTORE_PASSWORD   - keystore password
+#   UPLOAD_KEY_ALIAS           - key alias
+#   UPLOAD_KEY_PASSWORD        - key password
+#   PLAY_SERVICE_ACCOUNT_JSON  - base64 of the Play service-account key JSON
+name: Release to Play
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Play track to publish to"
+        type: choice
+        default: internal
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+
+      - name: Decode upload keystore
+        run: echo "${{ secrets.UPLOAD_KEYSTORE_BASE64 }}" | base64 -d > ${{ runner.temp }}/upload.jks
+
+      - name: Write Play service-account key
+        run: echo "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" | base64 -d > ${{ runner.temp }}/play-sa.json
+
+      - name: Build & publish release bundle
+        run: ./gradlew publishReleaseBundle
+        env:
+          UPLOAD_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ runner.temp }}/play-sa.json
+          PLAY_TRACK: ${{ inputs.track }}

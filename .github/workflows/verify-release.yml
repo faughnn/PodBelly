@@ -1,0 +1,46 @@
+# Verify the minified release App Bundle assembles.
+#
+# `buildTypes.release` turns on R8/minification, but nothing else builds it, so
+# a keep-rule gap would only surface at publish time. This job builds an
+# (unsigned) release bundle on demand to catch R8/ProGuard breakage early.
+# Needs no signing secrets — only GOOGLE_SERVICES_JSON, which the google-services
+# plugin requires to configure the build.
+name: Verify Release Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "app/proguard-rules.pro"
+      - "app/build.gradle.kts"
+      - ".github/workflows/verify-release.yml"
+
+jobs:
+  bundle-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+
+      - name: Assemble release bundle (unsigned)
+        run: ./gradlew bundleRelease
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn
