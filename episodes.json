@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260721-argo-workflows-end-to-end-the-object-model-and-how-to-migrate-it-cleanly",
+      "title": "Argo Workflows, End to End: The Object Model and How to Migrate It Cleanly",
+      "description": "If you know Kubernetes and ArgoCD but not Argo Workflows: the five core objects and why a Workflow is the run itself, the controller-vs-server split, the chassis-vs-cargo mental model that de-risks a real migration, building a new deployment safely on a live cluster, sizing from real numbers, and whether Argo waits or fails under load.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260721-argo-workflows-end-to-end-the-object-model-and-how-to-migrate-it-cleanly.m4a",
+      "bytes": 42947126,
+      "duration_sec": 1334,
+      "pubdate_rfc822": "Tue, 21 Jul 2026 15:07:29 +0000",
+      "guid": "podbelly-20260721-argo-workflows-end-to-end-the-object-model-and-how-to-migrate-it-cleanly",
+      "number": 16
+    },
+    {
       "id": "20260720-why-your-ci-deploy-chases-a-commit-that-never-existed-the-merge-sha-race",
       "title": "Why Your CI Deploy Chases a Commit That Never Existed: The Merge-SHA Race",
       "description": "A per-PR deploy hunted an image tagged with a commit that had been regenerated out from under it \u2014 a merge-SHA race. Why merge commits get a new SHA with identical parents, why the head SHA is the stable identifier, and the two-registry gotcha that made the first fix only half a fix.",

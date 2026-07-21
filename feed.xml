@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>16. Argo Workflows, End to End: The Object Model and How to Migrate It Cleanly</title>
+      <description>If you know Kubernetes and ArgoCD but not Argo Workflows: the five core objects and why a Workflow is the run itself, the controller-vs-server split, the chassis-vs-cargo mental model that de-risks a real migration, building a new deployment safely on a live cluster, sizing from real numbers, and whether Argo waits or fails under load.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260721-argo-workflows-end-to-end-the-object-model-and-how-to-migrate-it-cleanly.m4a" length="42947126" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260721-argo-workflows-end-to-end-the-object-model-and-how-to-migrate-it-cleanly</guid>
+      <pubDate>Tue, 21 Jul 2026 15:07:29 +0000</pubDate>
+      <itunes:episode>16</itunes:episode>
+      <itunes:duration>22:14</itunes:duration>
+    </item>
+    <item>
       <title>15. Why Your CI Deploy Chases a Commit That Never Existed: The Merge-SHA Race</title>
       <description>A per-PR deploy hunted an image tagged with a commit that had been regenerated out from under it — a merge-SHA race. Why merge commits get a new SHA with identical parents, why the head SHA is the stable identifier, and the two-registry gotcha that made the first fix only half a fix.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260720-why-your-ci-deploy-chases-a-commit-that-never-existed-the-merge-sha-race.m4a" length="46634406" type="audio/x-m4a"/>
