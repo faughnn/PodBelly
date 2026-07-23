@@ -6,9 +6,14 @@ object WhatsNew {
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
-    const val LATEST_VERSION_CODE = 90
+    const val LATEST_VERSION_CODE = 92
 
     val changelog: Map<Int, List<String>> = mapOf(
+        92 to listOf(
+            "Share now sits with the other controls at the bottom of the Now Playing screen",
+            "Skip silence moved into the ⋮ menu on the player",
+            "Tidied the share card — cleaner footer with a small theme label",
+        ),
         90 to listOf(
             "Share the episode you're playing straight from the Now Playing screen (⋮ menu)",
             "Shared posts now include a link to the show and its RSS feed, so friends can follow or subscribe — not just the episode",

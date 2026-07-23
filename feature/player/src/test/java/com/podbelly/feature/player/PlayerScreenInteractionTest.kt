@@ -192,12 +192,11 @@ class PlayerScreenInteractionTest {
                     playbackSpeed = 1.5f,
                     sleepTimerRemaining = 0L,
                     isSleepTimerActive = false,
-                    skipSilence = false,
                     volumeBoost = false,
                     hasChapters = false,
                     onSpeedClick = {},
                     onSleepTimerClick = {},
-                    onToggleSkipSilence = {},
+                    onShareClick = {},
                     onToggleVolumeBoost = {},
                     onChaptersClick = {},
                 )
@@ -215,12 +214,11 @@ class PlayerScreenInteractionTest {
                     playbackSpeed = 1.0f,
                     sleepTimerRemaining = 0L,
                     isSleepTimerActive = false,
-                    skipSilence = false,
                     volumeBoost = false,
                     hasChapters = false,
                     onSpeedClick = {},
                     onSleepTimerClick = {},
-                    onToggleSkipSilence = {},
+                    onShareClick = {},
                     onToggleVolumeBoost = {},
                     onChaptersClick = {},
                 )
@@ -231,8 +229,8 @@ class PlayerScreenInteractionTest {
     }
 
     @Test
-    fun `skip silence toggle triggers callback`() {
-        var toggled = false
+    fun `share button triggers callback`() {
+        var shared = false
 
         composeTestRule.setContent {
             MaterialTheme {
@@ -240,20 +238,19 @@ class PlayerScreenInteractionTest {
                     playbackSpeed = 1.0f,
                     sleepTimerRemaining = 0L,
                     isSleepTimerActive = false,
-                    skipSilence = false,
                     volumeBoost = false,
                     hasChapters = false,
                     onSpeedClick = {},
                     onSleepTimerClick = {},
-                    onToggleSkipSilence = { toggled = true },
+                    onShareClick = { shared = true },
                     onToggleVolumeBoost = {},
                     onChaptersClick = {},
                 )
             }
         }
 
-        composeTestRule.onNodeWithContentDescription("Enable skip silence").performClick()
-        assertTrue(toggled)
+        composeTestRule.onNodeWithText("Share").performClick()
+        assertTrue(shared)
     }
 
     @Test
@@ -266,12 +263,11 @@ class PlayerScreenInteractionTest {
                     playbackSpeed = 1.0f,
                     sleepTimerRemaining = 0L,
                     isSleepTimerActive = false,
-                    skipSilence = false,
                     volumeBoost = false,
                     hasChapters = false,
                     onSpeedClick = {},
                     onSleepTimerClick = {},
-                    onToggleSkipSilence = {},
+                    onShareClick = {},
                     onToggleVolumeBoost = { toggled = true },
                     onChaptersClick = {},
                 )
