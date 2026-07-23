@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +50,7 @@ fun EpisodeShareCard(
 
     Column(
         modifier = modifier
-            .size(340.dp)
+            .width(360.dp)
             .background(colors.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -126,8 +125,9 @@ fun EpisodeShareCard(
             )
         }
 
-        // Push the corner row to the bottom edge; everything stays inside.
-        Spacer(Modifier.weight(1f))
+        // The card wraps its content (fixed width, natural height), so nothing
+        // ever clips; a fixed gap sits above the footer row.
+        Spacer(Modifier.height(22.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -106,6 +106,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import com.podbelly.core.common.share.ShareCardSheet
+import com.podbelly.core.common.share.ShareInfo
+import kotlinx.coroutines.launch
 import androidx.palette.graphics.Palette
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -137,6 +143,19 @@ fun PlayerScreen(
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val speedPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSkipSettings by remember { mutableStateOf(false) }
+
+    // Share-card state for the currently playing episode.
+    val context = LocalContext.current
+    val shareScope = rememberCoroutineScope()
+    var shareInfo by remember { mutableStateOf<ShareInfo?>(null) }
+    var shareArtwork by remember { mutableStateOf<ImageBitmap?>(null) }
+    shareInfo?.let { info ->
+        ShareCardSheet(
+            info = info,
+            artwork = shareArtwork,
+            onDismiss = { shareInfo = null },
+        )
+    }
 
     // Extract dominant color from artwork for background tinting
     val dominantColor = rememberDominantColor(
@@ -200,6 +219,27 @@ fun PlayerScreen(
                                     onClick = {
                                         showOverflowMenu = false
                                         onNavigateToPodcast(playback.podcastId)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Share episode") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        shareScope.launch {
+                                            val info = viewModel.buildShareInfo() ?: return@launch
+                                            shareArtwork = if (info.artworkUrl.isNotBlank()) {
+                                                val result = context.imageLoader.execute(
+                                                    ImageRequest.Builder(context)
+                                                        .data(info.artworkUrl)
+                                                        .allowHardware(false)
+                                                        .build()
+                                                )
+                                                (result.drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+                                            } else {
+                                                null
+                                            }
+                                            shareInfo = info
+                                        }
                                     },
                                 )
                             }

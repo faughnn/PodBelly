@@ -3,6 +3,7 @@ package com.podbelly.feature.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.share.ShareInfo
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastSkipSettings
@@ -134,6 +135,28 @@ class PlayerViewModel @Inject constructor(
 
     /** True while the show-notes sheet is open. */
     val episodeNotesVisible: StateFlow<Boolean> = _episodeNotesVisible
+
+    /**
+     * Gathers everything needed to share the currently playing episode — the
+     * card fields plus the episode / show / subscribe links. Returns null when
+     * nothing is playing.
+     */
+    suspend fun buildShareInfo(): ShareInfo? {
+        val state = playbackController.playbackState.value
+        if (state.podcastId == 0L && state.episodeId == 0L) return null
+        val podcast = if (state.podcastId != 0L) podcastDao.getByIdOnce(state.podcastId) else null
+        val episode = if (state.episodeId != 0L) episodeDao.getByIdOnce(state.episodeId) else null
+        return ShareInfo(
+            episodeTitle = state.episodeTitle.ifBlank { episode?.title ?: "" },
+            podcastTitle = state.podcastTitle.ifBlank { podcast?.title ?: "" },
+            artworkUrl = state.artworkUrl.ifBlank {
+                episode?.artworkUrl?.ifBlank { podcast?.artworkUrl } ?: podcast?.artworkUrl ?: ""
+            },
+            episodeUrl = episode?.audioUrl ?: "",
+            showWebsite = podcast?.link ?: "",
+            feedUrl = podcast?.feedUrl ?: "",
+        )
+    }
 
     fun showEpisodeNotes() {
         _episodeNotesVisible.value = true
