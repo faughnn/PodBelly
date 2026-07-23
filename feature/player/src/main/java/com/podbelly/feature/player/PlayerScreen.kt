@@ -109,9 +109,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import android.graphics.drawable.BitmapDrawable
-import coil.imageLoader
-import coil.request.ImageRequest
 import com.podbelly.core.common.share.ShareCardSheet
 import com.podbelly.core.common.share.ShareInfo
 import kotlinx.coroutines.launch
