@@ -5,9 +5,13 @@ object WhatsNew {
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
-    const val LATEST_VERSION_CODE = 85
+    // 86-87 were release-pipeline/CI only; no changelog entries.
+    const val LATEST_VERSION_CODE = 88
 
     val changelog: Map<Int, List<String>> = mapOf(
+        88 to listOf(
+            "Share an episode as a good-looking image: the Share button on an episode now makes a card with the cover art, episode and show — styled in your current theme — that you can send to anyone",
+        ),
         85 to listOf(
             "Tidied up the theme list: trimmed a batch of near-duplicate themes so the Appearance picker is easier to browse (if you were on one of the removed themes, the app falls back to System default)",
         ),
