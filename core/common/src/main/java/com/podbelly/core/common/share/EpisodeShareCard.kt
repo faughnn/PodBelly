@@ -2,7 +2,6 @@ package com.podbelly.core.common.share
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,10 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.podbelly.core.common.theme.LocalAppTheme
 import com.podbelly.core.common.theme.ThemeCatalog
 
@@ -126,28 +125,34 @@ fun EpisodeShareCard(
         }
 
         // The card wraps its content (fixed width, natural height), so nothing
-        // ever clips; a fixed gap sits above the footer row.
-        Spacer(Modifier.height(22.dp))
+        // ever clips; a fixed gap sits above the footer.
+        Spacer(Modifier.height(20.dp))
 
-        Row(
+        // Tiny theme caption, bottom-right. The "podbelly" logo up top is the
+        // branding, so there's no wordmark down here.
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.End,
         ) {
             Text(
-                text = "PodBelly",
+                text = "THEME",
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = colors.onSurfaceVariant,
+                fontSize = 7.sp,
+                lineHeight = 9.sp,
+                letterSpacing = 1.sp,
+                color = colors.onSurfaceVariant.copy(alpha = 0.7f),
+                maxLines = 1,
             )
             Text(
                 text = themeName,
                 style = MaterialTheme.typography.labelSmall,
+                fontSize = 9.sp,
+                lineHeight = 11.sp,
                 color = colors.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(180.dp),
                 textAlign = TextAlign.End,
+                modifier = Modifier.width(200.dp),
             )
         }
     }
