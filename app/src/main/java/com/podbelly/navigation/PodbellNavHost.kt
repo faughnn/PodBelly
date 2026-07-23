@@ -144,7 +144,10 @@ private fun NavHostController.isRouteOnBackStack(route: String): Boolean = try {
 fun PodbellNavHost(
     playbackController: PlaybackController,
     appViewModel: AppViewModel = hiltViewModel(),
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    deepLinkFeedUrl: String? = null,
+    onSubscribeDeepLink: suspend (String) -> Long? = { null },
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val playbackState by playbackController.playbackState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -156,6 +159,26 @@ fun PodbellNavHost(
     val isFullScreenRoute = currentRoute == Screen.Player.route
 
     var bannerMessage by remember { mutableStateOf<String?>(null) }
+
+    // Subscribe deep link (podcast://…): fetch + subscribe, then jump to the
+    // show. Keyed on the URL so each new link fires once; the callback clears it
+    // so a recomposition can't re-subscribe.
+    LaunchedEffect(deepLinkFeedUrl) {
+        val url = deepLinkFeedUrl ?: return@LaunchedEffect
+        val podcastId = onSubscribeDeepLink(url)
+        if (podcastId != null) {
+            navController.navigate(Screen.PodcastDetail.createRoute(podcastId)) {
+                launchSingleTop = true
+            }
+        } else {
+            bannerMessage = "Couldn't subscribe to that feed"
+            delay(3000L)
+            bannerMessage = null
+        }
+        // Consume last: clearing the URL re-keys this effect, which would cancel
+        // the coroutine mid-flight if done before the banner delay above.
+        onDeepLinkConsumed()
+    }
 
     LaunchedEffect(Unit) {
         appViewModel.refreshResult.collect { newCount ->

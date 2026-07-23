@@ -31,5 +31,20 @@ fun ShareInfo.toShareText(): String = buildString {
     }
     if (feedUrl.isNotBlank()) {
         append("\nSubscribe (RSS): ").append(feedUrl)
+        // A podcast:// version of the feed: tapping it opens a native podcast app
+        // (Apple Podcasts on iOS, the user's default app on Android, or PodBelly
+        // itself) straight into subscribing to the show.
+        append("\nSubscribe (open app): ").append(feedUrl.toPodcastScheme())
     }
+}
+
+/**
+ * Turn an http(s) feed URL into a `podcast://` subscribe link. This is the
+ * de-facto scheme podcast apps register for; PodBelly registers for it too, so
+ * the link round-trips back into this app's add-by-RSS flow.
+ */
+fun String.toPodcastScheme(): String = when {
+    startsWith("https://") -> "podcast://" + substring("https://".length)
+    startsWith("http://") -> "podcast://" + substring("http://".length)
+    else -> "podcast://" + trimStart('/')
 }

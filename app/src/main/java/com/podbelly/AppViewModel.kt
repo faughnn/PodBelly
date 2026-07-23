@@ -128,6 +128,67 @@ class AppViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Subscribe to a show by its RSS feed URL, used by the `podcast://` (and
+     * `pcast`/`feed`/`itpc`) deep-link handler. Mirrors DiscoverViewModel's
+     * subscribe flow: fetch the feed, upsert the podcast, insert its episodes.
+     * Returns the podcast id so the caller can navigate straight to it, or null
+     * if the feed couldn't be fetched.
+     */
+    suspend fun subscribeToFeed(feedUrl: String): Long? {
+        return try {
+            val existing = podcastDao.getByFeedUrl(feedUrl)
+            val now = System.currentTimeMillis()
+
+            val feed = searchRepository.fetchFeed(feedUrl)
+
+            val podcastId = if (existing != null) {
+                // Already known — just (re-)mark subscribed and keep its id.
+                podcastDao.update(existing.copy(subscribed = true, subscribedAt = now))
+                existing.id
+            } else {
+                podcastDao.insert(
+                    PodcastEntity(
+                        feedUrl = feedUrl,
+                        title = feed.title,
+                        author = feed.author,
+                        description = feed.description,
+                        artworkUrl = feed.artworkUrl,
+                        link = feed.link,
+                        language = "",
+                        lastBuildDate = now,
+                        subscribed = true,
+                        subscribedAt = now,
+                        lastRefreshedAt = now,
+                        episodeCount = feed.episodes.size,
+                    )
+                )
+            }
+
+            // insertAll ignores episodes that already exist (by podcastId+guid),
+            // so re-subscribing to a known show is safe.
+            episodeDao.insertAll(
+                feed.episodes.map { episode ->
+                    EpisodeEntity(
+                        podcastId = podcastId,
+                        guid = episode.guid,
+                        title = episode.title,
+                        description = episode.description,
+                        audioUrl = episode.audioUrl,
+                        publicationDate = episode.publishedAt,
+                        durationSeconds = (episode.duration / 1000).toInt(),
+                        artworkUrl = episode.artworkUrl ?: "",
+                        transcriptUrl = episode.transcriptUrl ?: "",
+                        transcriptType = episode.transcriptType ?: "",
+                    )
+                }
+            )
+            podcastId
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun refreshFeeds() {
         if (_isRefreshing.value) return
         _isRefreshing.value = true
