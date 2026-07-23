@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.appdistribution) apply false
     alias(libs.plugins.firebase.crashlytics) apply false
+    alias(libs.plugins.play.publisher) apply false
     // Applied for real (not `apply false`): the aggregated jacocoFullReport
     // task below lives on the root project and needs the plugin's conventions
     // (jacocoClasspath, report defaults) here, not just in subprojects.

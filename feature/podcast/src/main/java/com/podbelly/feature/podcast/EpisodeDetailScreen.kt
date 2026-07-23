@@ -54,7 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,6 +66,13 @@ import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.MobileDataWarningDialog
+import com.podbelly.core.common.share.ShareCardSheet
+import com.podbelly.core.common.share.ShareInfo
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import coil.imageLoader
+import coil.request.ImageRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +89,38 @@ fun EpisodeDetailScreen(
     val context = LocalContext.current
     val showMobileDataWarning by viewModel.showMobileDataWarning.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Share-card state: preload the artwork as a software bitmap so the card
+    // capture is deterministic and includes the cover image.
+    var showShareSheet by remember { mutableStateOf(false) }
+    var shareArtwork by remember { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(uiState.artworkUrl) {
+        shareArtwork = if (uiState.artworkUrl.isNotBlank()) {
+            val result = context.imageLoader.execute(
+                ImageRequest.Builder(context)
+                    .data(uiState.artworkUrl)
+                    .allowHardware(false)
+                    .build()
+            )
+            (result.drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+        } else {
+            null
+        }
+    }
+    if (showShareSheet) {
+        ShareCardSheet(
+            info = ShareInfo(
+                episodeTitle = uiState.title,
+                podcastTitle = uiState.podcastTitle,
+                artworkUrl = uiState.artworkUrl,
+                episodeUrl = uiState.audioUrl,
+                showWebsite = uiState.showWebsite,
+                feedUrl = uiState.feedUrl,
+            ),
+            artwork = shareArtwork,
+            onDismiss = { showShareSheet = false },
+        )
+    }
 
     LaunchedEffect(Unit) {
         viewModel.downloadErrors.collect { error ->
@@ -307,22 +345,7 @@ fun EpisodeDetailScreen(
 
             // Share button
             FilledTonalButton(
-                onClick = {
-                    val shareText = buildString {
-                        append(uiState.title)
-                        if (uiState.podcastTitle.isNotBlank()) {
-                            append(" - ${uiState.podcastTitle}")
-                        }
-                        if (uiState.audioUrl.isNotBlank()) {
-                            append("\n${uiState.audioUrl}")
-                        }
-                    }
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, shareText)
-                    }
-                    context.startActivity(Intent.createChooser(shareIntent, "Share Episode"))
-                },
+                onClick = { showShareSheet = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),

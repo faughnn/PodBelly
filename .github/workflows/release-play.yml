@@ -1,0 +1,90 @@
+# Build a signed release App Bundle and upload it to Google Play.
+#
+# Runs automatically on push to `main` (i.e. after a develop → main promotion),
+# publishing to the `internal` track. Production stays a deliberate promotion
+# you make in the Play Console. Can also be run manually (workflow_dispatch)
+# to pick a different track.
+#
+# The publish job is SKIPPED (not failed) when the Play secrets are absent, so
+# pushes to main stay green until you've finished the RELEASING.md setup.
+#
+# Requires these repository secrets (see RELEASING.md):
+#   GOOGLE_SERVICES_JSON       - base64 of app/google-services.json
+#   UPLOAD_KEYSTORE_BASE64     - base64 of the upload keystore (.jks)
+#   UPLOAD_KEYSTORE_PASSWORD   - keystore password
+#   UPLOAD_KEY_ALIAS           - key alias
+#   UPLOAD_KEY_PASSWORD        - key password
+#   PLAY_SERVICE_ACCOUNT_JSON  - base64 of the Play service-account key JSON
+name: Release to Play
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Play track to publish to"
+        type: choice
+        default: internal
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+
+jobs:
+  # Gate: only proceed when the signing + Play credentials exist. Secrets can't
+  # be read directly in a job-level `if`, so surface their presence as an output.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          KEYSTORE: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          SERVICE_ACCOUNT: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$KEYSTORE" ] && [ -n "$SERVICE_ACCOUNT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Play secrets not configured — skipping Play upload (see RELEASING.md)."
+          fi
+
+  publish:
+    needs: guard
+    if: needs.guard.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+
+      - name: Decode upload keystore
+        run: echo "${{ secrets.UPLOAD_KEYSTORE_BASE64 }}" | base64 -d > ${{ runner.temp }}/upload.jks
+
+      - name: Write Play service-account key
+        run: echo "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" | base64 -d > ${{ runner.temp }}/play-sa.json
+
+      - name: Build & publish release bundle
+        run: ./gradlew publishReleaseBundle
+        env:
+          UPLOAD_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ runner.temp }}/play-sa.json
+          # Manual runs pick a track; push-to-main defaults to internal.
+          PLAY_TRACK: ${{ inputs.track || 'internal' }}

@@ -5,9 +5,27 @@ object WhatsNew {
     // 72 was internal test hardening with no user-facing changes; no changelog entry.
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
-    const val LATEST_VERSION_CODE = 85
+    // 86-87 were release-pipeline/CI only; no changelog entries.
+    const val LATEST_VERSION_CODE = 93
 
     val changelog: Map<Int, List<String>> = mapOf(
+        93 to listOf(
+            "Shared episodes now include a one-tap Subscribe link that opens a podcast app straight into following the show",
+            "Tapping a podcast:// subscribe link now opens PodBelly and adds the show for you",
+        ),
+        92 to listOf(
+            "Share now sits with the other controls at the bottom of the Now Playing screen",
+            "Skip silence moved into the ⋮ menu on the player",
+            "Tidied the share card — cleaner footer with a small theme label",
+        ),
+        90 to listOf(
+            "Share the episode you're playing straight from the Now Playing screen (⋮ menu)",
+            "Shared posts now include a link to the show and its RSS feed, so friends can follow or subscribe — not just the episode",
+            "Fixed the share card cutting off the show name and theme label on longer titles",
+        ),
+        88 to listOf(
+            "Share an episode as a good-looking image: the Share button on an episode now makes a card with the cover art, episode and show — styled in your current theme — that you can send to anyone",
+        ),
         85 to listOf(
             "Tidied up the theme list: trimmed a batch of near-duplicate themes so the Appearance picker is easier to browse (if you were on one of the removed themes, the app falls back to System default)",
         ),

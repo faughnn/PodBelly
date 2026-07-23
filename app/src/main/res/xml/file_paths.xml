@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Generated share-card images live in cacheDir/shares and are exposed to
+         other apps (the share sheet) through the FileProvider below. -->
+    <cache-path name="shares" path="shares/" />
+</paths>

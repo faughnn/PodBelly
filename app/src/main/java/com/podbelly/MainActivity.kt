@@ -1,6 +1,7 @@
 package com.podbelly
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -53,8 +54,14 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* granted or denied — playback works either way, just no notification */ }
 
+    // The https feed URL carried by a subscribe deep link (podcast://…), pending
+    // handling by the nav host. Set from the launch or a new intent; cleared once
+    // consumed so a config change or tab switch can't re-trigger the subscribe.
+    private var deepLinkFeedUrl by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        deepLinkFeedUrl = feedUrlFromIntent(intent)
         enableEdgeToEdge()
         lifecycle.addObserver(lifecycleObserver)
         requestNotificationPermissionIfNeeded()
@@ -83,7 +90,12 @@ class MainActivity : ComponentActivity() {
                     if (isSplash) {
                         SplashScreen(onFinished = { showSplash = false })
                     } else {
-                        PodbellNavHost(playbackController = playbackController)
+                        PodbellNavHost(
+                            playbackController = playbackController,
+                            deepLinkFeedUrl = deepLinkFeedUrl,
+                            onSubscribeDeepLink = { url -> appViewModel.subscribeToFeed(url) },
+                            onDeepLinkConsumed = { deepLinkFeedUrl = null },
+                        )
                     }
                 }
 
@@ -110,6 +122,38 @@ class MainActivity : ComponentActivity() {
             ) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+    }
+
+    // launchMode is singleTask, so a subscribe link tapped while PodBelly is
+    // already running delivers here rather than through a fresh onCreate.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        feedUrlFromIntent(intent)?.let { deepLinkFeedUrl = it }
+    }
+
+    /**
+     * Reconstruct the https RSS URL from a subscribe deep link, or null for any
+     * other intent. A `podcast://rss.example.com/feed` link keeps everything
+     * after the scheme in the URI's scheme-specific part, so re-prefixing
+     * "https:" yields the real feed URL that the add-by-RSS flow expects.
+     */
+    private fun feedUrlFromIntent(intent: Intent?): String? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        val data = intent.data ?: return null
+        return when (data.scheme?.lowercase()) {
+            "podcast", "pcast", "feed", "itpc" -> {
+                val ssp = data.schemeSpecificPart?.takeIf { it.isNotBlank() } ?: return null
+                // Some sources already embed a full http(s) URL after the scheme
+                // (e.g. feed:https://…); otherwise the SSP is the bare host/path.
+                when {
+                    ssp.startsWith("https://") || ssp.startsWith("http://") -> ssp
+                    ssp.startsWith("//") -> "https:$ssp"
+                    else -> "https://${ssp.trimStart('/')}"
+                }
+            }
+            else -> null
         }
     }
 

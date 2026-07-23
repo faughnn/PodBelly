@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
@@ -106,6 +107,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import com.podbelly.core.common.share.ShareCardSheet
+import com.podbelly.core.common.share.ShareInfo
+import kotlinx.coroutines.launch
 import androidx.palette.graphics.Palette
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -137,6 +144,38 @@ fun PlayerScreen(
     val sleepTimerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val speedPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSkipSettings by remember { mutableStateOf(false) }
+
+    // Share-card state for the currently playing episode.
+    val context = LocalContext.current
+    val shareScope = rememberCoroutineScope()
+    var shareInfo by remember { mutableStateOf<ShareInfo?>(null) }
+    var shareArtwork by remember { mutableStateOf<ImageBitmap?>(null) }
+    val triggerShare: () -> Unit = {
+        shareScope.launch {
+            val info = viewModel.buildShareInfo()
+            if (info != null) {
+                shareArtwork = if (info.artworkUrl.isNotBlank()) {
+                    val result = context.imageLoader.execute(
+                        ImageRequest.Builder(context)
+                            .data(info.artworkUrl)
+                            .allowHardware(false)
+                            .build()
+                    )
+                    (result.drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+                } else {
+                    null
+                }
+                shareInfo = info
+            }
+        }
+    }
+    shareInfo?.let { info ->
+        ShareCardSheet(
+            info = info,
+            artwork = shareArtwork,
+            onDismiss = { shareInfo = null },
+        )
+    }
 
     // Extract dominant color from artwork for background tinting
     val dominantColor = rememberDominantColor(
@@ -200,6 +239,26 @@ fun PlayerScreen(
                                     onClick = {
                                         showOverflowMenu = false
                                         onNavigateToPodcast(playback.podcastId)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(if (uiState.skipSilence) "Skip silence: On" else "Skip silence: Off")
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.GraphicEq,
+                                            contentDescription = null,
+                                            tint = if (uiState.skipSilence) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                        )
+                                    },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        viewModel.toggleSkipSilence()
                                     },
                                 )
                             }
@@ -362,12 +421,11 @@ fun PlayerScreen(
                     playbackSpeed = uiState.playbackSpeed,
                     sleepTimerRemaining = uiState.sleepTimerRemaining,
                     isSleepTimerActive = uiState.isSleepTimerActive,
-                    skipSilence = uiState.skipSilence,
                     volumeBoost = uiState.volumeBoost,
                     hasChapters = playback.chapters.isNotEmpty(),
                     onSpeedClick = { viewModel.showSpeedPicker() },
                     onSleepTimerClick = { viewModel.showSleepTimerPicker() },
-                    onToggleSkipSilence = { viewModel.toggleSkipSilence() },
+                    onShareClick = triggerShare,
                     onToggleVolumeBoost = { viewModel.toggleVolumeBoost() },
                     onChaptersClick = { viewModel.showChaptersList() },
                     hasTranscript = uiState.transcript.available,
@@ -807,12 +865,11 @@ internal fun SecondaryControls(
     playbackSpeed: Float,
     sleepTimerRemaining: Long,
     isSleepTimerActive: Boolean,
-    skipSilence: Boolean,
     volumeBoost: Boolean,
     hasChapters: Boolean,
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
-    onToggleSkipSilence: () -> Unit,
+    onShareClick: () -> Unit,
     onToggleVolumeBoost: () -> Unit,
     onChaptersClick: () -> Unit,
     hasTranscript: Boolean = false,
@@ -877,25 +934,21 @@ internal fun SecondaryControls(
             )
         }
 
-        // Skip silence toggle
-        val skipSilenceColor by animateColorAsState(
-            targetValue = if (skipSilence) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            label = "skipSilenceColor",
-        )
-        FilledIconToggleButton(
-            checked = skipSilence,
-            onCheckedChange = { onToggleSkipSilence() },
-            modifier = Modifier.size(42.dp),
+        // Share the current episode (theme-styled card + links)
+        FilledTonalButton(
+            onClick = onShareClick,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Icon(
-                imageVector = Icons.Filled.GraphicEq,
-                contentDescription = if (skipSilence) "Disable skip silence" else "Enable skip silence",
-                tint = skipSilenceColor,
-                modifier = Modifier.size(20.dp),
+                imageVector = Icons.Filled.Share,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "Share",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
             )
         }
 

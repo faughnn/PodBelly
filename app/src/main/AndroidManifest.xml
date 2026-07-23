@@ -20,6 +20,17 @@
         android:theme="@style/Theme.Podbelly"
         android:usesCleartextTraffic="true">
 
+        <!-- Serves generated share-card images to the Android share sheet. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -29,6 +40,20 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Subscribe deep links. Tapping a podcast://, pcast://, feed:// or
+                 itpc:// link (from a share, browser or another app) opens PodBelly
+                 and subscribes to the show. The scheme prefixes an https RSS URL;
+                 MainActivity reconstructs it via "https:" + schemeSpecificPart. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="podcast" />
+                <data android:scheme="pcast" />
+                <data android:scheme="feed" />
+                <data android:scheme="itpc" />
             </intent-filter>
         </activity>
 
