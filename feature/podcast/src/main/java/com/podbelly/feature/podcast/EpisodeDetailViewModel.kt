@@ -34,6 +34,8 @@ data class EpisodeDetailUiState(
     val isDownloaded: Boolean = false,
     val audioUrl: String = "",
     val downloadPath: String = "",
+    val feedUrl: String = "",
+    val showWebsite: String = "",
 )
 
 @HiltViewModel
@@ -75,6 +77,8 @@ class EpisodeDetailViewModel @Inject constructor(
             isDownloaded = episode.downloadPath.isNotEmpty(),
             audioUrl = episode.audioUrl,
             downloadPath = episode.downloadPath,
+            feedUrl = podcast?.feedUrl ?: "",
+            showWebsite = podcast?.link ?: "",
         )
     }.stateIn(
         scope = viewModelScope,

@@ -43,14 +43,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareCardSheet(
-    episodeTitle: String,
-    podcastTitle: String,
-    metaLine: String,
+    info: ShareInfo,
     artwork: ImageBitmap?,
-    shareText: String,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val shareText = remember(info) { info.toShareText() }
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
     val graphicsLayer = rememberGraphicsLayer()
@@ -74,9 +72,9 @@ fun ShareCardSheet(
                 },
             ) {
                 EpisodeShareCard(
-                    episodeTitle = episodeTitle,
-                    podcastTitle = podcastTitle,
-                    metaLine = metaLine,
+                    episodeTitle = info.episodeTitle,
+                    podcastTitle = info.podcastTitle,
+                    metaLine = "",
                     artwork = artwork,
                 )
             }

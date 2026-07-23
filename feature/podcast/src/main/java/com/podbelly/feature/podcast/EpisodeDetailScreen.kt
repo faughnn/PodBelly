@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.common.share.ShareCardSheet
+import com.podbelly.core.common.share.ShareInfo
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -107,17 +108,16 @@ fun EpisodeDetailScreen(
         }
     }
     if (showShareSheet) {
-        val shareText = buildString {
-            append(uiState.title)
-            if (uiState.podcastTitle.isNotBlank()) append(" · ${uiState.podcastTitle}")
-            if (uiState.audioUrl.isNotBlank()) append("\n\n${uiState.audioUrl}")
-        }
         ShareCardSheet(
-            episodeTitle = uiState.title,
-            podcastTitle = uiState.podcastTitle,
-            metaLine = "",
+            info = ShareInfo(
+                episodeTitle = uiState.title,
+                podcastTitle = uiState.podcastTitle,
+                artworkUrl = uiState.artworkUrl,
+                episodeUrl = uiState.audioUrl,
+                showWebsite = uiState.showWebsite,
+                feedUrl = uiState.feedUrl,
+            ),
             artwork = shareArtwork,
-            shareText = shareText,
             onDismiss = { showShareSheet = false },
         )
     }
