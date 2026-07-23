@@ -41,6 +41,20 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Subscribe deep links. Tapping a podcast://, pcast://, feed:// or
+                 itpc:// link (from a share, browser or another app) opens PodBelly
+                 and subscribes to the show. The scheme prefixes an https RSS URL;
+                 MainActivity reconstructs it via "https:" + schemeSpecificPart. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="podcast" />
+                <data android:scheme="pcast" />
+                <data android:scheme="feed" />
+                <data android:scheme="itpc" />
+            </intent-filter>
         </activity>
 
         <!-- PlaybackService is declared in core:playback's manifest and merged automatically -->
