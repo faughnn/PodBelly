@@ -5,6 +5,8 @@ import com.podbelly.core.common.AppTheme
 import com.podbelly.core.common.CrashLogStore
 import com.podbelly.core.common.CrashReporter
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.VisualizerBackgroundMode
+import com.podbelly.core.common.VisualizerStyle
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.PodcastEntity
@@ -61,6 +63,9 @@ class SettingsViewModelTest {
     private val skipSilenceFlow = MutableStateFlow(false)
     private val skipAdChaptersFlow = MutableStateFlow(false)
     private val volumeBoostFlow = MutableStateFlow(false)
+    private val visualizerEnabledFlow = MutableStateFlow(false)
+    private val visualizerStyleFlow = MutableStateFlow(VisualizerStyle.BARS)
+    private val visualizerBackgroundFlow = MutableStateFlow(VisualizerBackgroundMode.REPLACE)
 
 
     private val podcastsFlow = MutableStateFlow<List<PodcastEntity>>(emptyList())
@@ -82,6 +87,9 @@ class SettingsViewModelTest {
         every { preferencesManager.skipSilence } returns skipSilenceFlow
         every { preferencesManager.skipAdChapters } returns skipAdChaptersFlow
         every { preferencesManager.volumeBoost } returns volumeBoostFlow
+        every { preferencesManager.visualizerEnabled } returns visualizerEnabledFlow
+        every { preferencesManager.visualizerStyle } returns visualizerStyleFlow
+        every { preferencesManager.visualizerBackground } returns visualizerBackgroundFlow
 
 
         every { podcastDao.getAll() } returns podcastsFlow

@@ -81,6 +81,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.Canvas
@@ -124,6 +125,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.SkipIntroOutroDialog
+import com.podbelly.core.common.VisualizerBackgroundMode
 import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.playback.Chapter
 import kotlinx.coroutines.Dispatchers
@@ -300,13 +302,24 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // ── Large artwork ────────────────────────────────────────
-                AsyncImage(
-                    model = playback.artworkUrl.ifBlank { null },
-                    contentDescription = "Episode artwork",
-                    placeholder = rememberVectorPainter(Icons.Default.Podcasts),
-                    error = rememberVectorPainter(Icons.Default.Podcasts),
-                    fallback = rememberVectorPainter(Icons.Default.Podcasts),
+                // ── Large artwork / audio visualizer ──────────────────────
+                // Tap the artwork to toggle the visualizer (opt-in; off by
+                // default). The style + whether the artwork is replaced or
+                // dimmed behind it come from Appearance settings.
+                val visualizerFrame = viewModel.visualizerFrames.collectAsStateWithLifecycle()
+                val showVisualizer = uiState.visualizerEnabled
+                val dimArtwork = uiState.visualizerBackground == VisualizerBackgroundMode.DIM
+
+                // Run the audio tap's analysis only while the visualizer is on
+                // screen and playing; stop it when leaving the screen.
+                LaunchedEffect(showVisualizer, playback.isPlaying) {
+                    viewModel.setVisualizerActive(showVisualizer && playback.isPlaying)
+                }
+                DisposableEffect(Unit) {
+                    onDispose { viewModel.setVisualizerActive(false) }
+                }
+
+                Box(
                     modifier = Modifier
                         .widthIn(max = 360.dp)
                         .fillMaxWidth()
@@ -317,9 +330,52 @@ fun PlayerScreen(
                             ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
                             spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
                         )
-                        .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.Crop,
-                )
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { viewModel.toggleVisualizer() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!showVisualizer || dimArtwork) {
+                        AsyncImage(
+                            model = playback.artworkUrl.ifBlank { null },
+                            contentDescription = "Episode artwork",
+                            placeholder = rememberVectorPainter(Icons.Default.Podcasts),
+                            error = rememberVectorPainter(Icons.Default.Podcasts),
+                            fallback = rememberVectorPainter(Icons.Default.Podcasts),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(if (showVisualizer && dimArtwork) Modifier.alpha(0.22f) else Modifier),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        // Replace mode: a plain themed backdrop behind the visualizer.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        )
+                    }
+
+                    if (showVisualizer) {
+                        AudioVisualizer(
+                            frame = visualizerFrame,
+                            style = uiState.visualizerStyle,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(20.dp),
+                        )
+                    }
+
+                    // Tap affordance: a small equaliser glyph hinting the artwork toggles.
+                    Icon(
+                        imageVector = Icons.Filled.GraphicEq,
+                        contentDescription = if (showVisualizer) "Show artwork" else "Show visualizer",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(10.dp)
+                            .size(20.dp),
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(32.dp))
 

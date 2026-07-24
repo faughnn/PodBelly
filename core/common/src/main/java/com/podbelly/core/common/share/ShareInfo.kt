@@ -1,5 +1,16 @@
 package com.podbelly.core.common.share
 
+import java.net.URLEncoder
+
+/**
+ * Hosted redirect that turns a tappable https link into a `podcast://` open —
+ * a static page in this repo, served by GitHub Pages. Chat apps only linkify
+ * well-known schemes (http/https), so a raw `podcast://` link isn't tappable in
+ * most of them; this https wrapper is, and the page bounces the phone into the
+ * podcast app (PodBelly included).
+ */
+private const val SUBSCRIBE_REDIRECT_BASE = "https://faughnn.github.io/PodBelly/subscribe/"
+
 /**
  * Everything needed to share an episode: what the card shows plus the links
  * that ride along as the message text.
@@ -22,29 +33,27 @@ data class ShareInfo(
 fun ShareInfo.toShareText(): String = buildString {
     append(episodeTitle)
     if (podcastTitle.isNotBlank()) append(" · ").append(podcastTitle)
-    append("\n")
-    if (episodeUrl.isNotBlank()) {
-        append("\nListen: ").append(episodeUrl)
+
+    // Each link on its own line with a blank line between, so the block stays
+    // readable even when a URL wraps across several lines in the chat.
+    val links = buildList {
+        if (episodeUrl.isNotBlank()) add("Listen: $episodeUrl")
+        if (showWebsite.isNotBlank()) add("Show: $showWebsite")
+        if (feedUrl.isNotBlank()) {
+            // An https link (tappable everywhere) that redirects into the
+            // podcast:// scheme, so friends can subscribe with one tap.
+            add("Subscribe: ${feedUrl.toSubscribeLink()}")
+        }
     }
-    if (showWebsite.isNotBlank()) {
-        append("\nShow: ").append(showWebsite)
-    }
-    if (feedUrl.isNotBlank()) {
-        append("\nSubscribe (RSS): ").append(feedUrl)
-        // A podcast:// version of the feed: tapping it opens a native podcast app
-        // (Apple Podcasts on iOS, the user's default app on Android, or PodBelly
-        // itself) straight into subscribing to the show.
-        append("\nSubscribe (open app): ").append(feedUrl.toPodcastScheme())
+    if (links.isNotEmpty()) {
+        append("\n\n")
+        append(links.joinToString("\n\n"))
     }
 }
 
 /**
- * Turn an http(s) feed URL into a `podcast://` subscribe link. This is the
- * de-facto scheme podcast apps register for; PodBelly registers for it too, so
- * the link round-trips back into this app's add-by-RSS flow.
+ * Wrap an http(s) feed URL in the hosted subscribe-redirect link. The feed is
+ * carried as a query param the page reads and turns into a `podcast://` open.
  */
-fun String.toPodcastScheme(): String = when {
-    startsWith("https://") -> "podcast://" + substring("https://".length)
-    startsWith("http://") -> "podcast://" + substring("http://".length)
-    else -> "podcast://" + trimStart('/')
-}
+fun String.toSubscribeLink(): String =
+    SUBSCRIBE_REDIRECT_BASE + "?feed=" + URLEncoder.encode(this, "UTF-8")

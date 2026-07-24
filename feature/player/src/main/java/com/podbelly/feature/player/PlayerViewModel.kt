@@ -3,6 +3,8 @@ package com.podbelly.feature.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.VisualizerBackgroundMode
+import com.podbelly.core.common.VisualizerStyle
 import com.podbelly.core.common.share.ShareInfo
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
@@ -12,9 +14,12 @@ import com.podbelly.core.network.transcript.TranscriptParser
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState
 import com.podbelly.core.playback.SleepTimer
+import com.podbelly.core.playback.visualizer.AudioVisualizerBus
+import com.podbelly.core.playback.visualizer.VisualizerFrame
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +46,9 @@ data class PlayerUiState(
     val showChaptersList: Boolean = false,
     val showVolumeBoostWarning: Boolean = false,
     val transcript: TranscriptUiState = TranscriptUiState(),
+    val visualizerEnabled: Boolean = false,
+    val visualizerStyle: VisualizerStyle = VisualizerStyle.BARS,
+    val visualizerBackground: VisualizerBackgroundMode = VisualizerBackgroundMode.REPLACE,
 )
 
 /** Feed-derived facts about the playing episode, for the player's info line and notes sheet. */
@@ -70,7 +78,15 @@ class PlayerViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val sleepTimer: SleepTimer,
     private val transcriptParser: TranscriptParser,
+    private val visualizerBus: AudioVisualizerBus,
 ) : ViewModel() {
+
+    /**
+     * Live analysed-audio frames for the visualizer (~40/sec). Exposed as its own
+     * flow, deliberately NOT folded into [uiState], so only the small visualizer
+     * composable recomposes at frame rate — not the whole player screen.
+     */
+    val visualizerFrames: StateFlow<VisualizerFrame> = visualizerBus.frames
 
     private val _showSleepTimerPicker = MutableStateFlow(false)
     private val _showSpeedPicker = MutableStateFlow(false)
@@ -192,13 +208,48 @@ class PlayerViewModel @Inject constructor(
             initialValue = null,
         )
 
+    /** Low-frequency visualizer preferences, grouped so the main combine stays ≤5 flows. */
+    private data class VisualizerSettings(
+        val enabled: Boolean,
+        val style: VisualizerStyle,
+        val background: VisualizerBackgroundMode,
+    )
+
+    private val visualizerSettings: StateFlow<VisualizerSettings> = combine(
+        preferencesManager.visualizerEnabled,
+        preferencesManager.visualizerStyle,
+        preferencesManager.visualizerBackground,
+    ) { enabled, style, background ->
+        VisualizerSettings(enabled, style, background)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = VisualizerSettings(false, VisualizerStyle.BARS, VisualizerBackgroundMode.REPLACE),
+    )
+
+    private data class SecondaryState(
+        val showChapters: Boolean,
+        val showBoostWarning: Boolean,
+        val transcript: TranscriptUiState,
+        val visualizer: VisualizerSettings,
+    )
+
+    private val secondaryState: Flow<SecondaryState> = combine(
+        _showChaptersList,
+        _showVolumeBoostWarning,
+        _transcript,
+        visualizerSettings,
+    ) { showChapters, showBoostWarning, transcript, visualizer ->
+        SecondaryState(showChapters, showBoostWarning, transcript, visualizer)
+    }
+
     val uiState: StateFlow<PlayerUiState> = combine(
         playbackController.playbackState,
         sleepTimer.remainingMillis,
         _showSleepTimerPicker,
         _showSpeedPicker,
-        combine(_showChaptersList, _showVolumeBoostWarning, _transcript, ::Triple),
-    ) { playback, timerRemaining, showSleep, showSpeed, (showChapters, showBoostWarning, transcript) ->
+        secondaryState,
+    ) { playback, timerRemaining, showSleep, showSpeed, secondary ->
         PlayerUiState(
             playbackState = playback,
             sleepTimerRemaining = timerRemaining,
@@ -208,9 +259,12 @@ class PlayerViewModel @Inject constructor(
             volumeBoost = playback.volumeBoost,
             showSleepTimerPicker = showSleep,
             showSpeedPicker = showSpeed,
-            showChaptersList = showChapters,
-            showVolumeBoostWarning = showBoostWarning,
-            transcript = transcript,
+            showChaptersList = secondary.showChapters,
+            showVolumeBoostWarning = secondary.showBoostWarning,
+            transcript = secondary.transcript,
+            visualizerEnabled = secondary.visualizer.enabled,
+            visualizerStyle = secondary.visualizer.style,
+            visualizerBackground = secondary.visualizer.background,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -449,5 +503,21 @@ class PlayerViewModel @Inject constructor(
     /** Seeks playback to a transcript cue's start time. */
     fun seekToCue(startMs: Long) {
         playbackController.seekTo(startMs)
+    }
+
+    /** Tap-the-artwork toggle: flips the visualizer on/off and persists it. */
+    fun toggleVisualizer() {
+        viewModelScope.launch {
+            val current = preferencesManager.visualizerEnabled.first()
+            preferencesManager.setVisualizerEnabled(!current)
+        }
+    }
+
+    /**
+     * Starts/stops the audio tap's per-frame analysis. Driven by the screen so
+     * the tap only runs while the visualizer is actually visible and playing.
+     */
+    fun setVisualizerActive(active: Boolean) {
+        visualizerBus.setActive(active)
     }
 }
