@@ -6,9 +6,14 @@ object WhatsNew {
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
-    const val LATEST_VERSION_CODE = 96
+    const val LATEST_VERSION_CODE = 97
 
     val changelog: Map<Int, List<String>> = mapOf(
+        97 to listOf(
+            "New audio visualizer on the Now Playing screen — tap the artwork to turn it on",
+            "Ten visualizer styles to choose from in Settings > Appearance: Bars, Mirrored Bars, Spectrum Curve, Radial Bars, Oscilloscope, Filled Wave, Pulse, Ripple Rings, VU Ladder and Dot Matrix",
+            "The visualizer uses your current theme's colours, and can either replace the artwork or shimmer behind a dimmed version of it",
+        ),
         96 to listOf(
             "The Subscribe link in shared posts is now tappable in any app and opens a podcast app to follow the show",
         ),

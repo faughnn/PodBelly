@@ -42,6 +42,44 @@ enum class DownloadsSortOrder {
 }
 
 /**
+ * The on-screen style of the Now Playing audio visualizer. Persisted by name,
+ * so entries must not be renamed. [displayName] is what the settings picker
+ * shows. Each style is driven by one of the signals the audio tap produces:
+ * FFT frequency bands, the raw waveform, or the overall level (see the
+ * visualizer renderers in feature:player).
+ */
+enum class VisualizerStyle(val displayName: String) {
+    BARS("Bars"),
+    MIRRORED_BARS("Mirrored Bars"),
+    SPECTRUM_CURVE("Spectrum Curve"),
+    RADIAL_BARS("Radial Bars"),
+    OSCILLOSCOPE("Oscilloscope"),
+    FILLED_WAVE("Filled Wave"),
+    PULSE("Pulse"),
+    RIPPLE("Ripple Rings"),
+    VU_LADDER("VU Ladder"),
+    DOT_MATRIX("Dot Matrix");
+
+    companion object {
+        fun fromString(value: String): VisualizerStyle {
+            return entries.firstOrNull { it.name == value } ?: BARS
+        }
+    }
+}
+
+/** How the artwork behaves while the visualizer is showing. */
+enum class VisualizerBackgroundMode(val displayName: String) {
+    REPLACE("Replace artwork"),
+    DIM("Dim artwork behind");
+
+    companion object {
+        fun fromString(value: String): VisualizerBackgroundMode {
+            return entries.firstOrNull { it.name == value } ?: REPLACE
+        }
+    }
+}
+
+/**
  * Stable identity for each selectable appearance theme; persisted by name, so
  * entries must not be renamed. Display name, category and colors live in the
  * theme catalog (see [com.podbelly.core.common.theme.ThemeCatalog]).
@@ -256,6 +294,9 @@ class PreferencesManager @Inject constructor(
         val HOME_NEW_DISMISSED_AT = longPreferencesKey("home_new_dismissed_at")
         val LAST_FEED_REFRESH_AT = longPreferencesKey("last_feed_refresh_at")
         val CHART_COUNTRY = stringPreferencesKey("chart_country")
+        val VISUALIZER_ENABLED = booleanPreferencesKey("visualizer_enabled")
+        val VISUALIZER_STYLE = stringPreferencesKey("visualizer_style")
+        val VISUALIZER_BACKGROUND = stringPreferencesKey("visualizer_background")
     }
 
     // ── Flows ────────────────────────────────────────────────────────────
@@ -314,6 +355,23 @@ class PreferencesManager @Inject constructor(
 
     /** Backward-compatible alias. */
     val darkThemeMode: Flow<AppTheme> get() = appTheme
+
+    /** Whether the Now Playing screen shows the audio visualizer in place of the artwork. */
+    val visualizerEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.VISUALIZER_ENABLED] ?: false
+    }
+
+    /** Which visualizer style is drawn when the visualizer is on. */
+    val visualizerStyle: Flow<VisualizerStyle> = dataStore.data.map { prefs ->
+        VisualizerStyle.fromString(prefs[Keys.VISUALIZER_STYLE] ?: VisualizerStyle.BARS.name)
+    }
+
+    /** Whether the artwork is replaced by, or dimmed behind, the visualizer. */
+    val visualizerBackground: Flow<VisualizerBackgroundMode> = dataStore.data.map { prefs ->
+        VisualizerBackgroundMode.fromString(
+            prefs[Keys.VISUALIZER_BACKGROUND] ?: VisualizerBackgroundMode.REPLACE.name
+        )
+    }
 
     val playbackSpeed: Flow<Float> = dataStore.data.map { prefs ->
         prefs[Keys.PLAYBACK_SPEED] ?: 1.0f
@@ -447,6 +505,24 @@ class PreferencesManager @Inject constructor(
 
     /** Backward-compatible alias. */
     suspend fun setDarkThemeMode(mode: AppTheme) = setAppTheme(mode)
+
+    suspend fun setVisualizerEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.VISUALIZER_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setVisualizerStyle(style: VisualizerStyle) {
+        dataStore.edit { prefs ->
+            prefs[Keys.VISUALIZER_STYLE] = style.name
+        }
+    }
+
+    suspend fun setVisualizerBackground(mode: VisualizerBackgroundMode) {
+        dataStore.edit { prefs ->
+            prefs[Keys.VISUALIZER_BACKGROUND] = mode.name
+        }
+    }
 
     suspend fun setPlaybackSpeed(speed: Float) {
         dataStore.edit { prefs ->

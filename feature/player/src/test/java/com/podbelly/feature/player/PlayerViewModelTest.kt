@@ -2,6 +2,8 @@ package com.podbelly.feature.player
 
 import app.cash.turbine.test
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.VisualizerBackgroundMode
+import com.podbelly.core.common.VisualizerStyle
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.dao.PodcastSkipSettings
@@ -10,6 +12,7 @@ import com.podbelly.core.network.transcript.TranscriptParser
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState
 import com.podbelly.core.playback.SleepTimer
+import com.podbelly.core.playback.visualizer.AudioVisualizerBus
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -41,6 +44,7 @@ class PlayerViewModelTest {
     private val preferencesManager = mockk<PreferencesManager>(relaxed = true)
     private val sleepTimer = mockk<SleepTimer>(relaxed = true)
     private val transcriptParser = mockk<TranscriptParser>(relaxed = true)
+    private val visualizerBus = AudioVisualizerBus()
 
     private val playbackStateFlow = MutableStateFlow(PlaybackState())
     private val sleepTimerRemainingFlow = MutableStateFlow(0L)
@@ -55,6 +59,9 @@ class PlayerViewModelTest {
         every { preferencesManager.playbackSpeed } returns flowOf(1.0f)
         every { preferencesManager.skipSilence } returns flowOf(false)
         every { preferencesManager.volumeBoost } returns flowOf(false)
+        every { preferencesManager.visualizerEnabled } returns flowOf(false)
+        every { preferencesManager.visualizerStyle } returns flowOf(VisualizerStyle.BARS)
+        every { preferencesManager.visualizerBackground } returns flowOf(VisualizerBackgroundMode.REPLACE)
     }
 
     @After
@@ -70,6 +77,7 @@ class PlayerViewModelTest {
             preferencesManager = preferencesManager,
             sleepTimer = sleepTimer,
             transcriptParser = transcriptParser,
+            visualizerBus = visualizerBus,
         )
     }
 
