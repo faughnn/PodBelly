@@ -1,8 +1,8 @@
 package com.podbelly.core.playback.visualizer
 
 import androidx.media3.common.C
-import androidx.media3.common.audio.TeeAudioProcessor
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.log10

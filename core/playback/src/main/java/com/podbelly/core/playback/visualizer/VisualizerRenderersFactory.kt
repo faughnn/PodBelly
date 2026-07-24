@@ -1,11 +1,11 @@
 package com.podbelly.core.playback.visualizer
 
 import android.content.Context
-import androidx.media3.common.audio.TeeAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.TeeAudioProcessor
 
 /**
  * A [DefaultRenderersFactory] that inserts a [TeeAudioProcessor] into the audio
