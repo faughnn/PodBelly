@@ -29,11 +29,9 @@ fun ShareInfo.toShareText(): String = buildString {
         if (episodeUrl.isNotBlank()) add("Listen: $episodeUrl")
         if (showWebsite.isNotBlank()) add("Show: $showWebsite")
         if (feedUrl.isNotBlank()) {
-            add("Subscribe (RSS): $feedUrl")
-            // A podcast:// version of the feed: tapping it opens a native podcast
-            // app (Apple Podcasts on iOS, the user's default app on Android, or
-            // PodBelly itself) straight into subscribing to the show.
-            add("Subscribe (open app): ${feedUrl.toPodcastScheme()}")
+            // A podcast:// version of the feed: in an app that honours the scheme
+            // (or PodBelly itself) tapping it opens straight into subscribing.
+            add("Subscribe: ${feedUrl.toPodcastScheme()}")
         }
     }
     if (links.isNotEmpty()) {
