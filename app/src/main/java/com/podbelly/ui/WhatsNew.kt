@@ -6,9 +6,12 @@ object WhatsNew {
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
-    const val LATEST_VERSION_CODE = 93
+    const val LATEST_VERSION_CODE = 94
 
     val changelog: Map<Int, List<String>> = mapOf(
+        94 to listOf(
+            "Shared posts now put each link on its own line, so they're easier to read and tap",
+        ),
         93 to listOf(
             "Shared episodes now include a one-tap Subscribe link that opens a podcast app straight into following the show",
             "Tapping a podcast:// subscribe link now opens PodBelly and adds the show for you",

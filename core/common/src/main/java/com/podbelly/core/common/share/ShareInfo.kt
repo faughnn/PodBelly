@@ -22,19 +22,23 @@ data class ShareInfo(
 fun ShareInfo.toShareText(): String = buildString {
     append(episodeTitle)
     if (podcastTitle.isNotBlank()) append(" · ").append(podcastTitle)
-    append("\n")
-    if (episodeUrl.isNotBlank()) {
-        append("\nListen: ").append(episodeUrl)
+
+    // Each link on its own line with a blank line between, so the block stays
+    // readable even when a URL wraps across several lines in the chat.
+    val links = buildList {
+        if (episodeUrl.isNotBlank()) add("Listen: $episodeUrl")
+        if (showWebsite.isNotBlank()) add("Show: $showWebsite")
+        if (feedUrl.isNotBlank()) {
+            add("Subscribe (RSS): $feedUrl")
+            // A podcast:// version of the feed: tapping it opens a native podcast
+            // app (Apple Podcasts on iOS, the user's default app on Android, or
+            // PodBelly itself) straight into subscribing to the show.
+            add("Subscribe (open app): ${feedUrl.toPodcastScheme()}")
+        }
     }
-    if (showWebsite.isNotBlank()) {
-        append("\nShow: ").append(showWebsite)
-    }
-    if (feedUrl.isNotBlank()) {
-        append("\nSubscribe (RSS): ").append(feedUrl)
-        // A podcast:// version of the feed: tapping it opens a native podcast app
-        // (Apple Podcasts on iOS, the user's default app on Android, or PodBelly
-        // itself) straight into subscribing to the show.
-        append("\nSubscribe (open app): ").append(feedUrl.toPodcastScheme())
+    if (links.isNotEmpty()) {
+        append("\n\n")
+        append(links.joinToString("\n\n"))
     }
 }
 
