@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.podbelly.core.common.AppTheme
+import com.podbelly.core.common.VisualizerBackgroundMode
+import com.podbelly.core.common.VisualizerStyle
 import com.podbelly.core.common.theme.ThemeCatalog
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -80,7 +82,7 @@ import java.io.InputStreamReader
 enum class SettingsSection(val key: String, val title: String, val subtitle: String) {
     PLAYBACK("playback", "Playback", "Speeds, silence, ad chapters, volume"),
     DOWNLOADS("downloads", "Downloads", "Auto-download, cleanup, storage"),
-    APPEARANCE("appearance", "Appearance", "Theme"),
+    APPEARANCE("appearance", "Appearance", "Theme, visualizer"),
     FEEDS("feeds", "Feeds", "Refresh interval"),
     BACKUP("backup", "Import & Export", "Move subscriptions via OPML"),
     DIAGNOSTICS("diagnostics", "Diagnostics", "Crash logs");
@@ -179,12 +181,45 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (section) {
-                SettingsSection.APPEARANCE -> item {
-                    SettingsCard {
-                        ThemePickerRow(
-                            selectedMode = uiState.appTheme,
-                            onModeSelected = { viewModel.setAppTheme(it) },
-                        )
+                SettingsSection.APPEARANCE -> {
+                    item {
+                        SettingsCard {
+                            ThemePickerRow(
+                                selectedMode = uiState.appTheme,
+                                onModeSelected = { viewModel.setAppTheme(it) },
+                            )
+                        }
+                    }
+                    item { SectionHeader("Visualizer") }
+                    item {
+                        SettingsCard {
+                            Column {
+                                SwitchRow(
+                                    title = "Audio visualizer",
+                                    subtitle = "Show a sound visualizer on Now Playing — tap the artwork to toggle it",
+                                    checked = uiState.visualizerEnabled,
+                                    onCheckedChange = { viewModel.setVisualizerEnabled(it) },
+                                )
+                                DropdownRow(
+                                    title = "Style",
+                                    selectedValue = uiState.visualizerStyle.displayName,
+                                    options = VisualizerStyle.entries.map { it.displayName },
+                                    onOptionSelected = { name ->
+                                        VisualizerStyle.entries.firstOrNull { it.displayName == name }
+                                            ?.let { viewModel.setVisualizerStyle(it) }
+                                    },
+                                )
+                                DropdownRow(
+                                    title = "Background",
+                                    selectedValue = uiState.visualizerBackground.displayName,
+                                    options = VisualizerBackgroundMode.entries.map { it.displayName },
+                                    onOptionSelected = { name ->
+                                        VisualizerBackgroundMode.entries.firstOrNull { it.displayName == name }
+                                            ?.let { viewModel.setVisualizerBackground(it) }
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
 

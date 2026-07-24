@@ -18,6 +18,9 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.podbelly.core.playback.visualizer.AudioSpectrumSink
+import com.podbelly.core.playback.visualizer.AudioVisualizerBus
+import com.podbelly.core.playback.visualizer.VisualizerRenderersFactory
 import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
@@ -90,6 +93,9 @@ class PlaybackService : MediaLibraryService() {
     @Inject
     lateinit var preferencesManager: PreferencesManager
 
+    @Inject
+    lateinit var visualizerBus: AudioVisualizerBus
+
     private var mediaLibrarySession: MediaLibrarySession? = null
     private var exoPlayer: ExoPlayer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
@@ -112,6 +118,13 @@ class PlaybackService : MediaLibraryService() {
         createNotificationChannel()
 
         val player = ExoPlayer.Builder(this)
+            // Custom renderers factory taps decoded PCM for the Now Playing
+            // visualizer. It keeps the default Sonic/SilenceSkipping processors,
+            // so playback speed and skip-silence are unaffected, and only does
+            // per-frame analysis while the visualizer is on screen.
+            .setRenderersFactory(
+                VisualizerRenderersFactory(this, AudioSpectrumSink(visualizerBus))
+            )
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)

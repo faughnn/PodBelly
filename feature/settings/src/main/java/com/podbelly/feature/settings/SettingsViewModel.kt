@@ -7,6 +7,8 @@ import com.podbelly.core.common.CrashLogStore
 import com.podbelly.core.common.CrashReporter
 import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
+import com.podbelly.core.common.VisualizerBackgroundMode
+import com.podbelly.core.common.VisualizerStyle
 import com.podbelly.core.common.di.IoDispatcher
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
@@ -52,6 +54,9 @@ data class SettingsUiState(
     val totalDownloadedBytes: Long = 0L,
     val importExportMessage: String? = null,
     val importResult: ImportResult? = null,
+    val visualizerEnabled: Boolean = false,
+    val visualizerStyle: VisualizerStyle = VisualizerStyle.BARS,
+    val visualizerBackground: VisualizerBackgroundMode = VisualizerBackgroundMode.REPLACE,
 )
 
 @HiltViewModel
@@ -94,6 +99,9 @@ class SettingsViewModel @Inject constructor(
             preferencesManager.smartAutoDownloadWindowDays,
             preferencesManager.smartAutoDownloadKeepPerShow,
             preferencesManager.smartAutoDownloadChargingOnly,
+            preferencesManager.visualizerEnabled,
+            preferencesManager.visualizerStyle,
+            preferencesManager.visualizerBackground,
         ) { values ->
             @Suppress("UNCHECKED_CAST")
             SecondaryState(
@@ -106,6 +114,9 @@ class SettingsViewModel @Inject constructor(
                 smartAutoDownloadWindowDays = values[6] as Int,
                 smartAutoDownloadKeepPerShow = values[7] as Int,
                 smartAutoDownloadChargingOnly = values[8] as Boolean,
+                visualizerEnabled = values[9] as Boolean,
+                visualizerStyle = values[10] as VisualizerStyle,
+                visualizerBackground = values[11] as VisualizerBackgroundMode,
             )
         }
     ) { partial, secondary ->
@@ -124,6 +135,9 @@ class SettingsViewModel @Inject constructor(
             skipAdChapters = secondary.skipAdChapters,
             volumeBoost = secondary.volumeBoost,
             importExportMessage = secondary.importExportMessage,
+            visualizerEnabled = secondary.visualizerEnabled,
+            visualizerStyle = secondary.visualizerStyle,
+            visualizerBackground = secondary.visualizerBackground,
         )
     }.combine(_importResult) { state, importResult ->
         state.copy(importResult = importResult)
@@ -149,6 +163,18 @@ class SettingsViewModel @Inject constructor(
 
     fun setVolumeBoost(enabled: Boolean) {
         viewModelScope.launch { preferencesManager.setVolumeBoost(enabled) }
+    }
+
+    fun setVisualizerEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setVisualizerEnabled(enabled) }
+    }
+
+    fun setVisualizerStyle(style: VisualizerStyle) {
+        viewModelScope.launch { preferencesManager.setVisualizerStyle(style) }
+    }
+
+    fun setVisualizerBackground(mode: VisualizerBackgroundMode) {
+        viewModelScope.launch { preferencesManager.setVisualizerBackground(mode) }
     }
 
     fun setAutoDownload(enabled: Boolean) {
@@ -364,5 +390,8 @@ class SettingsViewModel @Inject constructor(
         val smartAutoDownloadWindowDays: Int,
         val smartAutoDownloadKeepPerShow: Int,
         val smartAutoDownloadChargingOnly: Boolean,
+        val visualizerEnabled: Boolean,
+        val visualizerStyle: VisualizerStyle,
+        val visualizerBackground: VisualizerBackgroundMode,
     )
 }
