@@ -6,6 +6,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -34,11 +35,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
@@ -90,6 +93,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -106,6 +110,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
@@ -126,6 +131,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.SkipIntroOutroDialog
 import com.podbelly.core.common.VisualizerBackgroundMode
+import com.podbelly.core.common.VisualizerStyle
 import com.podbelly.core.network.model.TranscriptCue
 import com.podbelly.core.playback.Chapter
 import kotlinx.coroutines.Dispatchers
@@ -319,6 +325,15 @@ fun PlayerScreen(
                     onDispose { viewModel.setVisualizerActive(false) }
                 }
 
+                // The card turns over (3D flip) between artwork and visualizer.
+                val flipRotation by animateFloatAsState(
+                    targetValue = if (showVisualizer) 180f else 0f,
+                    animationSpec = tween(durationMillis = 500),
+                    label = "artworkFlip",
+                )
+                val showingBack = flipRotation > 90f
+                var showStyleMenu by remember { mutableStateOf(false) }
+
                 Box(
                     modifier = Modifier
                         .widthIn(max = 360.dp)
@@ -330,51 +345,110 @@ fun PlayerScreen(
                             ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
                             spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
                         )
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { viewModel.toggleVisualizer() },
+                        .clip(RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (!showVisualizer || dimArtwork) {
-                        AsyncImage(
-                            model = playback.artworkUrl.ifBlank { null },
-                            contentDescription = "Episode artwork",
-                            placeholder = rememberVectorPainter(Icons.Default.Podcasts),
-                            error = rememberVectorPainter(Icons.Default.Podcasts),
-                            fallback = rememberVectorPainter(Icons.Default.Podcasts),
+                    // Flipping card — tap anywhere to turn it over.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                rotationY = flipRotation
+                                cameraDistance = 12f * density
+                            }
+                            .clickable { viewModel.toggleVisualizer() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (!showingBack) {
+                            // Front — artwork.
+                            AsyncImage(
+                                model = playback.artworkUrl.ifBlank { null },
+                                contentDescription = "Episode artwork",
+                                placeholder = rememberVectorPainter(Icons.Default.Podcasts),
+                                error = rememberVectorPainter(Icons.Default.Podcasts),
+                                fallback = rememberVectorPainter(Icons.Default.Podcasts),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            // Back — visualizer. Counter-rotated so it isn't mirrored.
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer { rotationY = 180f },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (dimArtwork) {
+                                    AsyncImage(
+                                        model = playback.artworkUrl.ifBlank { null },
+                                        contentDescription = null,
+                                        placeholder = rememberVectorPainter(Icons.Default.Podcasts),
+                                        error = rememberVectorPainter(Icons.Default.Podcasts),
+                                        fallback = rememberVectorPainter(Icons.Default.Podcasts),
+                                        modifier = Modifier.fillMaxSize().alpha(0.22f),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                    )
+                                }
+                                AudioVisualizer(
+                                    frame = visualizerFrame,
+                                    style = uiState.visualizerStyle,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(20.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    // Controls sit above the card (never flipped, so always
+                    // readable) on a dark scrim so they show on any artwork.
+                    if (!showingBack) {
+                        VisualizerChip(
+                            icon = Icons.Filled.GraphicEq,
+                            contentDescription = "Show visualizer",
+                            onClick = { viewModel.toggleVisualizer() },
                             modifier = Modifier
-                                .fillMaxSize()
-                                .then(if (showVisualizer && dimArtwork) Modifier.alpha(0.22f) else Modifier),
-                            contentScale = ContentScale.Crop,
+                                .align(Alignment.TopEnd)
+                                .padding(10.dp),
                         )
                     } else {
-                        // Replace mode: a plain themed backdrop behind the visualizer.
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                        )
+                                .align(Alignment.TopStart)
+                                .padding(10.dp)
+                        ) {
+                            VisualizerChip(
+                                icon = Icons.Filled.Settings,
+                                contentDescription = "Choose visualizer style",
+                                onClick = { showStyleMenu = true },
+                            )
+                            DropdownMenu(
+                                expanded = showStyleMenu,
+                                onDismissRequest = { showStyleMenu = false },
+                            ) {
+                                VisualizerStyle.entries.forEach { style ->
+                                    DropdownMenuItem(
+                                        text = { Text(style.displayName) },
+                                        leadingIcon = {
+                                            if (style == uiState.visualizerStyle) {
+                                                Icon(Icons.Filled.Check, contentDescription = null)
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setVisualizerStyle(style)
+                                            showStyleMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
-
-                    if (showVisualizer) {
-                        AudioVisualizer(
-                            frame = visualizerFrame,
-                            style = uiState.visualizerStyle,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(20.dp),
-                        )
-                    }
-
-                    // Tap affordance: a small equaliser glyph hinting the artwork toggles.
-                    Icon(
-                        imageVector = Icons.Filled.GraphicEq,
-                        contentDescription = if (showVisualizer) "Show artwork" else "Show visualizer",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(10.dp)
-                            .size(20.dp),
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -627,6 +701,35 @@ fun PlayerScreen(
                 onCueClick = { cue -> viewModel.seekToCue(cue.startMs) },
             )
         }
+    }
+}
+
+/**
+ * A small circular control over the artwork/visualizer — the eq toggle hint and
+ * the style gear. It sits on a dark scrim with a white glyph so it stays legible
+ * on any artwork, light or dark.
+ */
+@Composable
+private fun VisualizerChip(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = Color.White,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 

@@ -513,6 +513,11 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    /** Picks a visualizer style from the on-screen gear menu; persisted. */
+    fun setVisualizerStyle(style: VisualizerStyle) {
+        viewModelScope.launch { preferencesManager.setVisualizerStyle(style) }
+    }
+
     /**
      * Starts/stops the audio tap's per-frame analysis. Driven by the screen so
      * the tap only runs while the visualizer is actually visible and playing.
