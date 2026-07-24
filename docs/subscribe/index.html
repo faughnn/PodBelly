@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Subscribe · PodBelly</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #fdf6e3;
+            --fg: #2b2b2b;
+            --muted: #6b6b6b;
+            --accent: #e8792b;
+            --card: #ffffff;
+            --border: rgba(0, 0, 0, 0.12);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #14110c;
+                --fg: #f2ede1;
+                --muted: #a99f8c;
+                --accent: #f79a4d;
+                --card: #201b14;
+                --border: rgba(255, 255, 255, 0.14);
+            }
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; }
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            line-height: 1.5;
+        }
+        .card {
+            width: 100%;
+            max-width: 420px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px 24px;
+            text-align: center;
+        }
+        .wordmark {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+        }
+        .wordmark .belly { color: var(--accent); }
+        h1 { font-size: 19px; margin: 0 0 6px; font-weight: 600; }
+        p.sub { color: var(--muted); margin: 0 0 22px; font-size: 14px; }
+        a.button {
+            display: block;
+            background: var(--accent);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+        }
+        .fallback {
+            border-top: 1px solid var(--border);
+            padding-top: 18px;
+            margin-top: 4px;
+            text-align: left;
+        }
+        .fallback .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .feed-row { display: flex; gap: 8px; }
+        input.feed {
+            flex: 1;
+            min-width: 0;
+            font-size: 13px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--fg);
+        }
+        button.copy {
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--fg);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .hint { color: var(--muted); font-size: 12px; margin: 14px 0 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="wordmark">pod<span class="belly">belly</span></div>
+        <h1 id="title">Opening your podcast app…</h1>
+        <p class="sub" id="subtitle">If nothing happens, tap the button below.</p>
+
+        <a class="button" id="open" href="#">Open podcast app</a>
+
+        <div class="fallback">
+            <div class="label">Or add this feed manually</div>
+            <div class="feed-row">
+                <input class="feed" id="feed" type="text" readonly value="" />
+                <button class="copy" id="copy" type="button">Copy</button>
+            </div>
+            <p class="hint" id="hint">Paste it into any podcast app's "Add by URL" option.</p>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var feed = new URLSearchParams(location.search).get("feed") || "";
+            feed = feed.trim();
+
+            var title = document.getElementById("title");
+            var subtitle = document.getElementById("subtitle");
+            var openBtn = document.getElementById("open");
+            var feedInput = document.getElementById("feed");
+            var copyBtn = document.getElementById("copy");
+            var hint = document.getElementById("hint");
+
+            if (!feed) {
+                title.textContent = "No feed to subscribe to";
+                subtitle.textContent = "This link is missing its podcast feed.";
+                openBtn.style.display = "none";
+                document.querySelector(".fallback").style.display = "none";
+                return;
+            }
+
+            // Turn the https feed into the podcast:// scheme podcast apps register for.
+            var scheme = feed.replace(/^https?:\/\//i, "podcast://");
+            if (!/^podcast:\/\//i.test(scheme)) {
+                scheme = "podcast://" + scheme.replace(/^\/+/, "");
+            }
+
+            openBtn.setAttribute("href", scheme);
+            feedInput.value = feed;
+
+            // Auto-attempt the app open on load. The browser stays on this page as a
+            // fallback if no app claims the scheme.
+            try { window.location.href = scheme; } catch (e) {}
+
+            copyBtn.addEventListener("click", function () {
+                feedInput.select();
+                var done = function () {
+                    copyBtn.textContent = "Copied";
+                    setTimeout(function () { copyBtn.textContent = "Copy"; }, 1500);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(feed).then(done, function () {
+                        try { document.execCommand("copy"); done(); } catch (e) {}
+                    });
+                } else {
+                    try { document.execCommand("copy"); done(); } catch (e) {}
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
