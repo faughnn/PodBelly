@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>17. The Workflows That Refused to Die: Argo, etcd, and Garbage Collection That Never Ran</title>
+      <description>A migration audit uncovers workflow objects piling up in etcd for over a year, because the cleanup policy was written where the system never reads it. Argo's template-vs-controller propagation, three garbage collectors with three blast radii, informer-cache cost, retention tied to your log window, and why 'latest' destroys rollback.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260728-the-workflows-that-refused-to-die-argo-etcd-and-garbage-collection-that-never-ran.m4a" length="47487756" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260728-the-workflows-that-refused-to-die-argo-etcd-and-garbage-collection-that-never-ran</guid>
+      <pubDate>Tue, 28 Jul 2026 14:46:34 +0000</pubDate>
+      <itunes:episode>17</itunes:episode>
+      <itunes:duration>24:35</itunes:duration>
+    </item>
+    <item>
       <title>16. Argo Workflows, End to End: The Object Model and How to Migrate It Cleanly</title>
       <description>If you know Kubernetes and ArgoCD but not Argo Workflows: the five core objects and why a Workflow is the run itself, the controller-vs-server split, the chassis-vs-cargo mental model that de-risks a real migration, building a new deployment safely on a live cluster, sizing from real numbers, and whether Argo waits or fails under load.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260721-argo-workflows-end-to-end-the-object-model-and-how-to-migrate-it-cleanly.m4a" length="42947126" type="audio/x-m4a"/>
