@@ -6,9 +6,14 @@ object WhatsNew {
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
-    const val LATEST_VERSION_CODE = 97
+    const val LATEST_VERSION_CODE = 99
 
     val changelog: Map<Int, List<String>> = mapOf(
+        99 to listOf(
+            "The artwork now flips over with an animation when you turn the visualizer on or off",
+            "Change the visualizer style right from the player — tap the gear in the corner",
+            "The visualizer buttons are clearer and stay visible on any artwork",
+        ),
         97 to listOf(
             "New audio visualizer on the Now Playing screen — tap the artwork to turn it on",
             "Ten visualizer styles to choose from in Settings > Appearance: Bars, Mirrored Bars, Spectrum Curve, Radial Bars, Oscilloscope, Filled Wave, Pulse, Ripple Rings, VU Ladder and Dot Matrix",
