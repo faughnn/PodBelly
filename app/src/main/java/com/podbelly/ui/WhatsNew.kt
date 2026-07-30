@@ -6,9 +6,13 @@ object WhatsNew {
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
-    const val LATEST_VERSION_CODE = 99
+    const val LATEST_VERSION_CODE = 100
 
     val changelog: Map<Int, List<String>> = mapOf(
+        100 to listOf(
+            "Playing a finished episode now starts it from the beginning, so there's no need to delete the download and fetch it again",
+            "Played episodes show a replay button, and the episode screen offers \"Play again\"",
+        ),
         99 to listOf(
             "The artwork now flips over with an animation when you turn the visualizer on or off",
             "Change the visualizer style right from the player — tap the gear in the corner",

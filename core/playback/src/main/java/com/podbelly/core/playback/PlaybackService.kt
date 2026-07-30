@@ -605,7 +605,7 @@ class PlaybackService : MediaLibraryService() {
                         podcastDao.getSkipSettings(episode.podcastId)?.skipIntroSeconds
                     }.getOrNull() ?: 0
                     val startPos = resolveExternalStartPosition(
-                        savedPositionMs = episode.playbackPosition,
+                        savedPositionMs = resolveStartPosition(episode.playbackPosition, episode.played),
                         durationMs = episode.durationSeconds * 1000L,
                         skipIntroSeconds = skipIntroSeconds,
                     )

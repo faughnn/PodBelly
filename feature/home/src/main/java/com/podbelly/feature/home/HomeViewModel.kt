@@ -246,6 +246,7 @@ class HomeViewModel @Inject constructor(
                 artworkUrl = artworkUrl,
                 startPosition = episode.playbackPosition,
                 podcastId = episode.podcastId,
+                played = episode.played,
             )
         }
     }

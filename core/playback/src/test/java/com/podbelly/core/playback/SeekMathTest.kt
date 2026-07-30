@@ -136,4 +136,27 @@ class SeekMathTest {
         assertEquals(599_000L, parked)
         assertTrue(shouldEndForOutro(parked, duration, 15, alreadyFired = false))
     }
+
+    // -------------------------------------------------------------------------
+    // resolveStartPosition -- replaying a finished episode
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `an unplayed episode resumes from its saved position`() {
+        assertEquals(300_000L, resolveStartPosition(300_000L, played = false))
+        assertEquals(0L, resolveStartPosition(0L, played = false))
+    }
+
+    @Test
+    fun `a finished episode restarts from the beginning`() {
+        // Its saved position sits at the end; resuming there would immediately
+        // re-end the episode, so the play button appeared to do nothing.
+        assertEquals(0L, resolveStartPosition(duration, played = true))
+        assertEquals(0L, resolveStartPosition(duration - 5_000L, played = true))
+    }
+
+    @Test
+    fun `a negative saved position never seeks backwards`() {
+        assertEquals(0L, resolveStartPosition(-1L, played = false))
+    }
 }

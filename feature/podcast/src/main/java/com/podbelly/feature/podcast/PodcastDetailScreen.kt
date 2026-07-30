@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.FileDownload
@@ -555,8 +555,8 @@ internal fun EpisodeCard(
                         }
                         episode.isDownloaded && episode.played -> {
                             Icon(
-                                imageVector = Icons.Default.CheckCircleOutline,
-                                contentDescription = "Played",
+                                imageVector = Icons.Default.Replay,
+                                contentDescription = "Play again",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }

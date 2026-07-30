@@ -30,25 +30,18 @@ internal fun computeSkipTarget(currentPositionMs: Long, offsetMs: Long, duration
 }
 
 /**
- * Decides whether playback has entered the configured outro-skip window and the
- * episode should be treated as finished (per-podcast "skip ending", the AntennaPod
- * pattern: mark played + advance the queue, exactly like a natural STATE_ENDED).
+ * Where a play request should start.
  *
- * Called from [PlaybackController]'s periodic position loop rather than by seeking
- * to the end: [computeSkipTarget] deliberately parks user seeks one second short of
- * the duration to keep the player out of STATE_ENDED, so ending the episode via a
- * seek would be fragile. Instead the controller ends it explicitly when this
- * returns true.
- *
- * Guards:
- * - [alreadyFired]: fires at most once per episode playback; the caller resets its
- *   flag when a new episode starts.
- * - [skipOutroSeconds] <= 0 means the feature is off for this podcast.
- * - [durationMs] <= 0 means the duration is unknown (still buffering / endless
- *   stream) — never fire, we can't know where the outro starts.
- * - An outro at least as long as the whole episode never fires (misconfiguration
- *   would otherwise finish the episode the instant it starts).
+ * A finished episode restarts from 0. Its saved position sits at (or within seconds
+ * of) the end, so resuming there drives the player straight back to
+ * [androidx.media3.common.Player.STATE_ENDED] — the episode stops instantly and the
+ * play button looks dead, leaving "delete the download and fetch it again" as the
+ * only way to hear it a second time. Pocket Casts does the same: playing an episode
+ * whose status is COMPLETED marks it not-played first so it starts from the top.
  */
+internal fun resolveStartPosition(savedPositionMs: Long, played: Boolean): Long =
+    if (played) 0L else savedPositionMs.coerceAtLeast(0L)
+
 /**
  * Start position for playback initiated *outside* the app UI (Android Auto browse),
  * mirroring [PlaybackController]'s per-podcast intro-skip rules
@@ -72,6 +65,26 @@ internal fun resolveExternalStartPosition(
     return skipIntroMs
 }
 
+/**
+ * Decides whether playback has entered the configured outro-skip window and the
+ * episode should be treated as finished (per-podcast "skip ending", the AntennaPod
+ * pattern: mark played + advance the queue, exactly like a natural STATE_ENDED).
+ *
+ * Called from [PlaybackController]'s periodic position loop rather than by seeking
+ * to the end: [computeSkipTarget] deliberately parks user seeks one second short of
+ * the duration to keep the player out of STATE_ENDED, so ending the episode via a
+ * seek would be fragile. Instead the controller ends it explicitly when this
+ * returns true.
+ *
+ * Guards:
+ * - [alreadyFired]: fires at most once per episode playback; the caller resets its
+ *   flag when a new episode starts.
+ * - [skipOutroSeconds] <= 0 means the feature is off for this podcast.
+ * - [durationMs] <= 0 means the duration is unknown (still buffering / endless
+ *   stream) — never fire, we can't know where the outro starts.
+ * - An outro at least as long as the whole episode never fires (misconfiguration
+ *   would otherwise finish the episode the instant it starts).
+ */
 internal fun shouldEndForOutro(
     positionMs: Long,
     durationMs: Long,
