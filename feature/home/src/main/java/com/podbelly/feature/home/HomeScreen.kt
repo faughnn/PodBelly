@@ -28,7 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Podcasts
-import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FileDownload
@@ -719,8 +719,8 @@ fun EpisodeCard(
                         }
                         isDownloaded && episode.played -> {
                             Icon(
-                                imageVector = Icons.Default.CheckCircleOutline,
-                                contentDescription = "Played",
+                                imageVector = Icons.Default.Replay,
+                                contentDescription = "Play again",
                             )
                         }
                         isDownloaded -> {

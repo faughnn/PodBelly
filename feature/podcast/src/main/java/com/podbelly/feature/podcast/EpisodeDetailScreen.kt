@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.FileDownload
@@ -324,12 +325,12 @@ fun EpisodeDetailScreen(
                     }
                     uiState.isDownloaded -> {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
+                            imageVector = if (uiState.played) Icons.Default.Replay else Icons.Default.PlayArrow,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Play")
+                        Text(if (uiState.played) "Play again" else "Play")
                     }
                     else -> {
                         Icon(

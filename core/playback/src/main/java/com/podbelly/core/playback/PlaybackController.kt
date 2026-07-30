@@ -351,6 +351,9 @@ class PlaybackController @Inject constructor(
      * @param podcastTitle  Podcast/show name.
      * @param artworkUrl    Artwork URL for the notification and UI.
      * @param startPosition Position in milliseconds to resume from (default 0).
+     * @param played        Whether the episode is already finished. A finished episode
+     *                      replays from the start and is marked unplayed again — see
+     *                      [resolveStartPosition].
      */
     fun play(
         episodeId: Long,
@@ -360,8 +363,11 @@ class PlaybackController @Inject constructor(
         artworkUrl: String,
         startPosition: Long = 0L,
         podcastId: Long = 0L,
+        played: Boolean = false,
     ) {
         val controller = mediaController ?: return
+
+        val effectiveStart = resolveStartPosition(startPosition, played)
 
         // Flush the outgoing episode's position before we overwrite state. Position is
         // otherwise only persisted on pause or via the ~10s periodic save, so switching
@@ -376,6 +382,20 @@ class PlaybackController @Inject constructor(
                     episodeDao.updatePlaybackPosition(previousId, previousPosition)
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to save outgoing episode position", e)
+                }
+            }
+        }
+
+        // Replaying a finished episode: clear the played flag and the end-of-episode
+        // resume point so the replay is tracked like any other listen (progress bar,
+        // Continue Listening) instead of restarting from 0 every time it's reopened.
+        if (played) {
+            scope.launch {
+                try {
+                    episodeDao.markAsUnplayed(episodeId)
+                    episodeDao.updatePlaybackPosition(episodeId, 0L)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to reset finished episode for replay", e)
                 }
             }
         }
@@ -404,7 +424,7 @@ class PlaybackController @Inject constructor(
                 podcastTitle = podcastTitle,
                 artworkUrl = artworkUrl,
                 audioUrl = audioUrl,
-                currentPosition = startPosition,
+                currentPosition = effectiveStart,
                 duration = 0L,
                 isLoading = true,
                 chapters = emptyList(),
@@ -424,7 +444,7 @@ class PlaybackController @Inject constructor(
             .setMediaMetadata(metadata)
             .build()
 
-        controller.setMediaItem(mediaItem, startPosition)
+        controller.setMediaItem(mediaItem, effectiveStart)
         controller.prepare()
         controller.play()
 
@@ -447,7 +467,7 @@ class PlaybackController @Inject constructor(
                 setPlaybackSpeed(speed)
                 // Same load path also applies the per-podcast intro/outro auto-skip.
                 // Living inside play() means every play path gets it for free.
-                applySkipSettings(podcastId, episodeId, startPosition)
+                applySkipSettings(podcastId, episodeId, effectiveStart)
             }
         }
     }
@@ -751,12 +771,16 @@ class PlaybackController @Inject constructor(
         // button events while we decide what to do next.
         controller.playWhenReady = false
 
-        // Mark the finished episode as played before clearing state
+        // Mark the finished episode as played before clearing state. The saved
+        // position is reset too: leaving it parked at the end made a later play
+        // request seek straight back to STATE_ENDED, and it also stamps lastPlayedAt
+        // with the finish time, which is what auto-delete-after-N-days measures from.
         val finishedEpisodeId = currentEpisodeId
         if (finishedEpisodeId != 0L) {
             scope.launch {
                 try {
                     episodeDao.markAsPlayed(finishedEpisodeId)
+                    episodeDao.updatePlaybackPosition(finishedEpisodeId, 0L)
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to mark episode as played", e)
                 }

@@ -179,6 +179,32 @@ class EpisodeDetailViewModelTest {
     }
 
     @Test
+    fun `playEpisode flags a finished episode as played so it restarts`() = runTest {
+        coEvery { episodeDao.getByIdOnce(5L) } returns testEpisode.copy(
+            downloadPath = "/local/episode5.mp3",
+            playbackPosition = 3_595_000L,
+            played = true,
+        )
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode()
+        advanceUntilIdle()
+
+        verify {
+            playbackController.play(
+                episodeId = 5L,
+                audioUrl = "/local/episode5.mp3",
+                title = "Test Episode Title",
+                podcastTitle = "Test Podcast",
+                artworkUrl = "https://example.com/episode_art.jpg",
+                startPosition = 3_595_000L,
+                podcastId = 1L,
+                played = true,
+            )
+        }
+    }
+
+    @Test
     fun `playEpisode uses downloadPath when available`() = runTest {
         coEvery { episodeDao.getByIdOnce(5L) } returns testEpisode.copy(
             downloadPath = "/local/episode5.mp3"
