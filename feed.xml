@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>18. What "Version 1.2.3 Is In Production" Actually Has To Mean</title>
+      <description>Mutable tags destroy traceability, reverting a PR is roll-forward not rollback, deploy-time vs runtime coupling, and the approval gate that raises confidence without raising accuracy. Plus what happens to manual QA once an agent drives the browser.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260804-what-version-1-2-3-is-in-production-actually-has-to-mean.m4a" length="15900290" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260804-what-version-1-2-3-is-in-production-actually-has-to-mean</guid>
+      <pubDate>Tue, 04 Aug 2026 20:56:16 +0000</pubDate>
+      <itunes:episode>18</itunes:episode>
+      <itunes:duration>21:45</itunes:duration>
+    </item>
+    <item>
       <title>17. The Workflows That Refused to Die: Argo, etcd, and Garbage Collection That Never Ran</title>
       <description>A migration audit uncovers workflow objects piling up in etcd for over a year, because the cleanup policy was written where the system never reads it. Argo's template-vs-controller propagation, three garbage collectors with three blast radii, informer-cache cost, retention tied to your log window, and why 'latest' destroys rollback.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260728-the-workflows-that-refused-to-die-argo-etcd-and-garbage-collection-that-never-ran.m4a" length="47487756" type="audio/x-m4a"/>
