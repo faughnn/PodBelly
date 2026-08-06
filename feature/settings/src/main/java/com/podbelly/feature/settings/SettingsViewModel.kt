@@ -89,7 +89,9 @@ class SettingsViewModel @Inject constructor(
             autoDeletePlayedAfterDays = autoDelete,
         )
     }.combine(
-        combine(
+        // Explicit type arguments: with mixed flow element types the reified T
+        // would be inferred as an intersection type, an error from Kotlin 2.3.
+        combine<Any?, SecondaryState>(
             preferencesManager.downloadOnWifiOnly,
             preferencesManager.skipSilence,
             preferencesManager.volumeBoost,

@@ -14,14 +14,14 @@ plugins {
 
 android {
     namespace = "com.podbelly"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 35
-        versionCode = 102
-        versionName = "1.6.54"
+        versionCode = 103
+        versionName = "1.6.55"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -85,10 +85,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -177,4 +173,12 @@ dependencies {
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.compose.ui.test.junit4)
+}
+
+// Kotlin 2.x compilerOptions DSL (the old android.kotlinOptions is an error
+// from Kotlin 2.3).
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
 }
