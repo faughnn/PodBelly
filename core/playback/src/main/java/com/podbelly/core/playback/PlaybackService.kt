@@ -399,12 +399,11 @@ class PlaybackService : MediaLibraryService() {
         return mediaLibrarySession
     }
 
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        val player = mediaLibrarySession?.player
-        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
-            stopSelf()
-        }
-    }
+    // onTaskRemoved is intentionally not overridden: media3 1.6+ provides a safe
+    // default that keeps the service (and its foreground grace period) alive while
+    // playback is ongoing and stops it otherwise. The previous stopSelf() override
+    // predated that and could tear the service down while the session was still in
+    // its paused foreground window.
 
     override fun onDestroy() {
         serviceScope.cancel()
