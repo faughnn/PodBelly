@@ -8,6 +8,7 @@ object WhatsNew {
     // 86-87 were release-pipeline/CI only; no changelog entries.
     // 101 never shipped (superseded on the same PR); its notes are folded into 102.
     // 103 was a build-toolchain upgrade with no user-facing changes; no changelog entry.
+    // 105 was test/Firebase dependency housekeeping; no changelog entry.
     const val LATEST_VERSION_CODE = 104
 
     val changelog: Map<Int, List<String>> = mapOf(
