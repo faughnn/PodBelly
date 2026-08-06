@@ -7,9 +7,13 @@ object WhatsNew {
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
     // 101 never shipped (superseded on the same PR); its notes are folded into 102.
-    const val LATEST_VERSION_CODE = 102
+    // 103 was a build-toolchain upgrade with no user-facing changes; no changelog entry.
+    const val LATEST_VERSION_CODE = 104
 
     val changelog: Map<Int, List<String>> = mapOf(
+        104 to listOf(
+            "Playback engine updated with another round of upstream fixes for the notification controls, seeking and Chromecast",
+        ),
         102 to listOf(
             "Fixed a crash when tapping rewind on the playback notification several times in a row",
             "An episode interrupted like that is no longer wrongly marked as finished — your place is saved so you can pick up where you were",

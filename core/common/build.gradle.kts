@@ -42,6 +42,9 @@ dependencies {
     implementation(libs.compose.runtime)
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)
+    // Explicit: material3 no longer exposes material-icons transitively
+    // (ShareCardSheet uses Icons.Filled.Share).
+    implementation(libs.compose.material.icons)
 
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
