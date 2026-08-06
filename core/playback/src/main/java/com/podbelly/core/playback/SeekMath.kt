@@ -66,6 +66,26 @@ internal fun resolveExternalStartPosition(
 }
 
 /**
+ * Whether a [androidx.media3.common.Player.STATE_ENDED] transition is a genuine
+ * episode finish that should mark the episode played.
+ *
+ * A player that really reached the end reports a position at the duration. A
+ * corrupted transition — observed on media3 1.5.x when the notification's rewind
+ * button was tapped several times in quick succession — arrives with the position
+ * still mid-episode. Trusting it marked the episode played and wiped the resume
+ * point, so after the accompanying crash the episode reopened as "completed".
+ *
+ * The 2-second tolerance absorbs position-reporting slack right at the end of the
+ * file. An unknown duration (<= 0, e.g. C.TIME_UNSET) is trusted as genuine:
+ * endless-stream players may never report one, and treating those as spurious
+ * would stop episodes from ever completing.
+ */
+internal fun isGenuineEpisodeEnd(positionMs: Long, durationMs: Long): Boolean {
+    if (durationMs <= 0L) return true
+    return positionMs >= durationMs - 2_000L
+}
+
+/**
  * Decides whether playback has entered the configured outro-skip window and the
  * episode should be treated as finished (per-podcast "skip ending", the AntennaPod
  * pattern: mark played + advance the queue, exactly like a natural STATE_ENDED).
