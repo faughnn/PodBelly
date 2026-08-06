@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>19. One Name, Two Systems: The Argo That Never Stops and the Argo That Always Ends</title>
+      <description>Argo is four unrelated projects wearing a single name. The difference between a control loop that reconciles forever and a job engine that runs once — plus app-of-apps recursion, why self-healing turns your cluster into an output rather than an input, and how to spot infrastructure code that was written, switched off, and left behind.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260806-one-name-two-systems-the-argo-that-never-stops-and-the-argo-that-always-ends.m4a" length="17532785" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260806-one-name-two-systems-the-argo-that-never-stops-and-the-argo-that-always-ends</guid>
+      <pubDate>Thu, 06 Aug 2026 15:30:36 +0000</pubDate>
+      <itunes:episode>19</itunes:episode>
+      <itunes:duration>23:59</itunes:duration>
+    </item>
+    <item>
       <title>18. What "Version 1.2.3 Is In Production" Actually Has To Mean</title>
       <description>Mutable tags destroy traceability, reverting a PR is roll-forward not rollback, deploy-time vs runtime coupling, and the approval gate that raises confidence without raising accuracy. Plus what happens to manual QA once an agent drives the browser.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260804-what-version-1-2-3-is-in-production-actually-has-to-mean.m4a" length="15900290" type="audio/x-m4a"/>
