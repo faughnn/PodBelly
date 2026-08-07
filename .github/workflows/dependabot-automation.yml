@@ -1,0 +1,66 @@
+# Automation for Dependabot PRs:
+#
+# 1. version-bump: pushes a commit that increments versionCode/versionName
+#    (repo rule: every commit bumps the version; Firebase App Distribution
+#    also needs a fresh versionCode per build shipped from develop).
+#    NOTE: if REPO_PUSH_TOKEN (a fine-grained PAT with contents:write) is
+#    not configured, the push falls back to GITHUB_TOKEN — the bump still
+#    lands, but GitHub does not re-trigger the PR Build & Test check for
+#    pushes made with GITHUB_TOKEN, so auto-merge will wait on a check that
+#    never re-runs and the PR needs a manual nudge. Add the PAT for fully
+#    hands-off operation.
+#
+# 2. auto-merge: arms GitHub auto-merge for minor/patch updates, so the PR
+#    merges by itself once the required "build" check passes. Majors are
+#    left for human review. Requires "Allow auto-merge" in the repo
+#    settings and a branch protection rule on develop requiring the
+#    "build" check; without those this job is a harmless no-op.
+name: Dependabot automation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  version-bump:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.REPO_PUSH_TOKEN || github.token }}
+          fetch-depth: 0
+
+      - name: Bump versionCode unless this PR already has
+        run: |
+          if git log "origin/${{ github.base_ref }}..HEAD" --format=%s | grep -q "^Bump app version"; then
+            echo "Version already bumped on this PR; nothing to do."
+            exit 0
+          fi
+          NEW_VERSION=$(python3 scripts/bump_version.py)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Bump app version to ${NEW_VERSION} for dependency update"
+          git push
+
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for minor and patch updates
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
