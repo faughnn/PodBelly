@@ -11,6 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.File
+import kotlin.io.path.createTempDirectory
 
 class CrashLogStoreTest {
 
@@ -20,7 +21,8 @@ class CrashLogStoreTest {
 
     @Before
     fun setUp() {
-        tempDir = createTempDir(prefix = "crash-log-test")
+        // kotlin.io.createTempDir is deprecated-as-error from Kotlin 2.3.
+        tempDir = createTempDirectory(prefix = "crash-log-test").toFile()
         context = mockk(relaxed = true)
         every { context.filesDir } returns tempDir
         store = CrashLogStore(context)
