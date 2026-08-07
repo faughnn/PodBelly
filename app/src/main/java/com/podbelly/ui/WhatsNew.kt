@@ -6,9 +6,15 @@ object WhatsNew {
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
-    const val LATEST_VERSION_CODE = 100
+    // 101 never shipped (superseded on the same PR); its notes are folded into 102.
+    const val LATEST_VERSION_CODE = 102
 
     val changelog: Map<Int, List<String>> = mapOf(
+        102 to listOf(
+            "Fixed a crash when tapping rewind on the playback notification several times in a row",
+            "An episode interrupted like that is no longer wrongly marked as finished — your place is saved so you can pick up where you were",
+            "The playback notification sticks around more reliably while paused",
+        ),
         100 to listOf(
             "Playing a finished episode now starts it from the beginning, so there's no need to delete the download and fetch it again",
             "Played episodes show a replay button, and the episode screen offers \"Play again\"",

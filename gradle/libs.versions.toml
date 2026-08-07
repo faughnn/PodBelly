@@ -4,7 +4,7 @@ kotlin = "2.0.21"
 ksp = "2.0.21-1.0.28"
 hilt = "2.53.1"
 room = "2.6.1"
-media3 = "1.5.1"
+media3 = "1.8.0"
 compose-bom = "2024.12.01"
 moshi = "1.15.1"
 xpp3 = "1.1.6"
@@ -72,8 +72,8 @@ media3-session = { module = "androidx.media3:media3-session", version.ref = "med
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 media3-cast = { module = "androidx.media3:media3-cast", version.ref = "media3" }
 
-# Chromecast (play-services-cast-framework 21.3.0 is what media3-cast 1.5.1 compiles against)
-play-services-cast-framework = { module = "com.google.android.gms:play-services-cast-framework", version = "21.3.0" }
+# Chromecast (play-services-cast-framework 21.5.0 is what media3-cast 1.8.0 compiles against)
+play-services-cast-framework = { module = "com.google.android.gms:play-services-cast-framework", version = "21.5.0" }
 androidx-mediarouter = { module = "androidx.mediarouter:mediarouter", version = "1.7.0" }
 
 # Network

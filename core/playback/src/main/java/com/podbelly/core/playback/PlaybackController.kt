@@ -214,7 +214,16 @@ class PlaybackController @Inject constructor(
                     }
                 }
                 Player.STATE_ENDED -> {
-                    handleEpisodeFinished()
+                    // Only a STATE_ENDED whose position actually reached the end is
+                    // a real finish. Rapid rewind taps on the notification could
+                    // drive media3 1.5.x into a bogus mid-episode STATE_ENDED;
+                    // trusting it marked the episode played and wiped the resume
+                    // point (it reopened as "completed" after the crash).
+                    if (isGenuineEpisodeEnd(controller.currentPosition, controller.duration)) {
+                        handleEpisodeFinished()
+                    } else {
+                        handleSpuriousEnd()
+                    }
                 }
                 Player.STATE_IDLE -> {
                     _playbackState.update { it.copy(isLoading = false) }
@@ -802,6 +811,46 @@ class PlaybackController @Inject constructor(
         _episodeEnded.tryEmit(Unit)
 
         // The queue feature is gone: an episode that finishes simply stops.
+        pauseAtEpisodeEnd = false
+        stopPlayerAfterEnded()
+    }
+
+    /**
+     * A [Player.STATE_ENDED] that arrived with the position still mid-episode (see
+     * [isGenuineEpisodeEnd]). The episode did NOT finish: don't mark it played and
+     * don't emit [episodeEnded] (the sleep timer must not fire). Save the real
+     * position so the user picks up where they were, then stop the player the same
+     * way a real end does so the UI isn't left showing a dead item.
+     */
+    private fun handleSpuriousEnd() {
+        val controller = mediaController ?: return
+        controller.playWhenReady = false
+
+        val episodeId = currentEpisodeId
+        val positionMs = controller.currentPosition.coerceAtLeast(0L)
+        Log.w(
+            TAG,
+            "Ignoring spurious STATE_ENDED at ${positionMs}ms of ${controller.duration}ms " +
+                "for episode $episodeId"
+        )
+        if (episodeId != 0L) {
+            scope.launch {
+                try {
+                    episodeDao.updatePlaybackPosition(episodeId, positionMs)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to save position after spurious end", e)
+                }
+            }
+        }
+
+        _playbackState.update {
+            it.copy(
+                isPlaying = false,
+                isLoading = false,
+                currentPosition = positionMs,
+            )
+        }
+        stopPositionUpdates()
         pauseAtEpisodeEnd = false
         stopPlayerAfterEnded()
     }
