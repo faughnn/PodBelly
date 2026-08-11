@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>20. The Doc That Publishes Successfully and Is Still Wrong</title>
+      <description>A confident AI summary got five things wrong, a wiki deleted every link while reporting success, and a code comment promised a retry that never happens. On verifying claims against the real system, why point-lookups beat scanning lists, and the pipeline design patterns found along the way.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260811-the-doc-that-publishes-successfully-and-is-still-wrong.m4a" length="39731459" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260811-the-doc-that-publishes-successfully-and-is-still-wrong</guid>
+      <pubDate>Tue, 11 Aug 2026 21:59:15 +0000</pubDate>
+      <itunes:episode>20</itunes:episode>
+      <itunes:duration>20:34</itunes:duration>
+    </item>
+    <item>
       <title>19. One Name, Two Systems: The Argo That Never Stops and the Argo That Always Ends</title>
       <description>Argo is four unrelated projects wearing a single name. The difference between a control loop that reconciles forever and a job engine that runs once — plus app-of-apps recursion, why self-healing turns your cluster into an output rather than an input, and how to spot infrastructure code that was written, switched off, and left behind.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260806-one-name-two-systems-the-argo-that-never-stops-and-the-argo-that-always-ends.m4a" length="17532785" type="audio/x-m4a"/>
