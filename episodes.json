@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260812-from-legal-clause-to-to-do-list-how-product-compliance-actually-works",
+      "title": "From Legal Clause to To-Do List: How Product Compliance Actually Works",
+      "description": "A regulation says lead content must stay under a threshold. Somebody has to turn that into a task an engineer can close. How regulatory PDFs become product-specific compliance actions: the six policy areas and the logic behind them, why Safety and Testing-and-Certification cover identical hazards, the boundary rules for the hard cases, and why the system deliberately shows you too much rather than too little.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260812-from-legal-clause-to-to-do-list-how-product-compliance-actually-works.m4a",
+      "bytes": 43390352,
+      "duration_sec": 1348,
+      "pubdate_rfc822": "Wed, 12 Aug 2026 12:46:31 +0000",
+      "guid": "podbelly-20260812-from-legal-clause-to-to-do-list-how-product-compliance-actually-works",
+      "number": 21
+    },
+    {
       "id": "20260811-the-doc-that-publishes-successfully-and-is-still-wrong",
       "title": "The Doc That Publishes Successfully and Is Still Wrong",
       "description": "A confident AI summary got five things wrong, a wiki deleted every link while reporting success, and a code comment promised a retry that never happens. On verifying claims against the real system, why point-lookups beat scanning lists, and the pipeline design patterns found along the way.",

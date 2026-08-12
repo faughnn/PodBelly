@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>21. From Legal Clause to To-Do List: How Product Compliance Actually Works</title>
+      <description>A regulation says lead content must stay under a threshold. Somebody has to turn that into a task an engineer can close. How regulatory PDFs become product-specific compliance actions: the six policy areas and the logic behind them, why Safety and Testing-and-Certification cover identical hazards, the boundary rules for the hard cases, and why the system deliberately shows you too much rather than too little.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260812-from-legal-clause-to-to-do-list-how-product-compliance-actually-works.m4a" length="43390352" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260812-from-legal-clause-to-to-do-list-how-product-compliance-actually-works</guid>
+      <pubDate>Wed, 12 Aug 2026 12:46:31 +0000</pubDate>
+      <itunes:episode>21</itunes:episode>
+      <itunes:duration>22:28</itunes:duration>
+    </item>
+    <item>
       <title>20. The Doc That Publishes Successfully and Is Still Wrong</title>
       <description>A confident AI summary got five things wrong, a wiki deleted every link while reporting success, and a code comment promised a retry that never happens. On verifying claims against the real system, why point-lookups beat scanning lists, and the pipeline design patterns found along the way.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260811-the-doc-that-publishes-successfully-and-is-still-wrong.m4a" length="39731459" type="audio/x-m4a"/>
