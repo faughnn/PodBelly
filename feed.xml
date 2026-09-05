@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>22. Why a Game With No Random Numbers Can Show You the Future</title>
+      <description>One architecture decision, total determinism, paid for itself three separate times: the route preview runs the real game instead of a model of it, balance changes become an exact diff instead of a statistical argument, and the whole simulation runs headless at the speed of JavaScript. Plus one owner per fact, the god-object state and its three hand-maintained inventories, why ECS would be the wrong answer when nothing in your world updates, and command sourcing as the pattern the codebase was one step away from.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260905-why-a-game-with-no-random-numbers-can-show-you-the-future.m4a" length="27844025" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260905-why-a-game-with-no-random-numbers-can-show-you-the-future</guid>
+      <pubDate>Sat, 05 Sep 2026 16:19:06 +0000</pubDate>
+      <itunes:episode>22</itunes:episode>
+      <itunes:duration>14:25</itunes:duration>
+    </item>
+    <item>
       <title>21. From Legal Clause to To-Do List: How Product Compliance Actually Works</title>
       <description>A regulation says lead content must stay under a threshold. Somebody has to turn that into a task an engineer can close. How regulatory PDFs become product-specific compliance actions: the six policy areas and the logic behind them, why Safety and Testing-and-Certification cover identical hazards, the boundary rules for the hard cases, and why the system deliberately shows you too much rather than too little.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260812-from-legal-clause-to-to-do-list-how-product-compliance-actually-works.m4a" length="43390352" type="audio/x-m4a"/>
