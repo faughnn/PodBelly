@@ -11,6 +11,7 @@ object WhatsNew {
     // 105 was test/Firebase dependency housekeeping; no changelog entry.
     // 106 added automated dependency updates (CI only); no changelog entry.
     // 107 was a dependency-catalog refresh (build/test only); no changelog entry.
+    // 108 was a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entry.
     const val LATEST_VERSION_CODE = 104
 
     val changelog: Map<Int, List<String>> = mapOf(
