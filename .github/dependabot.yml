@@ -16,7 +16,10 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Europe/Dublin"
-    open-pull-requests-limit: 5
+    # Majors arrive as individual PRs and can sit awaiting review for a while.
+    # Keep this high enough that a backlog of them cannot starve the weekly
+    # minor-and-patch group PR, which is the one that auto-merges.
+    open-pull-requests-limit: 15
     labels:
       - "dependencies"
     groups:
@@ -42,5 +45,6 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
