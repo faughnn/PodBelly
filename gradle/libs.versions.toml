@@ -1,5 +1,9 @@
 [versions]
 agp = "9.4.0"
+# Drives the Compose compiler plugin, and through it the Kotlin version AGP 9's
+# built-in Kotlin compiles with (AGP 9.4.0 bundles KGP 2.2.10 and upgrades to
+# whatever higher version is on the classpath). The kotlin-android plugin is
+# gone: AGP 9 rejects it. See https://developer.android.com/build/migrate-to-built-in-kotlin
 kotlin = "2.4.20"
 ksp = "2.3.12"
 hilt = "2.60.1"
@@ -131,7 +135,6 @@ firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
