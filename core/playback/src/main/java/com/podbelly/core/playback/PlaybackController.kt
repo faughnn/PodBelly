@@ -12,7 +12,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.MetadataRetriever
+import androidx.media3.inspector.MetadataRetriever
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -573,9 +573,15 @@ class PlaybackController @Inject constructor(
 
     @OptIn(UnstableApi::class)
     private suspend fun retrieveChapters(context: Context, audioUrl: String): List<Chapter> {
-        val trackGroups = MetadataRetriever
-            .retrieveMetadata(context, MediaItem.fromUri(audioUrl))
-            .await()
+        // media3 1.11.0 replaced the static retrieveMetadata() with a Builder,
+        // and the retriever is AutoCloseable now — close it once the future
+        // has resolved so its internal player is released.
+        val retriever = MetadataRetriever.Builder(context, MediaItem.fromUri(audioUrl)).build()
+        val trackGroups = try {
+            retriever.retrieveTrackGroups().await()
+        } finally {
+            retriever.close()
+        }
         val metadata = buildList {
             for (groupIndex in 0 until trackGroups.length) {
                 val group = trackGroups.get(groupIndex)

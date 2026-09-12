@@ -2,7 +2,6 @@ import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -14,14 +13,18 @@ plugins {
 
 android {
     namespace = "com.podbelly"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.podbelly"
         minSdk = 26
+        // compileSdk is 37 (required by the AndroidX/Compose libraries), but
+        // targetSdk stays at 35 on purpose: raising it opts the app in to new
+        // runtime behavior and needs device testing, which a dependency update
+        // is not the place for. The two are independent by design.
         targetSdk = 35
-        versionCode = 106
-        versionName = "1.6.58"
+        versionCode = 113
+        versionName = "1.6.65"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -173,12 +176,4 @@ dependencies {
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.compose.ui.test.junit4)
-}
-
-// Kotlin 2.x compilerOptions DSL (the old android.kotlinOptions is an error
-// from Kotlin 2.3).
-kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-    }
 }

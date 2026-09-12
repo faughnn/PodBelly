@@ -106,10 +106,13 @@ class AdChaptersTest {
 
     @Test
     fun `missing end times are repaired from the next chapter's start`() {
-        // 0xFFFFFFFF ("not set") comes through media3 as int -1.
+        // A chapter with no usable end time. media3 1.11 rejects endTimeMs <
+        // startTimeMs in the ChapterFrame constructor (and its ID3 decoder drops
+        // such frames outright), so "no end" is expressed as end == start, which
+        // is what the repair below keys on.
         val metadata = Metadata(
-            chapterFrame("ch0", 0, -1, "Intro"),
-            chapterFrame("ch1", 30_000, -1, "Main"),
+            chapterFrame("ch0", 0, 0, "Intro"),
+            chapterFrame("ch1", 30_000, 30_000, "Main"),
         )
 
         val chapters = chaptersFromMetadata(listOf(metadata), durationMs = 90_000L)
@@ -121,7 +124,7 @@ class AdChaptersTest {
 
     @Test
     fun `last chapter with unknown end and unknown duration stays zero-length`() {
-        val metadata = Metadata(chapterFrame("ch0", 30_000, -1, "Outro"))
+        val metadata = Metadata(chapterFrame("ch0", 30_000, 30_000, "Outro"))
 
         val chapters = chaptersFromMetadata(listOf(metadata), durationMs = 0L)
 
