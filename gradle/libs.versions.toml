@@ -77,6 +77,8 @@ media3-extractor = { module = "androidx.media3:media3-extractor", version.ref = 
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 media3-cast = { module = "androidx.media3:media3-cast", version.ref = "media3" }
+# MetadataRetriever moved here from media3-exoplayer in media3 1.11.0.
+media3-inspector = { module = "androidx.media3:media3-inspector", version.ref = "media3" }
 
 # Chromecast (play-services-cast-framework 22.3.1 is what media3-cast 1.11.1 compiles against)
 play-services-cast-framework = { module = "com.google.android.gms:play-services-cast-framework", version = "22.3.1" }
