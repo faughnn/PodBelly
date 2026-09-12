@@ -2,7 +2,7 @@ package com.podbelly.feature.discover
 
 import android.content.Context
 import app.cash.turbine.test
-import coil.ImageLoader
+import coil3.ImageLoader
 import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.PodcastEntity

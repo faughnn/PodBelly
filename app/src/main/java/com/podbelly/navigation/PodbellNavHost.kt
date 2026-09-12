@@ -60,7 +60,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.podbelly.AppViewModel
 import com.podbelly.core.playback.PlaybackController
 import com.podbelly.core.playback.PlaybackState

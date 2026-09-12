@@ -62,18 +62,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.common.share.ShareCardSheet
 import com.podbelly.core.common.share.ShareInfo
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import coil.imageLoader
-import coil.request.ImageRequest
+import coil3.BitmapImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +105,7 @@ fun EpisodeDetailScreen(
                     .allowHardware(false)
                     .build()
             )
-            (result.drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+            ((result as? SuccessResult)?.image as? BitmapImage)?.bitmap?.asImageBitmap()
         } else {
             null
         }
