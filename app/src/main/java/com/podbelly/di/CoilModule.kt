@@ -3,7 +3,7 @@ package com.podbelly.di
 import android.content.Context
 import coil3.ImageLoader
 import coil3.disk.DiskCache
-import coil3.network.okhttp.OkHttpNetworkFetcher
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import dagger.Module
 import dagger.Provides
@@ -39,7 +39,7 @@ object CoilModule {
             // Coil 3 has no callFactory(): OkHttp is supplied as a network fetcher
             // component from the coil-network-okhttp module. Registering the tuned
             // client here keeps the separate dispatcher/connection pool above in play.
-            .components { add(OkHttpNetworkFetcher.factory(imageClient)) }
+            .components { add(OkHttpNetworkFetcherFactory(callFactory = { imageClient })) }
             .diskCache {
                 DiskCache.Builder()
                     // DiskCache takes an okio Path in 3.x, not a java.io.File.

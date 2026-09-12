@@ -23,8 +23,8 @@ android {
         // runtime behavior and needs device testing, which a dependency update
         // is not the place for. The two are independent by design.
         targetSdk = 35
-        versionCode = 114
-        versionName = "1.6.66"
+        versionCode = 115
+        versionName = "1.6.67"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
