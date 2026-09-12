@@ -51,6 +51,8 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons)
     implementation(libs.compose.foundation)
+    // rememberLauncherForActivityResult, for the cast local-network permission
+    implementation(libs.androidx.activity.compose)
 
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
