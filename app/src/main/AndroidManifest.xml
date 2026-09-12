@@ -9,6 +9,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Chromecast discovery. From Android 17 (targetSdk 37) finding devices on
+         the local network is a runtime permission; the mediarouter picker does its
+         own discovery, so it is not covered by the system-picker exemption.
+         Requested from CastButton when the user taps cast. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application

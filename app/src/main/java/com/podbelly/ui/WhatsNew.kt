@@ -13,9 +13,12 @@ object WhatsNew {
     // 107 was a dependency-catalog refresh (build/test only); no changelog entry.
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
     // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
-    const val LATEST_VERSION_CODE = 104
+    const val LATEST_VERSION_CODE = 116
 
     val changelog: Map<Int, List<String>> = mapOf(
+        116 to listOf(
+            "The first time you cast, Android will ask permission to find devices on your network",
+        ),
         104 to listOf(
             "Playback engine updated with another round of upstream fixes for the notification controls, seeking and Chromecast",
         ),

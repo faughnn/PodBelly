@@ -18,13 +18,9 @@ android {
     defaultConfig {
         applicationId = "com.podbelly"
         minSdk = 26
-        // compileSdk is 37 (required by the AndroidX/Compose libraries), but
-        // targetSdk stays at 35 on purpose: raising it opts the app in to new
-        // runtime behavior and needs device testing, which a dependency update
-        // is not the place for. The two are independent by design.
-        targetSdk = 35
-        versionCode = 115
-        versionName = "1.6.67"
+        targetSdk = 37
+        versionCode = 116
+        versionName = "1.6.68"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
