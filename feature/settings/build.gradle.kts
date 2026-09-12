@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.podbelly.feature.settings"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig { minSdk = 26 }
 
     buildTypes {
