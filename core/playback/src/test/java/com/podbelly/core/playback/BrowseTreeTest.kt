@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Unit tests for [BrowseTree], the pure entity-to-MediaItem mapping behind the
@@ -19,6 +20,7 @@ import org.robolectric.RobolectricTestRunner
  * Robolectric is required because MediaItem/MediaMetadata use android.net.Uri.
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class BrowseTreeTest {
 
     private fun podcast(

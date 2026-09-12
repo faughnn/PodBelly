@@ -93,8 +93,11 @@ fun chaptersFromMetadata(metadata: List<Metadata>, durationMs: Long = 0L): List<
             raw.add(
                 Chapter(
                     title = title,
-                    // CHAP times are unsigned 32-bit; a negative int here means
-                    // the encoder wrote 0xFFFFFFFF ("not set").
+                    // CHAP times are unsigned 32-bit. A negative int used to mean
+                    // the encoder wrote 0xFFFFFFFF ("not set"); since media3 1.11
+                    // the decoder drops any frame with endTimeMs < startTimeMs, so
+                    // that no longer reaches us. The clamp stays as a guard, and
+                    // the end-time repair below still handles end == start.
                     startTimeMs = frame.startTimeMs.toLong().coerceAtLeast(0L),
                     endTimeMs = frame.endTimeMs.toLong(),
                 )
