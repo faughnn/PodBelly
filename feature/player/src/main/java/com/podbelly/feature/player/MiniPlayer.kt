@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.podbelly.core.playback.PlaybackState
 
 /**

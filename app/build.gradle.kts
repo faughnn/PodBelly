@@ -23,8 +23,8 @@ android {
         // runtime behavior and needs device testing, which a dependency update
         // is not the place for. The two are independent by design.
         targetSdk = 35
-        versionCode = 113
-        versionName = "1.6.65"
+        versionCode = 115
+        versionName = "1.6.67"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -147,6 +147,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.palette)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)

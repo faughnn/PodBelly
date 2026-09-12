@@ -17,7 +17,7 @@ navigation = "2.10.1"
 coroutines = "1.11.0"
 okhttp = "5.5.0"
 retrofit = "3.0.0"
-coil = "2.7.0"
+coil = "3.6.2"
 datastore = "1.2.1"
 work = "2.11.2"
 junit = "4.13.2"
@@ -96,7 +96,11 @@ moshi-codegen = { module = "com.squareup.moshi:moshi-kotlin-codegen", version.re
 xpp3 = { module = "org.ogce:xpp3", version.ref = "xpp3" }
 
 # Image Loading
-coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+# Coil 3 moved to the io.coil-kt.coil3 group; io.coil-kt:coil-compose is frozen at
+# 2.7.0. Networking is a separate module in 3.x rather than a callFactory on the
+# ImageLoader builder.
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 androidx-palette = { module = "androidx.palette:palette", version = "1.0.0" }
 
 # DataStore

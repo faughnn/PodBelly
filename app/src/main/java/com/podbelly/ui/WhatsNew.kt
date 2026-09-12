@@ -12,6 +12,7 @@ object WhatsNew {
     // 106 added automated dependency updates (CI only); no changelog entry.
     // 107 was a dependency-catalog refresh (build/test only); no changelog entry.
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
+    // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
     const val LATEST_VERSION_CODE = 104
 
     val changelog: Map<Int, List<String>> = mapOf(
