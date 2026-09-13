@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260913-the-guard-that-could-not-be-built",
+      "title": "The Guard That Could Not Be Built",
+      "description": "A redesign got written down, then five separate attempts were made to break it before anyone wrote code. Not review, which comes after the work, but something earlier: taking the plan and trying to schedule the actual work, file by file. It fell apart in five places. A circular dependency invisible in prose. A clever safety mechanism that turned out to have the same blind spot in both of its forms, exactly where the persistent data lives. A field that was three fields sharing one name, whose worst failure is a colour no test measures. A migration with nothing to migrate. And one alarming claim that was simply too strong, and had been believed without checking.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260913-the-guard-that-could-not-be-built.m4a",
+      "bytes": 46242726,
+      "duration_sec": 1437,
+      "pubdate_rfc822": "Sun, 13 Sep 2026 17:08:33 +0000",
+      "guid": "podbelly-20260913-the-guard-that-could-not-be-built",
+      "number": 23
+    },
+    {
       "id": "20260905-why-a-game-with-no-random-numbers-can-show-you-the-future",
       "title": "Why a Game With No Random Numbers Can Show You the Future",
       "description": "One architecture decision, total determinism, paid for itself three separate times: the route preview runs the real game instead of a model of it, balance changes become an exact diff instead of a statistical argument, and the whole simulation runs headless at the speed of JavaScript. Plus one owner per fact, the god-object state and its three hand-maintained inventories, why ECS would be the wrong answer when nothing in your world updates, and command sourcing as the pattern the codebase was one step away from.",
