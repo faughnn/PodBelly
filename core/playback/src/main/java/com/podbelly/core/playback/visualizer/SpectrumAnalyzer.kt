@@ -1,8 +1,6 @@
 package com.podbelly.core.playback.visualizer
 
 import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.log10
@@ -10,18 +8,16 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * Taps the decoded PCM stream (via a [TeeAudioProcessor]) and turns it into
- * [VisualizerFrame]s on the bus. It never modifies the audio — the tee passes a
- * read-only copy — so playback, speed and skip-silence are unaffected.
+ * Turns decoded PCM into [VisualizerFrame]s: a windowed 1024-point FFT split
+ * into log-spaced bands, a downsampled waveform and an RMS level, produced
+ * every [FRAMES_PER_SECOND]th of a second of audio.
  *
- * All work runs on the player's audio thread. When the visualizer isn't on
- * screen ([AudioVisualizerBus.active] == false) [handleBuffer] returns
- * immediately, so the tap costs effectively nothing the rest of the time.
+ * Each frame is reported with the presentation time (microseconds, in the
+ * caller's timebase) of the last sample it covers, so the caller can hold it
+ * back until that audio is actually heard. Pure computation; runs on the
+ * playback thread.
  */
-@UnstableApi
-internal class AudioSpectrumSink(
-    private val bus: AudioVisualizerBus,
-) : TeeAudioProcessor.AudioBufferSink {
+internal class SpectrumAnalyzer {
 
     private val fftSize = 1024
     private val fft = Fft(fftSize)
@@ -41,7 +37,7 @@ internal class AudioSpectrumSink(
     private var smoothedLevel = 0f
 
     private var sampleRate = 0
-    private var channelCount = 0
+    private var channelCount = 1
     private var encoding = C.ENCODING_INVALID
     private var hopSamples = 512
     private var samplesSinceFrame = 0
@@ -50,56 +46,80 @@ internal class AudioSpectrumSink(
     private val bandStart = IntArray(VisualizerFrame.BAND_COUNT)
     private val bandEnd = IntArray(VisualizerFrame.BAND_COUNT)
 
-    override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
+    /** True once [configure] has been given a PCM layout this analyzer can read. */
+    val isReady: Boolean
+        get() = sampleRate > 0 &&
+            (encoding == C.ENCODING_PCM_16BIT || encoding == C.ENCODING_PCM_FLOAT)
+
+    /** Sets the PCM layout of buffers passed to [analyze] and resets all state. */
+    fun configure(sampleRateHz: Int, channelCount: Int, encoding: Int) {
         this.sampleRate = sampleRateHz
         this.channelCount = channelCount.coerceAtLeast(1)
         this.encoding = encoding
-        hopSamples = (sampleRateHz / FRAMES_PER_SECOND).coerceAtLeast(256)
+        hopSamples = if (sampleRateHz > 0) (sampleRateHz / FRAMES_PER_SECOND).coerceAtLeast(256) else 512
+        reset()
+        if (sampleRateHz > 0) computeBandRanges()
+    }
+
+    /** Forgets buffered audio and smoothing (after a seek or flush). */
+    fun reset() {
         samplesSinceFrame = 0
         writePos = 0
         ring.fill(0f)
         smoothedBands.fill(0f)
         smoothedLevel = 0f
-        computeBandRanges()
     }
 
-    override fun handleBuffer(buffer: ByteBuffer) {
-        if (!bus.active || sampleRate <= 0) return
-
-        buffer.order(ByteOrder.LITTLE_ENDIAN)
+    /**
+     * Analyses [buffer] (read-only; its position is left untouched), whose first
+     * sample plays at [presentationTimeUs]. Calls [onFrame] with each completed
+     * frame and the time at which its last sample plays.
+     */
+    fun analyze(
+        buffer: ByteBuffer,
+        presentationTimeUs: Long,
+        onFrame: (timeUs: Long, frame: VisualizerFrame) -> Unit,
+    ) {
+        if (!isReady) return
+        val data = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
         when (encoding) {
             C.ENCODING_PCM_16BIT -> {
-                val shorts = buffer.asShortBuffer()
+                val shorts = data.asShortBuffer()
                 val frames = shorts.remaining() / channelCount
                 for (f in 0 until frames) {
                     var sum = 0f
                     for (c in 0 until channelCount) sum += shorts.get() / 32768f
-                    pushSample(sum / channelCount)
+                    pushSample(sum / channelCount, presentationTimeUs, f, onFrame)
                 }
             }
             C.ENCODING_PCM_FLOAT -> {
-                val floats = buffer.asFloatBuffer()
+                val floats = data.asFloatBuffer()
                 val frames = floats.remaining() / channelCount
                 for (f in 0 until frames) {
                     var sum = 0f
                     for (c in 0 until channelCount) sum += floats.get()
-                    pushSample(sum / channelCount)
+                    pushSample(sum / channelCount, presentationTimeUs, f, onFrame)
                 }
             }
-            else -> return // Unsupported PCM encoding — skip analysis.
         }
     }
 
-    private fun pushSample(sample: Float) {
+    private inline fun pushSample(
+        sample: Float,
+        presentationTimeUs: Long,
+        indexInBuffer: Int,
+        onFrame: (Long, VisualizerFrame) -> Unit,
+    ) {
         ring[writePos] = sample
         writePos = (writePos + 1) % fftSize
         if (++samplesSinceFrame >= hopSamples) {
             samplesSinceFrame = 0
-            computeFrame()
+            val endTimeUs = presentationTimeUs + (indexInBuffer + 1) * C.MICROS_PER_SECOND / sampleRate
+            onFrame(endTimeUs, computeFrame())
         }
     }
 
-    private fun computeFrame() {
+    private fun computeFrame(): VisualizerFrame {
         // Copy the ring into chronological order and window it.
         var rms = 0f
         for (k in 0 until fftSize) {
@@ -138,7 +158,7 @@ internal class AudioSpectrumSink(
         val levelNorm = normalizeDb(rms)
         smoothedLevel = smoothedLevel * 0.8f + levelNorm * 0.2f
 
-        bus.publish(VisualizerFrame(bands = outBands, waveform = outWave, level = smoothedLevel))
+        return VisualizerFrame(bands = outBands, waveform = outWave, level = smoothedLevel)
     }
 
     private fun computeBandRanges() {
@@ -164,11 +184,11 @@ internal class AudioSpectrumSink(
         return ((db - MIN_DB) / -MIN_DB).coerceIn(0f, 1f)
     }
 
-    private companion object {
+    companion object {
         const val FRAMES_PER_SECOND = 40
-        const val BAND_DECAY = 0.86f
-        const val MIN_DB = -66f
-        const val MIN_FREQ_HZ = 40
-        const val MAX_FREQ_HZ = 16000
+        private const val BAND_DECAY = 0.86f
+        private const val MIN_DB = -66f
+        private const val MIN_FREQ_HZ = 40
+        private const val MAX_FREQ_HZ = 16000
     }
 }
