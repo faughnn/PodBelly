@@ -66,6 +66,7 @@ import coil3.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.DateUtils
+import com.podbelly.core.common.ShowNotesHtml
 import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.common.share.ShareCardSheet
 import com.podbelly.core.common.share.ShareInfo
@@ -392,10 +393,7 @@ fun EpisodeDetailScreen(
                         }
                     },
                     update = { textView ->
-                        textView.text = android.text.Html.fromHtml(
-                            uiState.description,
-                            android.text.Html.FROM_HTML_MODE_COMPACT,
-                        )
+                        textView.text = ShowNotesHtml.toSpanned(uiState.description)
                         textView.maxLines = notesMaxLines
                         textView.setTextColor(notesTextColor)
                         textView.setLinkTextColor(notesLinkColor)

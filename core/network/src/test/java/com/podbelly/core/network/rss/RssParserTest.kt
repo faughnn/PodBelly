@@ -32,6 +32,81 @@ class RssParserTest {
     }
 
     // -------------------------------------------------------------------------
+    // Episode description: <description> vs <content:encoded>
+    // -------------------------------------------------------------------------
+
+    private fun feedWithItem(itemBody: String) = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"
+             xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+             xmlns:content="http://purl.org/rss/1.0/modules/content/">
+          <channel>
+            <title>Notes Podcast</title>
+            <item>
+              <title>Ep</title>
+              <guid>ep-1</guid>
+              <enclosure url="https://example.com/ep1.mp3" length="1" type="audio/mpeg"/>
+              $itemBody
+            </item>
+          </channel>
+        </rss>
+    """.trimIndent()
+
+    @Test
+    fun `longer content encoded wins over plain-text description`() = runTest {
+        // Megaphone-style feed: plain text in <description>, real HTML in <content:encoded>.
+        val xml = feedWithItem(
+            """
+            <description>Intro.
+
+            00:00 Start</description>
+            <content:encoded><![CDATA[<p>Intro.</p><p><br></p><p>00:00 Start</p>]]></content:encoded>
+            """,
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("<p>Intro.</p><p><br></p><p>00:00 Start</p>", feed.episodes[0].description)
+    }
+
+    @Test
+    fun `longer description wins over shorter content encoded regardless of order`() = runTest {
+        val xml = feedWithItem(
+            """
+            <content:encoded><![CDATA[<p>Short.</p>]]></content:encoded>
+            <description><![CDATA[<p>A much longer and more useful description.</p>]]></description>
+            """,
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals(
+            "<p>A much longer and more useful description.</p>",
+            feed.episodes[0].description,
+        )
+    }
+
+    @Test
+    fun `content encoded is used when description is absent`() = runTest {
+        val xml = feedWithItem(
+            """<content:encoded><![CDATA[<p>Only encoded.</p>]]></content:encoded>""",
+        )
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("<p>Only encoded.</p>", feed.episodes[0].description)
+    }
+
+    @Test
+    fun `itunes summary is still the fallback when both are missing`() = runTest {
+        val xml = feedWithItem("""<itunes:summary>Summary only</itunes:summary>""")
+
+        val feed = parser.parse("https://example.com/feed.xml", xml)
+
+        assertEquals("Summary only", feed.episodes[0].description)
+    }
+
+    // -------------------------------------------------------------------------
     // Channel / Feed metadata
     // -------------------------------------------------------------------------
 

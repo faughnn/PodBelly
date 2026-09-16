@@ -228,17 +228,19 @@ class RssParser @Inject constructor() {
                                 tag == "title" && ns.isEmpty() -> {
                                     itemTitle = decodeHtmlEntities(readText(parser))
                                 }
+                                // <description> and <content:encoded> both carry show
+                                // notes. Many hosts (e.g. Megaphone) put plain text in
+                                // <description> and the real HTML in <content:encoded>,
+                                // so — like AntennaPod — keep whichever is longer rather
+                                // than blindly preferring one tag.
                                 tag == "description" && ns.isEmpty() -> {
-                                    itemDescription = readText(parser)
+                                    itemDescription = longerOf(itemDescription, readText(parser))
                                 }
                                 tag == "summary" && ns == NS_ITUNES -> {
                                     itemSummary = readText(parser)
                                 }
                                 tag == "encoded" && ns == NS_CONTENT -> {
-                                    val encoded = readText(parser)
-                                    if (itemDescription.isBlank()) {
-                                        itemDescription = encoded
-                                    }
+                                    itemDescription = longerOf(itemDescription, readText(parser))
                                 }
                                 tag == "guid" -> {
                                     itemGuid = readText(parser)
@@ -392,6 +394,10 @@ class RssParser @Inject constructor() {
             episodes = episodes
         )
     }
+
+    /** Returns whichever of [current] and [candidate] is longer, keeping [current] on a tie. */
+    private fun longerOf(current: String, candidate: String): String =
+        if (candidate.length > current.length) candidate else current
 
     /**
      * Reads the text content of the current element, handling CDATA and mixed content.

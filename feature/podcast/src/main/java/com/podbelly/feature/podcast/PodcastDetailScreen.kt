@@ -66,6 +66,7 @@ import coil3.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.AutoDownloadModeDialog
+import com.podbelly.core.common.ShowNotesHtml
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.common.SkipIntroOutroDialog
@@ -338,10 +339,7 @@ private fun PodcastHeader(
                     }
                 },
                 update = { textView ->
-                    textView.text = android.text.Html.fromHtml(
-                        podcast.description,
-                        android.text.Html.FROM_HTML_MODE_COMPACT,
-                    )
+                    textView.text = ShowNotesHtml.toSpanned(podcast.description)
                     textView.maxLines = descMaxLines
                     textView.setTextColor(descTextColor)
                     textView.setLinkTextColor(descLinkColor)

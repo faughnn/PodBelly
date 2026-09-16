@@ -39,7 +39,7 @@ class AudioVisualizerBus @Inject constructor() {
         }
     }
 
-    /** Called by the audio tap on the audio thread. */
+    /** Called by [VisualizerAudioSink] on the playback thread, once a frame's audio is heard. */
     fun publish(frame: VisualizerFrame) {
         _frames.value = frame
     }

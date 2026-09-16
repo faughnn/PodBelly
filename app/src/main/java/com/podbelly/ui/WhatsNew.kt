@@ -13,9 +13,16 @@ object WhatsNew {
     // 107 was a dependency-catalog refresh (build/test only); no changelog entry.
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
     // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
-    const val LATEST_VERSION_CODE = 116
+    const val LATEST_VERSION_CODE = 118
 
     val changelog: Map<Int, List<String>> = mapOf(
+        118 to listOf(
+            "The Now Playing visualizer now moves in time with what you hear — it no longer runs ahead of the audio or stutters, including on Bluetooth headphones",
+        ),
+        117 to listOf(
+            "Show notes keep their paragraphs, chapter timestamps and link lists on separate lines instead of running together in one block",
+            "Episode and podcast descriptions now use the richer formatted version when a feed provides one",
+        ),
         116 to listOf(
             "The first time you cast, Android will ask permission to find devices on your network",
         ),

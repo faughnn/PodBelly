@@ -116,6 +116,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.podbelly.core.common.share.ShareCardSheet
+import com.podbelly.core.common.ShowNotesHtml
 import com.podbelly.core.common.share.ShareInfo
 import kotlinx.coroutines.launch
 import androidx.palette.graphics.Palette
@@ -1757,10 +1758,7 @@ internal fun EpisodeNotesContent(
                     }
                 },
                 update = { textView ->
-                    textView.text = android.text.Html.fromHtml(
-                        description,
-                        android.text.Html.FROM_HTML_MODE_COMPACT,
-                    )
+                    textView.text = ShowNotesHtml.toSpanned(description)
                     textView.setTextColor(notesTextColor)
                     textView.setLinkTextColor(notesLinkColor)
                 },

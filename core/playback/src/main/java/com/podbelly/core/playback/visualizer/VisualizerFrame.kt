@@ -2,7 +2,8 @@ package com.podbelly.core.playback.visualizer
 
 /**
  * One frame of analysed audio for the Now Playing visualizer. Produced ~40x/sec
- * by the audio tap in [AudioSpectrumSink] and consumed by the Compose renderers.
+ * by [SpectrumAnalyzer], released by [VisualizerAudioSink] once the audio it
+ * describes is actually playing, and consumed by the Compose renderers.
  *
  * Each field is a different view of the same slice of audio, so a given style
  * only reads the one it needs:
