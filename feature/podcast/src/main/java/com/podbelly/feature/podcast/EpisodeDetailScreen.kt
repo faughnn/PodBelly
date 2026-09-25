@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.FileDownload
@@ -61,18 +62,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.DateUtils
+import com.podbelly.core.common.ShowNotesHtml
 import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.common.share.ShareCardSheet
 import com.podbelly.core.common.share.ShareInfo
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import coil.imageLoader
-import coil.request.ImageRequest
+import coil3.BitmapImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,7 +106,7 @@ fun EpisodeDetailScreen(
                     .allowHardware(false)
                     .build()
             )
-            (result.drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+            ((result as? SuccessResult)?.image as? BitmapImage)?.bitmap?.asImageBitmap()
         } else {
             null
         }
@@ -324,12 +328,12 @@ fun EpisodeDetailScreen(
                     }
                     uiState.isDownloaded -> {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
+                            imageVector = if (uiState.played) Icons.Default.Replay else Icons.Default.PlayArrow,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Play")
+                        Text(if (uiState.played) "Play again" else "Play")
                     }
                     else -> {
                         Icon(
@@ -389,10 +393,7 @@ fun EpisodeDetailScreen(
                         }
                     },
                     update = { textView ->
-                        textView.text = android.text.Html.fromHtml(
-                            uiState.description,
-                            android.text.Html.FROM_HTML_MODE_COMPACT,
-                        )
+                        textView.text = ShowNotesHtml.toSpanned(uiState.description)
                         textView.maxLines = notesMaxLines
                         textView.setTextColor(notesTextColor)
                         textView.setLinkTextColor(notesLinkColor)

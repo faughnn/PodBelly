@@ -7,8 +7,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import coil.Coil
-import coil.ImageLoader
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import com.podbelly.core.common.CrashLogStore
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.playback.PlaybackController
@@ -48,7 +48,10 @@ class PodbellApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        Coil.setImageLoader(imageLoader)
+        // Coil 3 replaced the Coil singleton with SingletonImageLoader. setUnsafe is
+        // the direct equivalent of Coil.setImageLoader: it installs an already-built
+        // loader (ours comes from Hilt) rather than a lazy factory.
+        SingletonImageLoader.setUnsafe(imageLoader)
         installCrashLogHandler()
         createNotificationChannels()
         scheduleFeedRefresh()

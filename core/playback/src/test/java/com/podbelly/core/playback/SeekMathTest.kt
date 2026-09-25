@@ -136,4 +136,61 @@ class SeekMathTest {
         assertEquals(599_000L, parked)
         assertTrue(shouldEndForOutro(parked, duration, 15, alreadyFired = false))
     }
+
+    // -------------------------------------------------------------------------
+    // isGenuineEpisodeEnd -- guarding mark-played against bogus STATE_ENDED
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `ended at exactly the duration is genuine`() {
+        assertTrue(isGenuineEpisodeEnd(duration, duration))
+    }
+
+    @Test
+    fun `ended within the end tolerance is genuine`() {
+        // A seek parked a second short of the end (computeSkipTarget) that then
+        // plays out, or slight position-reporting slack, must still complete.
+        assertTrue(isGenuineEpisodeEnd(duration - 1_000L, duration))
+        assertTrue(isGenuineEpisodeEnd(duration - 2_000L, duration))
+    }
+
+    @Test
+    fun `ended mid-episode is spurious`() {
+        // The rapid-notification-rewind corruption: STATE_ENDED with the position
+        // nowhere near the end must not mark the episode played.
+        assertFalse(isGenuineEpisodeEnd(300_000L, duration))
+        assertFalse(isGenuineEpisodeEnd(duration - 2_001L, duration))
+        assertFalse(isGenuineEpisodeEnd(0L, duration))
+    }
+
+    @Test
+    fun `ended with unknown duration is trusted as genuine`() {
+        // Streams may never report a duration; treating those ends as spurious
+        // would stop episodes from ever completing.
+        assertTrue(isGenuineEpisodeEnd(300_000L, 0L))
+        assertTrue(isGenuineEpisodeEnd(300_000L, -9_223_372_036_854_775_807L))
+    }
+
+    // -------------------------------------------------------------------------
+    // resolveStartPosition -- replaying a finished episode
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `an unplayed episode resumes from its saved position`() {
+        assertEquals(300_000L, resolveStartPosition(300_000L, played = false))
+        assertEquals(0L, resolveStartPosition(0L, played = false))
+    }
+
+    @Test
+    fun `a finished episode restarts from the beginning`() {
+        // Its saved position sits at the end; resuming there would immediately
+        // re-end the episode, so the play button appeared to do nothing.
+        assertEquals(0L, resolveStartPosition(duration, played = true))
+        assertEquals(0L, resolveStartPosition(duration - 5_000L, played = true))
+    }
+
+    @Test
+    fun `a negative saved position never seeks backwards`() {
+        assertEquals(0L, resolveStartPosition(-1L, played = false))
+    }
 }

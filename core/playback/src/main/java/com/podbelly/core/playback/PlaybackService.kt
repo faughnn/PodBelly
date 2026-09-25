@@ -18,7 +18,6 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import com.podbelly.core.playback.visualizer.AudioSpectrumSink
 import com.podbelly.core.playback.visualizer.AudioVisualizerBus
 import com.podbelly.core.playback.visualizer.VisualizerRenderersFactory
 import androidx.media3.session.CommandButton
@@ -118,13 +117,12 @@ class PlaybackService : MediaLibraryService() {
         createNotificationChannel()
 
         val player = ExoPlayer.Builder(this)
-            // Custom renderers factory taps decoded PCM for the Now Playing
-            // visualizer. It keeps the default Sonic/SilenceSkipping processors,
-            // so playback speed and skip-silence are unaffected, and only does
-            // per-frame analysis while the visualizer is on screen.
-            .setRenderersFactory(
-                VisualizerRenderersFactory(this, AudioSpectrumSink(visualizerBus))
-            )
+            // Custom renderers factory wraps the audio sink so the Now Playing
+            // visualizer can read decoded PCM and release each frame only when
+            // that audio is actually heard. The stock Sonic/SilenceSkipping
+            // processors are kept, so playback speed and skip-silence are
+            // unaffected, and analysis only runs while the visualizer is on screen.
+            .setRenderersFactory(VisualizerRenderersFactory(this, visualizerBus))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
@@ -399,12 +397,11 @@ class PlaybackService : MediaLibraryService() {
         return mediaLibrarySession
     }
 
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        val player = mediaLibrarySession?.player
-        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
-            stopSelf()
-        }
-    }
+    // onTaskRemoved is intentionally not overridden: media3 1.6+ provides a safe
+    // default that keeps the service (and its foreground grace period) alive while
+    // playback is ongoing and stops it otherwise. The previous stopSelf() override
+    // predated that and could tear the service down while the session was still in
+    // its paused foreground window.
 
     override fun onDestroy() {
         serviceScope.cancel()
@@ -605,7 +602,7 @@ class PlaybackService : MediaLibraryService() {
                         podcastDao.getSkipSettings(episode.podcastId)?.skipIntroSeconds
                     }.getOrNull() ?: 0
                     val startPos = resolveExternalStartPosition(
-                        savedPositionMs = episode.playbackPosition,
+                        savedPositionMs = resolveStartPosition(episode.playbackPosition, episode.played),
                         durationMs = episode.durationSeconds * 1000L,
                         skipIntroSeconds = skipIntroSeconds,
                     )

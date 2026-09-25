@@ -395,6 +395,40 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `playEpisode marks a finished episode so it replays from the start`() = runTest {
+        val podcast = makePodcast(id = 1L, title = "Show Title", artworkUrl = "https://art.com/p.jpg")
+        // A finished episode's saved position sits at the end of the audio.
+        val episode = makeEpisode(
+            id = 5L,
+            podcastId = 1L,
+            title = "Ep Title",
+            downloadPath = "/data/local/episode5.mp3",
+            playbackPosition = 3_595_000L,
+            played = true,
+        )
+
+        coEvery { podcastDao.getByIdOnce(1L) } returns podcast
+        coEvery { episodeDao.getByIdOnce(5L) } returns episode
+
+        val viewModel = createViewModel()
+        viewModel.playEpisode(5L)
+        advanceUntilIdle()
+
+        verify {
+            playbackController.play(
+                episodeId = 5L,
+                audioUrl = "/data/local/episode5.mp3",
+                title = "Ep Title",
+                podcastTitle = "Show Title",
+                artworkUrl = "https://art.com/p.jpg",
+                startPosition = 3_595_000L,
+                podcastId = 1L,
+                played = true,
+            )
+        }
+    }
+
+    @Test
     fun `playEpisode pauses when the tapped episode is already playing`() = runTest {
         playbackStateFlow.value = PlaybackState(episodeId = 5L, isPlaying = true)
 
@@ -403,7 +437,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         verify { playbackController.pause() }
-        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any(), any()) }
         verify(exactly = 0) { playbackController.resume() }
     }
 
@@ -416,7 +450,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         verify { playbackController.resume() }
-        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any(), any()) }
         verify(exactly = 0) { playbackController.pause() }
     }
 
@@ -432,7 +466,7 @@ class HomeViewModelTest {
         viewModel.playEpisode(5L)
         advanceUntilIdle()
 
-        verify { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify { playbackController.play(any(), any(), any(), any(), any(), any(), any(), any()) }
         verify(exactly = 0) { playbackController.pause() }
     }
 
@@ -477,7 +511,7 @@ class HomeViewModelTest {
         viewModel.playEpisode(999L)
         advanceUntilIdle()
 
-        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test

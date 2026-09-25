@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.FileDownload
@@ -62,10 +62,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.podbelly.core.common.AutoDownloadModeDialog
+import com.podbelly.core.common.ShowNotesHtml
 import com.podbelly.core.common.DateUtils
 import com.podbelly.core.common.MobileDataWarningDialog
 import com.podbelly.core.common.SkipIntroOutroDialog
@@ -338,10 +339,7 @@ private fun PodcastHeader(
                     }
                 },
                 update = { textView ->
-                    textView.text = android.text.Html.fromHtml(
-                        podcast.description,
-                        android.text.Html.FROM_HTML_MODE_COMPACT,
-                    )
+                    textView.text = ShowNotesHtml.toSpanned(podcast.description)
                     textView.maxLines = descMaxLines
                     textView.setTextColor(descTextColor)
                     textView.setLinkTextColor(descLinkColor)
@@ -555,8 +553,8 @@ internal fun EpisodeCard(
                         }
                         episode.isDownloaded && episode.played -> {
                             Icon(
-                                imageVector = Icons.Default.CheckCircleOutline,
-                                contentDescription = "Played",
+                                imageVector = Icons.Default.Replay,
+                                contentDescription = "Play again",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }

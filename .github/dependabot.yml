@@ -1,0 +1,55 @@
+# Automated dependency updates.
+#
+# Gradle updates are checked weekly against the version catalog
+# (gradle/libs.versions.toml). Minor and patch bumps arrive grouped into a
+# single PR; major versions arrive as individual PRs so their breaking
+# changes get reviewed one at a time. The PR Build & Test gate validates
+# every update, and .github/workflows/dependabot-automation.yml bumps the
+# app version on each Dependabot PR (repo rule: every commit increments
+# versionCode) and enables auto-merge for non-major updates.
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Dublin"
+    # Majors arrive as individual PRs and can sit awaiting review for a while.
+    # Keep this high enough that a backlog of them cannot starve the weekly
+    # minor-and-patch group PR, which is the one that auto-merges.
+    open-pull-requests-limit: 15
+    labels:
+      - "dependencies"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Pinned to whatever media3-cast compiles against; bumped together
+      # with media3, never independently.
+      - dependency-name: "com.google.android.gms:play-services-cast-framework"
+      # Unmaintained pull-parser artifact; no newer releases exist.
+      - dependency-name: "org.ogce:xpp3"
+      # Coupled to the AGP version Paparazzi supports; upgraded manually
+      # as a set (see the toolchain upgrade PR).
+      #
+      # AGP also has a floor imposed by Hilt: Hilt 2.60+ refuses to apply on
+      # AGP 8.x. Because AGP is ignored here but Hilt is not, a grouped Hilt
+      # bump once moved past that floor on its own and broke the build. If a
+      # Hilt update raises the floor again, AGP has to move with it.
+      - dependency-name: "com.android.application"
+      - dependency-name: "com.android.library"
+      - dependency-name: "app.cash.paparazzi"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"

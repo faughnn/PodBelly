@@ -355,7 +355,7 @@ class PodcastDetailViewModelTest {
             viewModel.playEpisode(999L)
             advanceUntilIdle()
 
-            verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any()) }
+            verify(exactly = 0) { playbackController.play(any(), any(), any(), any(), any(), any(), any(), any()) }
 
             cancelAndConsumeRemainingEvents()
         }

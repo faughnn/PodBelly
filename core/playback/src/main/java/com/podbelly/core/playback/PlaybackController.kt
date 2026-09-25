@@ -12,7 +12,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.MetadataRetriever
+import androidx.media3.inspector.MetadataRetriever
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -214,7 +214,16 @@ class PlaybackController @Inject constructor(
                     }
                 }
                 Player.STATE_ENDED -> {
-                    handleEpisodeFinished()
+                    // Only a STATE_ENDED whose position actually reached the end is
+                    // a real finish. Rapid rewind taps on the notification could
+                    // drive media3 1.5.x into a bogus mid-episode STATE_ENDED;
+                    // trusting it marked the episode played and wiped the resume
+                    // point (it reopened as "completed" after the crash).
+                    if (isGenuineEpisodeEnd(controller.currentPosition, controller.duration)) {
+                        handleEpisodeFinished()
+                    } else {
+                        handleSpuriousEnd()
+                    }
                 }
                 Player.STATE_IDLE -> {
                     _playbackState.update { it.copy(isLoading = false) }
@@ -351,6 +360,9 @@ class PlaybackController @Inject constructor(
      * @param podcastTitle  Podcast/show name.
      * @param artworkUrl    Artwork URL for the notification and UI.
      * @param startPosition Position in milliseconds to resume from (default 0).
+     * @param played        Whether the episode is already finished. A finished episode
+     *                      replays from the start and is marked unplayed again — see
+     *                      [resolveStartPosition].
      */
     fun play(
         episodeId: Long,
@@ -360,8 +372,11 @@ class PlaybackController @Inject constructor(
         artworkUrl: String,
         startPosition: Long = 0L,
         podcastId: Long = 0L,
+        played: Boolean = false,
     ) {
         val controller = mediaController ?: return
+
+        val effectiveStart = resolveStartPosition(startPosition, played)
 
         // Flush the outgoing episode's position before we overwrite state. Position is
         // otherwise only persisted on pause or via the ~10s periodic save, so switching
@@ -376,6 +391,20 @@ class PlaybackController @Inject constructor(
                     episodeDao.updatePlaybackPosition(previousId, previousPosition)
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to save outgoing episode position", e)
+                }
+            }
+        }
+
+        // Replaying a finished episode: clear the played flag and the end-of-episode
+        // resume point so the replay is tracked like any other listen (progress bar,
+        // Continue Listening) instead of restarting from 0 every time it's reopened.
+        if (played) {
+            scope.launch {
+                try {
+                    episodeDao.markAsUnplayed(episodeId)
+                    episodeDao.updatePlaybackPosition(episodeId, 0L)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to reset finished episode for replay", e)
                 }
             }
         }
@@ -404,7 +433,7 @@ class PlaybackController @Inject constructor(
                 podcastTitle = podcastTitle,
                 artworkUrl = artworkUrl,
                 audioUrl = audioUrl,
-                currentPosition = startPosition,
+                currentPosition = effectiveStart,
                 duration = 0L,
                 isLoading = true,
                 chapters = emptyList(),
@@ -424,7 +453,7 @@ class PlaybackController @Inject constructor(
             .setMediaMetadata(metadata)
             .build()
 
-        controller.setMediaItem(mediaItem, startPosition)
+        controller.setMediaItem(mediaItem, effectiveStart)
         controller.prepare()
         controller.play()
 
@@ -447,7 +476,7 @@ class PlaybackController @Inject constructor(
                 setPlaybackSpeed(speed)
                 // Same load path also applies the per-podcast intro/outro auto-skip.
                 // Living inside play() means every play path gets it for free.
-                applySkipSettings(podcastId, episodeId, startPosition)
+                applySkipSettings(podcastId, episodeId, effectiveStart)
             }
         }
     }
@@ -544,9 +573,15 @@ class PlaybackController @Inject constructor(
 
     @OptIn(UnstableApi::class)
     private suspend fun retrieveChapters(context: Context, audioUrl: String): List<Chapter> {
-        val trackGroups = MetadataRetriever
-            .retrieveMetadata(context, MediaItem.fromUri(audioUrl))
-            .await()
+        // media3 1.11.0 replaced the static retrieveMetadata() with a Builder,
+        // and the retriever is AutoCloseable now — close it once the future
+        // has resolved so its internal player is released.
+        val retriever = MetadataRetriever.Builder(context, MediaItem.fromUri(audioUrl)).build()
+        val trackGroups = try {
+            retriever.retrieveTrackGroups().await()
+        } finally {
+            retriever.close()
+        }
         val metadata = buildList {
             for (groupIndex in 0 until trackGroups.length) {
                 val group = trackGroups.get(groupIndex)
@@ -751,12 +786,16 @@ class PlaybackController @Inject constructor(
         // button events while we decide what to do next.
         controller.playWhenReady = false
 
-        // Mark the finished episode as played before clearing state
+        // Mark the finished episode as played before clearing state. The saved
+        // position is reset too: leaving it parked at the end made a later play
+        // request seek straight back to STATE_ENDED, and it also stamps lastPlayedAt
+        // with the finish time, which is what auto-delete-after-N-days measures from.
         val finishedEpisodeId = currentEpisodeId
         if (finishedEpisodeId != 0L) {
             scope.launch {
                 try {
                     episodeDao.markAsPlayed(finishedEpisodeId)
+                    episodeDao.updatePlaybackPosition(finishedEpisodeId, 0L)
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to mark episode as played", e)
                 }
@@ -778,6 +817,46 @@ class PlaybackController @Inject constructor(
         _episodeEnded.tryEmit(Unit)
 
         // The queue feature is gone: an episode that finishes simply stops.
+        pauseAtEpisodeEnd = false
+        stopPlayerAfterEnded()
+    }
+
+    /**
+     * A [Player.STATE_ENDED] that arrived with the position still mid-episode (see
+     * [isGenuineEpisodeEnd]). The episode did NOT finish: don't mark it played and
+     * don't emit [episodeEnded] (the sleep timer must not fire). Save the real
+     * position so the user picks up where they were, then stop the player the same
+     * way a real end does so the UI isn't left showing a dead item.
+     */
+    private fun handleSpuriousEnd() {
+        val controller = mediaController ?: return
+        controller.playWhenReady = false
+
+        val episodeId = currentEpisodeId
+        val positionMs = controller.currentPosition.coerceAtLeast(0L)
+        Log.w(
+            TAG,
+            "Ignoring spurious STATE_ENDED at ${positionMs}ms of ${controller.duration}ms " +
+                "for episode $episodeId"
+        )
+        if (episodeId != 0L) {
+            scope.launch {
+                try {
+                    episodeDao.updatePlaybackPosition(episodeId, positionMs)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to save position after spurious end", e)
+                }
+            }
+        }
+
+        _playbackState.update {
+            it.copy(
+                isPlaying = false,
+                isLoading = false,
+                currentPosition = positionMs,
+            )
+        }
+        stopPositionUpdates()
         pauseAtEpisodeEnd = false
         stopPlayerAfterEnded()
     }

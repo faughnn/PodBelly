@@ -2,7 +2,6 @@ import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -14,14 +13,14 @@ plugins {
 
 android {
     namespace = "com.podbelly"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.podbelly"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 99
-        versionName = "1.6.51"
+        targetSdk = 37
+        versionCode = 119
+        versionName = "1.6.71"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -87,10 +86,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
     }
@@ -148,6 +143,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.palette)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)

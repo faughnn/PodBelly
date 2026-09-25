@@ -217,6 +217,7 @@ class PodcastDetailViewModel @Inject constructor(
                 artworkUrl = episode.artworkUrl.ifEmpty { podcast.artworkUrl },
                 startPosition = episode.playbackPosition,
                 podcastId = podcast.id,
+                played = episode.played,
             )
         }
     }

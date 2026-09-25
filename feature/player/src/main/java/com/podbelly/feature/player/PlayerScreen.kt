@@ -102,8 +102,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
-import android.graphics.drawable.BitmapDrawable
+import coil3.compose.AsyncImage
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -117,14 +116,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.podbelly.core.common.share.ShareCardSheet
+import com.podbelly.core.common.ShowNotesHtml
 import com.podbelly.core.common.share.ShareInfo
 import kotlinx.coroutines.launch
 import androidx.palette.graphics.Palette
-import coil.imageLoader
-import coil.request.ImageRequest
+import coil3.BitmapImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
-import coil.request.SuccessResult
+import coil3.request.SuccessResult
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
@@ -169,7 +171,7 @@ fun PlayerScreen(
                             .allowHardware(false)
                             .build()
                     )
-                    (result.drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+                    ((result as? SuccessResult)?.image as? BitmapImage)?.bitmap?.asImageBitmap()
                 } else {
                     null
                 }
@@ -1666,8 +1668,8 @@ private fun rememberDominantColor(imageUrl: String, defaultColor: Color): Color 
                 .build()
             val result = loader.execute(request)
             val bitmap = (result as? SuccessResult)
-                ?.drawable
-                ?.let { it as? BitmapDrawable }
+                ?.image
+                ?.let { it as? BitmapImage }
                 ?.bitmap
             if (bitmap != null) {
                 // Palette.generate() is a synchronous, CPU-bound per-pixel scan. The
@@ -1756,10 +1758,7 @@ internal fun EpisodeNotesContent(
                     }
                 },
                 update = { textView ->
-                    textView.text = android.text.Html.fromHtml(
-                        description,
-                        android.text.Html.FROM_HTML_MODE_COMPACT,
-                    )
+                    textView.text = ShowNotesHtml.toSpanned(description)
                     textView.setTextColor(notesTextColor)
                     textView.setLinkTextColor(notesLinkColor)
                 },

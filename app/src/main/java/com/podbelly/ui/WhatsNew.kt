@@ -6,9 +6,38 @@ object WhatsNew {
     // 73-75 wired up coverage reporting (CI only); no changelog entries.
     // 83-84 were docs-only (CLAUDE.md); no changelog entries.
     // 86-87 were release-pipeline/CI only; no changelog entries.
-    const val LATEST_VERSION_CODE = 99
+    // 101 never shipped (superseded on the same PR); its notes are folded into 102.
+    // 103 was a build-toolchain upgrade with no user-facing changes; no changelog entry.
+    // 105 was test/Firebase dependency housekeeping; no changelog entry.
+    // 106 added automated dependency updates (CI only); no changelog entry.
+    // 107 was a dependency-catalog refresh (build/test only); no changelog entry.
+    // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
+    // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
+    const val LATEST_VERSION_CODE = 118
 
     val changelog: Map<Int, List<String>> = mapOf(
+        118 to listOf(
+            "The Now Playing visualizer now moves in time with what you hear — it no longer runs ahead of the audio or stutters, including on Bluetooth headphones",
+        ),
+        117 to listOf(
+            "Show notes keep their paragraphs, chapter timestamps and link lists on separate lines instead of running together in one block",
+            "Episode and podcast descriptions now use the richer formatted version when a feed provides one",
+        ),
+        116 to listOf(
+            "The first time you cast, Android will ask permission to find devices on your network",
+        ),
+        104 to listOf(
+            "Playback engine updated with another round of upstream fixes for the notification controls, seeking and Chromecast",
+        ),
+        102 to listOf(
+            "Fixed a crash when tapping rewind on the playback notification several times in a row",
+            "An episode interrupted like that is no longer wrongly marked as finished — your place is saved so you can pick up where you were",
+            "The playback notification sticks around more reliably while paused",
+        ),
+        100 to listOf(
+            "Playing a finished episode now starts it from the beginning, so there's no need to delete the download and fetch it again",
+            "Played episodes show a replay button, and the episode screen offers \"Play again\"",
+        ),
         99 to listOf(
             "The artwork now flips over with an animation when you turn the visualizer on or off",
             "Change the visualizer style right from the player — tap the gear in the corner",
