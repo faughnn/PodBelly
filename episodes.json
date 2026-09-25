@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20260925-how-to-tell-whether-a-rag-system-is-actually-getting-better",
+      "title": "How to Tell Whether a RAG System Is Actually Getting Better",
+      "description": "Building a tuning tool for a regulations assistant's search: the two halves of RAG, an embedding model silently ignoring its task setting, scoring retrieval exactly against golden answers, bootstrap ties, checking citations with plain code, a judge that says everything is perfect, and where evaluation money really goes.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20260925-how-to-tell-whether-a-rag-system-is-actually-getting-better.m4a",
+      "bytes": 47503444,
+      "duration_sec": 1476,
+      "pubdate_rfc822": "Fri, 25 Sep 2026 09:42:31 +0000",
+      "guid": "podbelly-20260925-how-to-tell-whether-a-rag-system-is-actually-getting-better",
+      "number": 24
+    },
+    {
       "id": "20260913-the-guard-that-could-not-be-built",
       "title": "The Guard That Could Not Be Built",
       "description": "A redesign got written down, then five separate attempts were made to break it before anyone wrote code. Not review, which comes after the work, but something earlier: taking the plan and trying to schedule the actual work, file by file. It fell apart in five places. A circular dependency invisible in prose. A clever safety mechanism that turned out to have the same blind spot in both of its forms, exactly where the persistent data lives. A field that was three fields sharing one name, whose worst failure is a colour no test measures. A migration with nothing to migrate. And one alarming claim that was simply too strong, and had been believed without checking.",
