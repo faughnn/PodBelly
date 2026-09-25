@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>25. The Architecture That Five Rehearsals Tried to Break</title>
+      <description>Designing a migration for a deterministic game: closing the gap between an ordered list of player commands and what gets saved to disk, and stress-testing the design through five rehearsals before writing any code.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260925-the-architecture-that-five-rehearsals-tried-to-break.m4a" length="46242726" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260925-the-architecture-that-five-rehearsals-tried-to-break</guid>
+      <pubDate>Fri, 25 Sep 2026 10:49:43 +0000</pubDate>
+      <itunes:episode>25</itunes:episode>
+      <itunes:duration>23:57</itunes:duration>
+    </item>
+    <item>
       <title>24. How to Tell Whether a RAG System Is Actually Getting Better</title>
       <description>Building a tuning tool for a regulations assistant's search: the two halves of RAG, an embedding model silently ignoring its task setting, scoring retrieval exactly against golden answers, bootstrap ties, checking citations with plain code, a judge that says everything is perfect, and where evaluation money really goes.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260925-how-to-tell-whether-a-rag-system-is-actually-getting-better.m4a" length="47503444" type="audio/x-m4a"/>
