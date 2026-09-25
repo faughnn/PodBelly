@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>26. How Retrieval Actually Works: Chunks, Vectors, and Why the Store Matters</title>
+      <description>The machinery under retrieval-augmented generation: chopping regulations into passages, fingerprinting them as vectors, and why the hard decisions were about storage, filtering, memory arithmetic and how two ranked lists get combined — not about the model.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260925-how-retrieval-actually-works-chunks-vectors-and-why-the-store-matters.m4a" length="15583522" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20260925-how-retrieval-actually-works-chunks-vectors-and-why-the-store-matters</guid>
+      <pubDate>Fri, 25 Sep 2026 10:55:52 +0000</pubDate>
+      <itunes:episode>26</itunes:episode>
+      <itunes:duration>21:19</itunes:duration>
+    </item>
+    <item>
       <title>25. The Architecture That Five Rehearsals Tried to Break</title>
       <description>Designing a migration for a deterministic game: closing the gap between an ordered list of player commands and what gets saved to disk, and stress-testing the design through five rehearsals before writing any code.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20260925-the-architecture-that-five-rehearsals-tried-to-break.m4a" length="46242726" type="audio/x-m4a"/>
