@@ -45,6 +45,12 @@ interface EpisodeDao {
      * episode is downloaded its fileSize holds the real on-disk byte count (written by
      * [setDownloadPath]); the RSS enclosure length is frequently 0 or inaccurate, so
      * overwriting it would corrupt storage accounting (getTotalDownloadedBytes).
+     *
+     * A publicationDate still in the future is not taken yet (see [insertAll]): the
+     * stored date is kept, a stored future date (saved before this rule existed)
+     * falls back to when the episode was discovered, and the feed's real date is
+     * adopted once it has passed. Otherwise every refresh would re-pin a
+     * pre-scheduled episode to the top of date-sorted lists.
      */
     @Query(
         """
@@ -52,7 +58,12 @@ interface EpisodeDao {
         SET title = :title,
             description = :description,
             audioUrl = :audioUrl,
-            publicationDate = :publicationDate,
+            publicationDate = CASE
+                WHEN :publicationDate <= $NOW_MS THEN :publicationDate
+                WHEN publicationDate BETWEEN 1 AND $NOW_MS THEN publicationDate
+                WHEN addedAt BETWEEN 1 AND $NOW_MS THEN addedAt
+                ELSE $NOW_MS
+            END,
             durationSeconds = :durationSeconds,
             artworkUrl = :artworkUrl,
             fileSize = CASE WHEN downloadPath != '' THEN fileSize ELSE :fileSize END,
@@ -142,8 +153,25 @@ interface EpisodeDao {
     )
     fun getLibraryStats(): Flow<LibraryStat>
 
+    /**
+     * Inserts new episodes, ignoring ones already stored. Some publishers put an episode
+     * in the feed with a pubDate hours or days ahead (e.g. scheduled for tomorrow but
+     * already live); taken at face value it shows as "In 4 hr" and sits above every
+     * genuinely newer episode until that date passes. Like AntennaPod (which discards a
+     * future pubDate and falls back to the time the item was first seen), such an
+     * episode is dated when it was discovered instead. [updateFeedFields] adopts the
+     * feed's date once it's no longer in the future.
+     */
+    suspend fun insertAll(episodes: List<EpisodeEntity>): List<Long> {
+        val now = System.currentTimeMillis()
+        return insertAllAsIs(
+            episodes.map { if (it.publicationDate > now) it.copy(publicationDate = now) else it }
+        )
+    }
+
+    /** Raw insert behind [insertAll]; call that instead so future dates get clamped. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertAll(episodes: List<EpisodeEntity>): List<Long>
+    suspend fun insertAllAsIs(episodes: List<EpisodeEntity>): List<Long>
 
     @Update
     suspend fun update(episode: EpisodeEntity)
@@ -271,3 +299,6 @@ data class LibraryStat(
     val episodeCount: Int,
     val playedCount: Int,
 )
+
+/** SQLite's current time in epoch millis, for queries comparing against stored dates. */
+private const val NOW_MS = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"

@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.podbelly.core.database.PodbellDatabase
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
+import com.podbelly.core.database.entity.hasSameFeedFields
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -435,5 +436,120 @@ class EpisodeDaoTest {
 
         assertTrue(episodeDao.getAutoDownloadsBeyondNewest(podcastId, 0).isEmpty())
         assertEquals(false, episodeDao.getByIdOnce(ids[0])!!.autoDownloaded)
+    }
+
+    private suspend fun refreshFeedDate(guid: String, publicationDate: Long) {
+        episodeDao.updateFeedFields(
+            podcastId = podcastId,
+            guid = guid,
+            title = "Episode 1",
+            description = "Episode description",
+            audioUrl = "https://example.com/audio.mp3",
+            publicationDate = publicationDate,
+            durationSeconds = 3600,
+            artworkUrl = "",
+            fileSize = 0L,
+            transcriptUrl = "",
+            transcriptType = "",
+        )
+    }
+
+    @Test
+    fun `insertAll dates a future-dated episode when it was discovered`() = runTest {
+        val before = System.currentTimeMillis()
+        val tomorrow = before + DAY_MS
+        episodeDao.insertAll(listOf(createEpisode(guid = "early", publicationDate = tomorrow)))
+        val after = System.currentTimeMillis()
+
+        val date = episodeDao.getByGuid("early")!!.publicationDate
+        assertTrue("expected discovery time, was $date", date in before..after)
+    }
+
+    @Test
+    fun `insertAll keeps past publication dates as published`() = runTest {
+        val yesterday = System.currentTimeMillis() - DAY_MS
+        episodeDao.insertAll(listOf(createEpisode(guid = "old", publicationDate = yesterday)))
+
+        assertEquals(yesterday, episodeDao.getByGuid("old")!!.publicationDate)
+    }
+
+    @Test
+    fun `updateFeedFields keeps the stored date while the feed date is still in the future`() = runTest {
+        val discovered = System.currentTimeMillis() - 60_000L
+        episodeDao.insertAll(listOf(createEpisode(guid = "early", publicationDate = discovered)))
+
+        refreshFeedDate("early", System.currentTimeMillis() + DAY_MS)
+
+        assertEquals(discovered, episodeDao.getByGuid("early")!!.publicationDate)
+    }
+
+    @Test
+    fun `updateFeedFields adopts the feed date once it has passed`() = runTest {
+        val discovered = System.currentTimeMillis() - 60_000L
+        episodeDao.insertAll(listOf(createEpisode(guid = "early", publicationDate = discovered)))
+
+        val published = System.currentTimeMillis() - 1_000L
+        refreshFeedDate("early", published)
+
+        assertEquals(published, episodeDao.getByGuid("early")!!.publicationDate)
+    }
+
+    @Test
+    fun `updateFeedFields repairs a stored future date to when the episode was discovered`() = runTest {
+        // A row saved before future dates were clamped on insert.
+        val addedAt = System.currentTimeMillis() - 60_000L
+        val tomorrow = System.currentTimeMillis() + DAY_MS
+        episodeDao.insertAllAsIs(
+            listOf(createEpisode(guid = "early", publicationDate = tomorrow, addedAt = addedAt))
+        )
+
+        refreshFeedDate("early", tomorrow)
+
+        assertEquals(addedAt, episodeDao.getByGuid("early")!!.publicationDate)
+    }
+
+    @Test
+    fun `hasSameFeedFields ignores a future feed date that would not be applied`() {
+        val now = 10_000_000L
+        val stored = createEpisode(publicationDate = now - 1_000L)
+
+        fun same(publicationDate: Long) = stored.hasSameFeedFields(
+            title = stored.title,
+            description = stored.description,
+            audioUrl = stored.audioUrl,
+            publicationDate = publicationDate,
+            durationSeconds = stored.durationSeconds,
+            artworkUrl = stored.artworkUrl,
+            fileSize = stored.fileSize,
+            transcriptUrl = stored.transcriptUrl,
+            transcriptType = stored.transcriptType,
+            now = now,
+        )
+
+        assertTrue(same(now + DAY_MS))
+        assertEquals(false, same(now - 2_000L))
+
+        // A stored future date (saved before clamping) must still be written so the
+        // update can repair it, even when the feed repeats the same value.
+        val storedFuture = stored.copy(publicationDate = now + DAY_MS)
+        assertEquals(
+            false,
+            storedFuture.hasSameFeedFields(
+                title = stored.title,
+                description = stored.description,
+                audioUrl = stored.audioUrl,
+                publicationDate = now + DAY_MS,
+                durationSeconds = stored.durationSeconds,
+                artworkUrl = stored.artworkUrl,
+                fileSize = stored.fileSize,
+                transcriptUrl = stored.transcriptUrl,
+                transcriptType = stored.transcriptType,
+                now = now,
+            ),
+        )
+    }
+
+    private companion object {
+        const val DAY_MS = 24 * 60 * 60 * 1000L
     }
 }
