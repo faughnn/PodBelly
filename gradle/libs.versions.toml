@@ -13,13 +13,13 @@ compose-bom = "2026.09.00"
 moshi = "1.15.2"
 xpp3 = "1.1.6"
 lifecycle = "2.11.0"
-navigation = "2.10.1"
+navigation = "2.10.2"
 coroutines = "1.11.0"
 okhttp = "5.5.0"
 retrofit = "3.0.0"
-coil = "3.6.2"
+coil = "3.6.3"
 datastore = "1.2.1"
-work = "2.11.2"
+work = "2.12.0"
 junit = "4.13.2"
 turbine = "1.2.1"
 mockk = "1.14.11"
@@ -33,7 +33,7 @@ play-publisher = "4.1.1"
 
 [libraries]
 # AndroidX Core
-androidx-core-ktx = { module = "androidx.core:core-ktx", version = "1.19.0" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version = "1.19.1" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version = "1.8.0" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.13.0" }
 
