@@ -14,9 +14,12 @@ object WhatsNew {
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
     // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
     // 119 was CI-only (Gradle download retries); no changelog entry.
-    const val LATEST_VERSION_CODE = 120
+    const val LATEST_VERSION_CODE = 121
 
     val changelog: Map<Int, List<String>> = mapOf(
+        121 to listOf(
+            "You can now subscribe to podcasts with very large feeds, such as Latent Space and other long-running Substack shows, which used to fail with \"Feed exceeds 10MB limit\"",
+        ),
         120 to listOf(
             "Episodes a show releases ahead of their listed date no longer show as \"In 4 hr\" and stay stuck at the top of Home — they're dated from when they arrived until their listed date comes round",
         ),
