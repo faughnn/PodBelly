@@ -222,7 +222,7 @@ class TranscriptParser @Inject constructor(
     companion object {
         private val moshi: Moshi = Moshi.Builder().build()
 
-        /** Maximum bytes we will read from a transcript (same 10MB cap as feeds). */
+        /** Maximum bytes we will read from a transcript (10 MB). */
         private const val MAX_TRANSCRIPT_BYTES = 10L * 1024 * 1024
 
         // Optional hours, then MM:SS with optional .mmm or ,mmm — covers VTT

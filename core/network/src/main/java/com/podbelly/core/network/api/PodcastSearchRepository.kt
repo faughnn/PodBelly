@@ -148,7 +148,14 @@ class PodcastSearchRepository @Inject constructor(
         private const val USER_AGENT =
             "Podbelly/1.0 (Android; Podcast App) OkHttp"
 
-        /** Maximum bytes we will read from a single feed (10 MB). */
-        private const val MAX_FEED_BYTES = 10L * 1024 * 1024
+        /**
+         * Maximum bytes we will read from a single feed (50 MB). Only a guard against
+         * runaway or hostile streams, not a sanity check on real feeds: Substack
+         * embeds every episode's full show notes, so a long-running show's feed
+         * passes 10 MB (Latent Space: ~14 MB for 231 episodes) and keeps growing.
+         * AntennaPod has no cap at all. Streaming parsing keeps memory to the
+         * parsed episodes, not the document.
+         */
+        internal const val MAX_FEED_BYTES = 50L * 1024 * 1024
     }
 }

@@ -602,4 +602,31 @@ class PodcastSearchRepositoryIntegrationTest {
         // When <link> is missing, the parser falls back to using feedUrl
         assertEquals(feedUrl, feed.link)
     }
+
+    @Test
+    fun `fetchFeed loads a feed larger than 10MB`() = runTest {
+        // Substack embeds full show notes per episode; Latent Space's feed is ~14MB.
+        val showNotes = "<p>" + "Show notes paragraph. ".repeat(3_000) + "</p>"
+        val items = (1..250).joinToString("") { i ->
+            """
+            <item>
+                <title>Episode $i</title>
+                <guid>ep-$i</guid>
+                <pubDate>Mon, 01 Jan 2024 00:00:00 +0000</pubDate>
+                <enclosure url="https://example.com/$i.mp3" type="audio/mpeg" length="1"/>
+                <description><![CDATA[$showNotes]]></description>
+            </item>
+            """
+        }
+        val rssXml = """<?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0"><channel><title>Big Feed</title>$items</channel></rss>"""
+        assertTrue(rssXml.length > 15 * 1024 * 1024)
+        assertTrue(rssXml.length < PodcastSearchRepository.MAX_FEED_BYTES)
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(HttpURLConnection.HTTP_OK).setBody(rssXml))
+
+        val feed = repository.fetchFeed(mockWebServer.url("/feed.xml").toString())
+
+        assertEquals(250, feed.episodes.size)
+    }
 }
