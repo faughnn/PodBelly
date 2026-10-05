@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20261005-grading-a-whole-ai-assistant-not-just-its-search-building-an-end-to-end-rag-evaluation",
+      "title": "Grading a Whole AI Assistant, Not Just Its Search: Building an End-to-End RAG Evaluation",
+      "description": "For weeks the work had been about one half of a retrieval-augmented generation system: RAG, where an assistant first searches a library of documents and then writes its answer from what it found. This session moved one level up: does the real assistant, run end to end, give better answers with the new vector search switched on than with the old search?",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20261005-grading-a-whole-ai-assistant-not-just-its-search-building-an-end-to-end-rag-evaluation.m4a",
+      "bytes": 48973449,
+      "duration_sec": 1522,
+      "pubdate_rfc822": "Mon, 05 Oct 2026 17:20:44 +0000",
+      "guid": "podbelly-20261005-grading-a-whole-ai-assistant-not-just-its-search-building-an-end-to-end-rag-evaluation",
+      "number": 27
+    },
+    {
       "id": "20260925-how-retrieval-actually-works-chunks-vectors-and-why-the-store-matters",
       "title": "How Retrieval Actually Works: Chunks, Vectors, and Why the Store Matters",
       "description": "The machinery under retrieval-augmented generation: chopping regulations into passages, fingerprinting them as vectors, and why the hard decisions were about storage, filtering, memory arithmetic and how two ranked lists get combined \u2014 not about the model.",
