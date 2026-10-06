@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>28. When the Library Changes Under Your Exam: Taking an AI Evaluation From Pilot to Full Run</title>
+      <description>Scaling a regulatory AI assistant's evaluation from a 50-question pilot to 400 questions on a library three times bigger: why page numbers break when documents change, measuring both systems with the same ruler, one shared judge instead of drifting copies, rehearsing an expensive run, and what the results showed.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20261006-when-the-library-changes-under-your-exam-taking-an-ai-evaluation-from-pilot-to-full-run.m4a" length="48660324" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20261006-when-the-library-changes-under-your-exam-taking-an-ai-evaluation-from-pilot-to-full-run</guid>
+      <pubDate>Tue, 06 Oct 2026 19:05:19 +0000</pubDate>
+      <itunes:episode>28</itunes:episode>
+      <itunes:duration>25:12</itunes:duration>
+    </item>
+    <item>
       <title>27. Grading a Whole AI Assistant, Not Just Its Search: Building an End-to-End RAG Evaluation</title>
       <description>For weeks the work had been about one half of a retrieval-augmented generation system: RAG, where an assistant first searches a library of documents and then writes its answer from what it found. This session moved one level up: does the real assistant, run end to end, give better answers with the new vector search switched on than with the old search?</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20261005-grading-a-whole-ai-assistant-not-just-its-search-building-an-end-to-end-rag-evaluation.m4a" length="48973449" type="audio/x-m4a"/>
