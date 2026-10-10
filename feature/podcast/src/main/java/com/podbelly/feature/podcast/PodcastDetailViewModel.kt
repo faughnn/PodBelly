@@ -7,6 +7,7 @@ import com.podbelly.core.database.dao.EpisodeDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.AUTO_DOWNLOAD_SMART
 import com.podbelly.core.database.entity.EpisodeEntity
+import com.podbelly.core.database.entity.hasSameFeedFields
 import com.podbelly.core.database.entity.withRefreshedMetadata
 import com.podbelly.core.common.DownloadErrorEvent
 import com.podbelly.core.common.DownloadManager
@@ -14,6 +15,7 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.network.api.PodcastSearchRepository
 import com.podbelly.core.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -135,8 +137,26 @@ class PodcastDetailViewModel @Inject constructor(
         initialValue = PodcastDetailUiState()
     )
 
-    fun refreshFeed() {
+    private var refreshJob: Job? = null
+
+    init {
+        // Shows you aren't subscribed to (opened from search or the charts) aren't in the
+        // background feed refresh, so their stored episodes froze at whenever the show
+        // was first previewed — reopening it months later still showed that old list.
+        // Refresh them on open, as Pocket Casts' PodcastViewModel.loadPodcast does.
+        // Subscribed shows are left to the background refresh: it's what auto-downloads
+        // and notifies for new episodes, and it would skip any we inserted here first.
         viewModelScope.launch {
+            val podcast = podcastDao.getById(podcastId).first() ?: return@launch
+            val age = System.currentTimeMillis() - podcast.lastRefreshedAt
+            // Discover fetches the feed just before navigating here for a first preview.
+            if (!podcast.subscribed && age > OPEN_REFRESH_AFTER_MS) refreshFeed()
+        }
+    }
+
+    fun refreshFeed() {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
             _isRefreshing.value = true
             try {
                 val podcastEntity = podcastDao.getById(podcastId).first() ?: return@launch
@@ -161,8 +181,21 @@ class PodcastDetailViewModel @Inject constructor(
                                 transcriptType = rssEpisode.transcriptType ?: "",
                             )
                         )
-                    } else {
+                    } else if (!existing.hasSameFeedFields(
+                            title = rssEpisode.title,
+                            description = rssEpisode.description,
+                            audioUrl = rssEpisode.audioUrl,
+                            publicationDate = rssEpisode.publishedAt,
+                            durationSeconds = (rssEpisode.duration / 1000).toInt(),
+                            artworkUrl = rssEpisode.artworkUrl ?: "",
+                            fileSize = rssEpisode.fileSize,
+                            transcriptUrl = rssEpisode.transcriptUrl ?: "",
+                            transcriptType = rssEpisode.transcriptType ?: "",
+                        )
+                    ) {
                         // Refresh feed-derived fields so publisher corrections propagate.
+                        // Unchanged rows are skipped: each write invalidates the episode
+                        // list, and long-running feeds have thousands of episodes.
                         episodeDao.updateFeedFields(
                             podcastId = podcastId,
                             guid = rssEpisode.guid,
@@ -287,4 +320,8 @@ class PodcastDetailViewModel @Inject constructor(
         }
     }
 
+    private companion object {
+        /** An unsubscribed show fetched more recently than this isn't re-fetched on open. */
+        const val OPEN_REFRESH_AFTER_MS = 15 * 60 * 1000L
+    }
 }
