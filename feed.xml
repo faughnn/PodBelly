@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>29. Why Git Strains When Your Coders Never Sleep — and How Anthropic's Scion Flips the Model</title>
+      <description>Anthropic went from 2,500 to over 30,000 merges a day in four months, and git buckled. Why git's offline-first design strains at agent scale, how Anthropic's Scion (changesets, derived data, content-addressed cache tiers) replaced it in five months, and what engineering looks like when AI writes the code.</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20261014-why-git-strains-when-your-coders-never-sleep-and-how-anthropic-s-scion-flips-the-model.m4a" length="27285008" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20261014-why-git-strains-when-your-coders-never-sleep-and-how-anthropic-s-scion-flips-the-model</guid>
+      <pubDate>Wed, 14 Oct 2026 16:09:45 +0000</pubDate>
+      <itunes:episode>29</itunes:episode>
+      <itunes:duration>14:08</itunes:duration>
+    </item>
+    <item>
       <title>28. When the Library Changes Under Your Exam: Taking an AI Evaluation From Pilot to Full Run</title>
       <description>Scaling a regulatory AI assistant's evaluation from a 50-question pilot to 400 questions on a library three times bigger: why page numbers break when documents change, measuring both systems with the same ruler, one shared judge instead of drifting copies, rehearsing an expensive run, and what the results showed.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20261006-when-the-library-changes-under-your-exam-taking-an-ai-evaluation-from-pilot-to-full-run.m4a" length="48660324" type="audio/x-m4a"/>
