@@ -14,9 +14,16 @@ object WhatsNew {
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
     // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
     // 119 was CI-only (Gradle download retries); no changelog entry.
-    const val LATEST_VERSION_CODE = 123
+    const val LATEST_VERSION_CODE = 124
 
     val changelog: Map<Int, List<String>> = mapOf(
+        124 to listOf(
+            "Search episodes, not just shows: tap Episodes under the search box to find every episode with a guest or topic, and open one straight from the results",
+            "Narrow a show search to titles or hosts with the In title and By host filters",
+            "Searches now cover your chart region's store and return up to 100 shows",
+            "Charts go deeper: every category has its sub-categories (Sport → Rugby, News → Politics, and dozens more), and each chart now shows the top 200",
+            "New Trending episodes chart for your region, plus the Arts, Fiction, Kids & Family, Leisure, Religion & Spirituality and Government categories",
+        ),
         123 to listOf(
             "Old episodes no longer reappear as new (or show up twice) when a podcast's host reshuffles its feed, as Blocked and Reported's did — and any copies that already slipped in are tidied up on the next refresh, keeping your progress and downloads",
         ),
