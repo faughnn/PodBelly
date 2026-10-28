@@ -14,9 +14,12 @@ object WhatsNew {
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
     // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
     // 119 was CI-only (Gradle download retries); no changelog entry.
-    const val LATEST_VERSION_CODE = 122
+    const val LATEST_VERSION_CODE = 123
 
     val changelog: Map<Int, List<String>> = mapOf(
+        123 to listOf(
+            "Old episodes no longer reappear as new (or show up twice) when a podcast's host reshuffles its feed, as Blocked and Reported's did — and any copies that already slipped in are tidied up on the next refresh, keeping your progress and downloads",
+        ),
         122 to listOf(
             "Opening a podcast you're not subscribed to — from search or the charts — now loads its latest episodes, instead of the list from the first time you looked at it",
         ),

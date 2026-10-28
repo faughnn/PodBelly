@@ -10,6 +10,7 @@ import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.common.RefreshProgress
 import com.podbelly.core.common.shouldAutoDownload
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.FeedItemKey
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
@@ -166,7 +167,13 @@ class AppViewModel @Inject constructor(
             }
 
             // insertAll ignores episodes that already exist (by podcastId+guid),
-            // so re-subscribing to a known show is safe.
+            // so re-subscribing to a known show is safe — once episodes whose GUID
+            // the host changed since are re-keyed rather than inserted again.
+            if (existing != null) {
+                episodeDao.repairChangedGuids(podcastId, feed.episodes.map {
+                    FeedItemKey(it.guid, it.title, it.audioUrl, it.publishedAt, (it.duration / 1000).toInt())
+                })
+            }
             episodeDao.insertAll(
                 feed.episodes.map { episode ->
                     EpisodeEntity(
@@ -225,6 +232,13 @@ class AppViewModel @Inject constructor(
                         semaphore.withPermit {
                             try {
                                 val rssFeed = searchRepository.fetchFeed(podcast.feedUrl)
+                                // Before matching by GUID: re-key episodes whose GUID the host changed.
+                                episodeDao.repairChangedGuids(
+                                    podcast.id,
+                                    rssFeed.episodes.map {
+                                        FeedItemKey(it.guid, it.title, it.audioUrl, it.publishedAt, (it.duration / 1000).toInt())
+                                    },
+                                )
 
                                 // Insert new episodes; refresh feed-derived fields on
                                 // existing ones so publisher corrections propagate.

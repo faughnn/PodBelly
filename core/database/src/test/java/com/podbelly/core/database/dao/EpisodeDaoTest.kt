@@ -6,8 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.podbelly.core.database.PodbellDatabase
 import com.podbelly.core.database.entity.EpisodeEntity
+import com.podbelly.core.database.entity.ListeningSessionEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.database.entity.hasSameFeedFields
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -547,6 +549,129 @@ class EpisodeDaoTest {
                 now = now,
             ),
         )
+    }
+
+    // -- repairChangedGuids --
+
+    private fun feedItem(
+        guid: String,
+        title: String = "Episode 1",
+        audioUrl: String = "https://example.com/audio.mp3",
+        publicationDate: Long = 1000L,
+        durationSeconds: Int = 3600,
+    ) = FeedItemKey(guid, title, audioUrl, publicationDate, durationSeconds)
+
+    @Test
+    fun `repairChangedGuids re-keys an episode whose GUID the host changed`() = runTest {
+        val ids = episodeDao.insertAll(
+            listOf(createEpisode(guid = "substack:post:1", played = true, addedAt = 500L))
+        )
+
+        val repaired = episodeDao.repairChangedGuids(podcastId, listOf(feedItem("substack:post:1:unlocked")))
+
+        assertEquals(1, repaired)
+        val episode = episodeDao.getByPodcastAndGuid(podcastId, "substack:post:1:unlocked")!!
+        // Same row: play state kept, and its original addedAt keeps it out of New.
+        assertEquals(ids[0], episode.id)
+        assertTrue(episode.played)
+        assertEquals(500L, episode.addedAt)
+        assertEquals(1, episodeDao.countByPodcastId(podcastId))
+    }
+
+    @Test
+    fun `repairChangedGuids matches by title, day and length when the audio URL changed too`() = runTest {
+        val day = 20_000L * DAY_MS
+        episodeDao.insertAll(
+            listOf(
+                createEpisode(
+                    guid = "old",
+                    audioUrl = "https://old-host.example/ep.mp3",
+                    publicationDate = day + 1_000L,
+                    durationSeconds = 3600,
+                )
+            )
+        )
+
+        val repaired = episodeDao.repairChangedGuids(
+            podcastId,
+            listOf(
+                feedItem(
+                    guid = "new",
+                    audioUrl = "https://tracker.example/new-host.example/ep.mp3",
+                    publicationDate = day + 5_000L,
+                    durationSeconds = 3540,
+                )
+            ),
+        )
+
+        assertEquals(1, repaired)
+        assertNotNull(episodeDao.getByPodcastAndGuid(podcastId, "new"))
+        assertNull(episodeDao.getByPodcastAndGuid(podcastId, "old"))
+    }
+
+    @Test
+    fun `repairChangedGuids folds a copy already inserted under the new GUID into the original`() = runTest {
+        val ids = episodeDao.insertAll(
+            listOf(
+                createEpisode(guid = "substack:post:1", played = true, addedAt = 500L),
+                createEpisode(
+                    guid = "substack:post:1:unlocked",
+                    playbackPosition = 9_000L,
+                    downloadPath = "/files/copy.mp3",
+                    downloadedAt = 7_000L,
+                    fileSize = 1234L,
+                    addedAt = 99_000L,
+                ),
+            )
+        )
+        database.listeningSessionDao().insert(
+            ListeningSessionEntity(episodeId = ids[1], podcastId = podcastId, startedAt = 8_000L)
+        )
+
+        val repaired = episodeDao.repairChangedGuids(podcastId, listOf(feedItem("substack:post:1:unlocked")))
+
+        assertEquals(1, repaired)
+        assertEquals(1, episodeDao.countByPodcastId(podcastId))
+        val episode = episodeDao.getByPodcastAndGuid(podcastId, "substack:post:1:unlocked")!!
+        assertEquals(ids[0], episode.id)
+        assertEquals(500L, episode.addedAt)
+        assertTrue(episode.played)
+        assertEquals(9_000L, episode.playbackPosition)
+        assertEquals("/files/copy.mp3", episode.downloadPath)
+        assertEquals(1234L, episode.fileSize)
+        // Moved, not cascade-deleted with the copy.
+        assertEquals(1, database.listeningSessionDao().getSessionCount().first())
+    }
+
+    @Test
+    fun `repairChangedGuids leaves same-titled episodes alone while both are in the feed`() = runTest {
+        episodeDao.insertAll(listOf(createEpisode(guid = "a"), createEpisode(guid = "b")))
+
+        val repaired = episodeDao.repairChangedGuids(podcastId, listOf(feedItem("a"), feedItem("b")))
+
+        assertEquals(0, repaired)
+        assertEquals(2, episodeDao.countByPodcastId(podcastId))
+    }
+
+    @Test
+    fun `repairChangedGuids does not match an unrelated episode that left the feed`() = runTest {
+        episodeDao.insertAll(
+            listOf(
+                createEpisode(
+                    guid = "dropped",
+                    title = "An Old Episode",
+                    audioUrl = "https://example.com/old.mp3",
+                )
+            )
+        )
+
+        val repaired = episodeDao.repairChangedGuids(
+            podcastId,
+            listOf(feedItem("brand-new", title = "A New Episode", audioUrl = "https://example.com/new.mp3")),
+        )
+
+        assertEquals(0, repaired)
+        assertNotNull(episodeDao.getByPodcastAndGuid(podcastId, "dropped"))
     }
 
     private companion object {

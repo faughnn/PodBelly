@@ -15,6 +15,7 @@ import com.podbelly.core.common.DownloadManager
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.common.shouldAutoDownload
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.FeedItemKey
 import com.podbelly.core.database.dao.ListeningSessionDao
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
@@ -69,6 +70,10 @@ class FeedRefreshWorker @AssistedInject constructor(
             for (podcast in podcasts) {
                 try {
                     val feed = searchRepository.fetchFeed(podcast.feedUrl)
+                    // Before matching by GUID: re-key episodes whose GUID the host changed.
+                    episodeDao.repairChangedGuids(podcast.id, feed.episodes.map {
+                        FeedItemKey(it.guid, it.title, it.audioUrl, it.publishedAt, (it.duration / 1000).toInt())
+                    })
 
                     // Insert truly new episodes; refresh feed-derived fields on ones we
                     // already have so publisher corrections (e.g. a changed audioUrl) propagate.
