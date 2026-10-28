@@ -19,8 +19,8 @@ android {
         applicationId = "com.podbelly"
         minSdk = 26
         targetSdk = 37
-        versionCode = 122
-        versionName = "1.6.74"
+        versionCode = 123
+        versionName = "1.6.75"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -7,6 +7,7 @@ import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.FeedItemKey
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
@@ -249,6 +250,10 @@ class DiscoverViewModel @Inject constructor(
 
                 val podcastId = if (existing != null) {
                     podcastDao.update(existing.copy(subscribed = true, subscribedAt = now))
+                    // insertAll below skips stored GUIDs; re-key ones the host changed.
+                    episodeDao.repairChangedGuids(existing.id, feed.episodes.map {
+                        FeedItemKey(it.guid, it.title, it.audioUrl, it.publishedAt, (it.duration / 1000).toInt())
+                    })
                     existing.id
                 } else {
                     podcastDao.insert(

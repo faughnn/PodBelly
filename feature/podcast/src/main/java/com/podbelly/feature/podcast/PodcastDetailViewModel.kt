@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.FeedItemKey
 import com.podbelly.core.database.dao.PodcastDao
 import com.podbelly.core.database.entity.AUTO_DOWNLOAD_SMART
 import com.podbelly.core.database.entity.EpisodeEntity
@@ -161,6 +162,10 @@ class PodcastDetailViewModel @Inject constructor(
             try {
                 val podcastEntity = podcastDao.getById(podcastId).first() ?: return@launch
                 val rssFeed = searchRepository.fetchFeed(podcastEntity.feedUrl)
+                // Before matching by GUID: re-key episodes whose GUID the host changed.
+                episodeDao.repairChangedGuids(podcastId, rssFeed.episodes.map {
+                    FeedItemKey(it.guid, it.title, it.audioUrl, it.publishedAt, (it.duration / 1000).toInt())
+                })
 
                 val newEpisodes = mutableListOf<EpisodeEntity>()
                 for (rssEpisode in rssFeed.episodes) {
