@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,11 +66,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import com.podbelly.core.common.DateUtils
+import com.podbelly.core.network.model.EpisodeSearchResult
+import com.podbelly.core.network.model.SearchField
 
 @Composable
 fun DiscoverScreen(
     viewModel: DiscoverViewModel = hiltViewModel(),
     onPodcastClick: (podcastId: Long) -> Unit = {},
+    onEpisodeClick: (episodeId: Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -78,6 +83,12 @@ fun DiscoverScreen(
     LaunchedEffect(Unit) {
         viewModel.navigateToPodcast.collect { podcastId ->
             onPodcastClick(podcastId)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.navigateToEpisode.collect { episodeId ->
+            onEpisodeClick(episodeId)
         }
     }
 
@@ -117,65 +128,142 @@ fun DiscoverScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-            when {
-                uiState.isSearching -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
+            if (uiState.searchQuery.isBlank()) {
+                ChartsSection(
+                    categories = uiState.chartCategories,
+                    selectedGenreId = uiState.selectedChartGenreId,
+                    onCategorySelected = viewModel::selectChartCategory,
+                    results = uiState.chartResults,
+                    isLoading = uiState.isLoadingChart,
+                    error = uiState.chartError,
+                    onRetry = viewModel::retryChart,
+                    subscribingFeedUrls = uiState.subscribingFeedUrls,
+                    onSubscribe = viewModel::subscribeToPodcast,
+                    onPodcastClick = viewModel::onPodcastClick,
+                    regions = uiState.chartRegions,
+                    selectedCountry = uiState.selectedChartCountry,
+                    onRegionSelected = viewModel::selectChartRegion,
+                    selectedSubgenreId = uiState.selectedChartSubgenreId,
+                    onSubcategorySelected = viewModel::selectChartSubcategory,
+                    episodeResults = uiState.chartEpisodeResults,
+                    openingEpisodes = uiState.openingEpisodes,
+                    onEpisodeClick = viewModel::onEpisodeClick,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                SearchFilters(
+                    scope = uiState.searchScope,
+                    field = uiState.searchField,
+                    onScopeSelected = viewModel::selectSearchScope,
+                    onFieldSelected = viewModel::selectSearchField,
+                )
+
+                val noResults = when (uiState.searchScope) {
+                    SearchScope.SHOWS -> uiState.searchResults.isEmpty()
+                    SearchScope.EPISODES -> uiState.episodeResults.isEmpty()
+                }
+                when {
+                    uiState.isSearching -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
 
-                uiState.searchResults.isEmpty() && uiState.searchQuery.isBlank() -> {
-                    ChartsSection(
-                        categories = uiState.chartCategories,
-                        selectedGenreId = uiState.selectedChartGenreId,
-                        onCategorySelected = viewModel::selectChartCategory,
-                        results = uiState.chartResults,
-                        isLoading = uiState.isLoadingChart,
-                        error = uiState.chartError,
-                        onRetry = viewModel::retryChart,
-                        subscribingFeedUrls = uiState.subscribingFeedUrls,
-                        onSubscribe = viewModel::subscribeToPodcast,
-                        onPodcastClick = viewModel::onPodcastClick,
-                        regions = uiState.chartRegions,
-                        selectedCountry = uiState.selectedChartCountry,
-                        onRegionSelected = viewModel::selectChartRegion,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                    noResults -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "No results found",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
 
-                uiState.searchResults.isEmpty() && uiState.searchQuery.isNotBlank() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "No results found",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    uiState.searchScope == SearchScope.EPISODES -> {
+                        EpisodeResultsList(
+                            results = uiState.episodeResults,
+                            openingEpisodes = uiState.openingEpisodes,
+                            onEpisodeClick = viewModel::onEpisodeClick,
+                            modifier = Modifier.weight(1f),
                         )
                     }
-                }
 
-                else -> {
-                    SearchResultsList(
-                        results = uiState.searchResults,
-                        subscribingFeedUrls = uiState.subscribingFeedUrls,
-                        onSubscribe = viewModel::subscribeToPodcast,
-                        onPodcastClick = viewModel::onPodcastClick,
-                        modifier = Modifier.weight(1f),
-                    )
+                    else -> {
+                        SearchResultsList(
+                            results = uiState.searchResults,
+                            subscribingFeedUrls = uiState.subscribingFeedUrls,
+                            onSubscribe = viewModel::subscribeToPodcast,
+                            onPodcastClick = viewModel::onPodcastClick,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/**
+ * Chips under the search box: search shows or episodes, and for shows, which field
+ * to match (anywhere, the title only, or the host / creator only).
+ */
+@Composable
+internal fun SearchFilters(
+    scope: SearchScope,
+    field: SearchField,
+    onScopeSelected: (SearchScope) -> Unit,
+    onFieldSelected: (SearchField) -> Unit,
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        item {
+            FilterChip(
+                selected = scope == SearchScope.SHOWS,
+                onClick = { onScopeSelected(SearchScope.SHOWS) },
+                label = { Text("Shows") },
+            )
+        }
+        item {
+            FilterChip(
+                selected = scope == SearchScope.EPISODES,
+                onClick = { onScopeSelected(SearchScope.EPISODES) },
+                label = { Text("Episodes") },
+            )
+        }
+        if (scope == SearchScope.SHOWS) {
+            item {
+                VerticalDivider(modifier = Modifier.height(24.dp))
+            }
+            items(SEARCH_FIELDS) { (option, label) ->
+                FilterChip(
+                    selected = field == option,
+                    onClick = { onFieldSelected(option) },
+                    label = { Text(label) },
+                )
+            }
+        }
+    }
+}
+
+private val SEARCH_FIELDS = listOf(
+    SearchField.ANYTHING to "Anywhere",
+    SearchField.TITLE to "In title",
+    SearchField.AUTHOR to "By host",
+)
 
 @Composable
 internal fun SearchSection(
@@ -307,9 +395,15 @@ internal fun ChartsSection(
     regions: List<ChartRegion> = emptyList(),
     selectedCountry: String = "",
     onRegionSelected: (String) -> Unit = {},
+    selectedSubgenreId: Int? = null,
+    onSubcategorySelected: (Int?) -> Unit = {},
+    episodeResults: List<EpisodeSearchResult> = emptyList(),
+    openingEpisodes: Set<EpisodeSearchResult> = emptySet(),
+    onEpisodeClick: (EpisodeSearchResult) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showRegionDialog by rememberSaveable { mutableStateOf(false) }
+    val subcategories = categories.firstOrNull { it.genreId == selectedGenreId }?.subcategories.orEmpty()
 
     if (showRegionDialog) {
         ChartRegionDialog(
@@ -361,6 +455,34 @@ internal fun ChartsSection(
             }
         }
 
+        // Second row: narrow the chosen category to one of Apple's sub-categories
+        // (e.g. Sport -> Rugby), or "All" for the whole category.
+        if (subcategories.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item(key = "all") {
+                    FilterChip(
+                        selected = selectedSubgenreId == null,
+                        onClick = { onSubcategorySelected(null) },
+                        label = { Text("All") },
+                    )
+                }
+                items(
+                    items = subcategories,
+                    key = { it.genreId },
+                ) { subcategory ->
+                    FilterChip(
+                        selected = subcategory.genreId == selectedSubgenreId,
+                        onClick = { onSubcategorySelected(subcategory.genreId) },
+                        label = { Text(subcategory.label) },
+                    )
+                }
+            }
+        }
+
         when {
             isLoading -> {
                 Box(
@@ -392,6 +514,15 @@ internal fun ChartsSection(
                         Text("Retry")
                     }
                 }
+            }
+
+            selectedGenreId == DiscoverViewModel.TRENDING_EPISODES_ID -> {
+                EpisodeResultsList(
+                    results = episodeResults,
+                    openingEpisodes = openingEpisodes,
+                    onEpisodeClick = onEpisodeClick,
+                    modifier = Modifier.weight(1f),
+                )
             }
 
             else -> {
@@ -560,6 +691,102 @@ internal fun SearchResultItem(
             ) {
                 Text("Subscribe")
             }
+        }
+    }
+}
+
+@Composable
+internal fun EpisodeResultsList(
+    results: List<EpisodeSearchResult>,
+    openingEpisodes: Set<EpisodeSearchResult>,
+    onEpisodeClick: (EpisodeSearchResult) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        // Episode results have no reliably unique id (trending entries lack a GUID),
+        // so they're keyed by position.
+        items(items = results) { item ->
+            EpisodeResultItem(
+                item = item,
+                isOpening = item in openingEpisodes,
+                onClick = { onEpisodeClick(item) },
+            )
+        }
+    }
+}
+
+/**
+ * One episode from episode search or the trending chart. Tapping opens the episode's
+ * page, whose single button downloads and then plays it — no play button here.
+ */
+@Composable
+internal fun EpisodeResultItem(
+    item: EpisodeSearchResult,
+    isOpening: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = !isOpening, onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AsyncImage(
+            model = item.artworkUrl.ifBlank { null },
+            contentDescription = "${item.podcastTitle} artwork",
+            placeholder = rememberVectorPainter(Icons.Default.Podcasts),
+            error = rememberVectorPainter(Icons.Default.Podcasts),
+            fallback = rememberVectorPainter(Icons.Default.Podcasts),
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop,
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (item.podcastTitle.isNotBlank()) {
+                Text(
+                    text = item.podcastTitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            val details = listOfNotNull(
+                item.publishedAt.takeIf { it > 0L }?.let { DateUtils.relativeDate(it) },
+                item.durationSeconds.takeIf { it > 0 }?.let { DateUtils.formatDuration(it) },
+            )
+            if (details.isNotEmpty()) {
+                Text(
+                    text = details.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
+
+        if (isOpening) {
+            Spacer(modifier = Modifier.width(8.dp))
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+            )
         }
     }
 }

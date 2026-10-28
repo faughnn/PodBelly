@@ -1,6 +1,8 @@
 package com.podbelly.core.network.api
 
+import com.podbelly.core.network.model.EpisodeSearchResult
 import com.podbelly.core.network.model.RssFeed
+import com.podbelly.core.network.model.SearchField
 import com.podbelly.core.network.model.SearchResult
 import com.podbelly.core.network.rss.RssParser
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +12,7 @@ import okhttp3.Request
 import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
+import java.time.Instant
 import javax.inject.Inject
 
 class PodcastSearchRepository @Inject constructor(
@@ -21,20 +24,86 @@ class PodcastSearchRepository @Inject constructor(
     /**
      * Searches for podcasts using the iTunes Search API and maps
      * the results to our domain [SearchResult] model.
+     *
+     * @param field which field to match [query] against.
+     * @param country storefront to search ("ie", "gb", …); null uses iTunes' default (US).
      */
-    suspend fun search(query: String): List<SearchResult> {
-        val response = itunesSearchApi.searchPodcasts(term = query)
+    suspend fun search(
+        query: String,
+        field: SearchField = SearchField.ANYTHING,
+        country: String? = null,
+    ): List<SearchResult> {
+        val attribute = when (field) {
+            SearchField.ANYTHING -> null
+            SearchField.TITLE -> "titleTerm"
+            SearchField.AUTHOR -> "artistTerm"
+        }
+        val response = itunesSearchApi.searchPodcasts(
+            term = query,
+            attribute = attribute,
+            country = country,
+        )
         return response.results
             .filter { !it.feedUrl.isNullOrBlank() }
-            .map { podcast ->
-                SearchResult(
-                    feedUrl = podcast.feedUrl.orEmpty().trim(),
-                    title = (podcast.trackName ?: podcast.collectionName).orEmpty(),
-                    author = podcast.artistName.orEmpty(),
-                    artworkUrl = podcast.artworkUrl600.orEmpty()
+            .map { it.toSearchResult() }
+            .distinctBy { it.feedUrl }
+    }
+
+    /**
+     * Searches episodes across all podcasts (e.g. a guest's name finds every show
+     * they appeared on). Results without a feed URL can't be opened and are dropped.
+     */
+    suspend fun searchEpisodes(query: String, country: String? = null): List<EpisodeSearchResult> {
+        val response = itunesSearchApi.searchEpisodes(term = query, country = country)
+        return response.results
+            .filter { !it.feedUrl.isNullOrBlank() && !it.trackName.isNullOrBlank() }
+            .map { episode ->
+                EpisodeSearchResult(
+                    title = episode.trackName.orEmpty(),
+                    podcastTitle = episode.collectionName.orEmpty(),
+                    feedUrl = episode.feedUrl.orEmpty().trim(),
+                    artworkUrl = episode.artworkUrl600.orEmpty(),
+                    episodeGuid = episode.episodeGuid?.takeIf { it.isNotBlank() },
+                    audioUrl = episode.episodeUrl?.takeIf { it.isNotBlank() },
+                    publishedAt = episode.releaseDate?.let(::parseInstantMillis) ?: 0L,
+                    durationSeconds = ((episode.trackTimeMillis ?: 0L) / 1000).toInt(),
                 )
             }
-            .distinctBy { it.feedUrl }
+    }
+
+    /**
+     * Apple's trending-episodes chart for [country]. Entries only name the episode
+     * and link to it on Apple Podcasts, so their shows' feed URLs come from one
+     * batched lookup of the show ids in those links; entries whose show can't be
+     * resolved are dropped. Chart order is preserved.
+     */
+    suspend fun trendingEpisodes(country: String, limit: Int = 50): List<EpisodeSearchResult> {
+        val chart = itunesSearchApi.trendingEpisodes(
+            "$APPLE_CHARTS_BASE_URL/$country/podcasts/top/$limit/podcast-episodes.json"
+        )
+        val entries = chart.feed.results.orEmpty().mapNotNull { entry ->
+            val showId = entry.url?.let { SHOW_ID_IN_URL.find(it)?.groupValues?.get(1) }
+            if (showId == null || entry.name.isNullOrBlank()) null else showId to entry
+        }
+        if (entries.isEmpty()) return emptyList()
+
+        val shows = itunesSearchApi
+            .lookupPodcasts(ids = entries.map { it.first }.distinct().joinToString(","))
+            .results
+            .filter { !it.feedUrl.isNullOrBlank() }
+            .associateBy { it.collectionId?.toString() }
+
+        return entries.mapNotNull { (showId, entry) ->
+            val show = shows[showId] ?: return@mapNotNull null
+            EpisodeSearchResult(
+                title = entry.name.orEmpty(),
+                podcastTitle = (show.collectionName ?: show.trackName ?: entry.artistName).orEmpty(),
+                feedUrl = show.feedUrl.orEmpty().trim(),
+                // The chart links 100px artwork; Apple serves other sizes from the same path.
+                artworkUrl = entry.artworkUrl100?.replace("100x100", "600x600")
+                    ?: show.artworkUrl600.orEmpty(),
+            )
+        }
     }
 
     /**
@@ -59,16 +128,23 @@ class PodcastSearchRepository @Inject constructor(
         return lookup.results
             .filter { !it.feedUrl.isNullOrBlank() }
             .sortedBy { rankById[it.collectionId?.toString()] ?: Int.MAX_VALUE }
-            .map { podcast ->
-                SearchResult(
-                    feedUrl = podcast.feedUrl.orEmpty().trim(),
-                    title = (podcast.trackName ?: podcast.collectionName).orEmpty(),
-                    author = podcast.artistName.orEmpty(),
-                    artworkUrl = podcast.artworkUrl600.orEmpty()
-                )
-            }
+            .map { it.toSearchResult() }
             .distinctBy { it.feedUrl }
     }
+
+    private fun ItunesPodcast.toSearchResult() = SearchResult(
+        feedUrl = feedUrl.orEmpty().trim(),
+        title = (trackName ?: collectionName).orEmpty(),
+        author = artistName.orEmpty(),
+        artworkUrl = artworkUrl600.orEmpty()
+    )
+
+    private fun parseInstantMillis(iso: String): Long? =
+        try {
+            Instant.parse(iso).toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
 
     /**
      * Fetches the RSS feed at the given [feedUrl] and parses it into
@@ -147,6 +223,11 @@ class PodcastSearchRepository @Inject constructor(
     companion object {
         private const val USER_AGENT =
             "Podbelly/1.0 (Android; Podcast App) OkHttp"
+
+        private const val APPLE_CHARTS_BASE_URL = "https://rss.marketingtools.apple.com/api/v2"
+
+        /** The show id in an Apple Podcasts link: ".../id1692381473?i=…". */
+        private val SHOW_ID_IN_URL = Regex("""/id(\d+)""")
 
         /**
          * Maximum bytes we will read from a single feed (50 MB). Only a guard against
