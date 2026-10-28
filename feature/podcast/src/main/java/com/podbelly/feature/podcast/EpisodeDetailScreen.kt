@@ -1,6 +1,5 @@
 package com.podbelly.feature.podcast
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -367,8 +366,6 @@ fun EpisodeDetailScreen(
 
             // Description / show notes
             if (uiState.description.isNotBlank()) {
-                var isExpanded by remember { mutableStateOf(false) }
-
                 Text(
                     text = "Show Notes",
                     style = MaterialTheme.typography.titleMedium,
@@ -379,40 +376,25 @@ fun EpisodeDetailScreen(
 
                 val notesTextColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
                 val notesLinkColor = MaterialTheme.colorScheme.primary.toArgb()
-                val notesMaxLines = if (isExpanded) Int.MAX_VALUE else 8
 
+                // Shown in full: the page itself scrolls. No line cap, so the TextView
+                // never scrolls internally (LinkMovementMethod makes a capped one do so).
                 AndroidView(
                     factory = { ctx ->
                         android.widget.TextView(ctx).apply {
                             setTextColor(notesTextColor)
                             setLinkTextColor(notesLinkColor)
                             textSize = 14f
-                            maxLines = notesMaxLines
-                            ellipsize = android.text.TextUtils.TruncateAt.END
                             movementMethod = android.text.method.LinkMovementMethod.getInstance()
                         }
                     },
                     update = { textView ->
                         textView.text = ShowNotesHtml.toSpanned(uiState.description)
-                        textView.maxLines = notesMaxLines
                         textView.setTextColor(notesTextColor)
                         textView.setLinkTextColor(notesLinkColor)
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-
-                if (uiState.description.length > 200) {
-                    Text(
-                        text = if (isExpanded) "Show less" else "Show more",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clickable { isExpanded = !isExpanded }
-                            .padding(vertical = 8.dp),
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(96.dp))

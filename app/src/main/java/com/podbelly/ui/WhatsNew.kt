@@ -14,9 +14,12 @@ object WhatsNew {
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
     // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
     // 119 was CI-only (Gradle download retries); no changelog entry.
-    const val LATEST_VERSION_CODE = 124
+    const val LATEST_VERSION_CODE = 125
 
     val changelog: Map<Int, List<String>> = mapOf(
+        125 to listOf(
+            "Episode show notes are shown in full — just scroll down to read them, no more Show more / Show less",
+        ),
         124 to listOf(
             "Search episodes, not just shows: tap Episodes under the search box to find every episode with a guest or topic, and open one straight from the results",
             "Narrow a show search to titles or hosts with the In title and By host filters",
