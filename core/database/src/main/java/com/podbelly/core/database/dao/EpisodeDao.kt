@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.podbelly.core.database.entity.EpisodeEntity
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +46,12 @@ interface EpisodeDao {
      * episode is downloaded its fileSize holds the real on-disk byte count (written by
      * [setDownloadPath]); the RSS enclosure length is frequently 0 or inaccurate, so
      * overwriting it would corrupt storage accounting (getTotalDownloadedBytes).
+     *
+     * A publicationDate still in the future is not taken yet (see [insertAll]): the
+     * stored date is kept, a stored future date (saved before this rule existed)
+     * falls back to when the episode was discovered, and the feed's real date is
+     * adopted once it has passed. Otherwise every refresh would re-pin a
+     * pre-scheduled episode to the top of date-sorted lists.
      */
     @Query(
         """
@@ -52,7 +59,12 @@ interface EpisodeDao {
         SET title = :title,
             description = :description,
             audioUrl = :audioUrl,
-            publicationDate = :publicationDate,
+            publicationDate = CASE
+                WHEN :publicationDate <= $NOW_MS THEN :publicationDate
+                WHEN publicationDate BETWEEN 1 AND $NOW_MS THEN publicationDate
+                WHEN addedAt BETWEEN 1 AND $NOW_MS THEN addedAt
+                ELSE $NOW_MS
+            END,
             durationSeconds = :durationSeconds,
             artworkUrl = :artworkUrl,
             fileSize = CASE WHEN downloadPath != '' THEN fileSize ELSE :fileSize END,
@@ -142,8 +154,25 @@ interface EpisodeDao {
     )
     fun getLibraryStats(): Flow<LibraryStat>
 
+    /**
+     * Inserts new episodes, ignoring ones already stored. Some publishers put an episode
+     * in the feed with a pubDate hours or days ahead (e.g. scheduled for tomorrow but
+     * already live); taken at face value it shows as "In 4 hr" and sits above every
+     * genuinely newer episode until that date passes. Like AntennaPod (which discards a
+     * future pubDate and falls back to the time the item was first seen), such an
+     * episode is dated when it was discovered instead. [updateFeedFields] adopts the
+     * feed's date once it's no longer in the future.
+     */
+    suspend fun insertAll(episodes: List<EpisodeEntity>): List<Long> {
+        val now = System.currentTimeMillis()
+        return insertAllAsIs(
+            episodes.map { if (it.publicationDate > now) it.copy(publicationDate = now) else it }
+        )
+    }
+
+    /** Raw insert behind [insertAll]; call that instead so future dates get clamped. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertAll(episodes: List<EpisodeEntity>): List<Long>
+    suspend fun insertAllAsIs(episodes: List<EpisodeEntity>): List<Long>
 
     @Update
     suspend fun update(episode: EpisodeEntity)
@@ -186,6 +215,126 @@ interface EpisodeDao {
 
     @Query("DELETE FROM episodes WHERE podcastId = :podcastId")
     suspend fun deleteByPodcastId(podcastId: Long)
+
+    /**
+     * Repairs episodes whose GUID the publisher changed. Run before a refresh matches
+     * the feed against stored episodes by GUID. Some hosts rewrite GUIDs across a whole
+     * back catalogue (Substack added an ":unlocked" suffix to most of Blocked and
+     * Reported's episodes), and every rewritten episode then looked brand new: it was
+     * inserted a second time and flooded Home's New section.
+     *
+     * Adapted from AntennaPod's FeedDatabaseWriter + FeedItemDuplicateGuesser. A
+     * stored episode whose GUID is gone from the feed, and which [seemsSameEpisodeAs]
+     * a feed item, takes that item's GUID, keeping its play state, download and
+     * addedAt, so the refresh updates it instead of inserting a copy. If an earlier
+     * refresh already inserted that copy, the copy's play state, download and
+     * listening history move to the original and the copy is deleted. Episodes still
+     * in the feed under their own GUID are never matched, so two genuinely separate
+     * episodes with the same title are left alone.
+     *
+     * @return how many episodes were repaired.
+     */
+    @Transaction
+    suspend fun repairChangedGuids(podcastId: Long, feedItems: List<FeedItemKey>): Int {
+        val feedGuids = feedItems.mapTo(HashSet()) { it.guid }
+        val storedGuids = getGuidsForPodcast(podcastId)
+        // Fast path: nearly every refresh, every stored GUID is still in the feed.
+        if (storedGuids.all { it in feedGuids }) return 0
+
+        val stored = getMatchRowsForPodcast(podcastId)
+        val storedByGuid = stored.associateBy { it.guid }
+        val stale = stored.filter { it.guid !in feedGuids }
+        val staleByAudioUrl = stale.filter { it.audioUrl.isNotEmpty() }.groupBy { it.audioUrl }
+        val staleByTitle = stale.groupBy { normalizeTitleForMatch(it.title) }
+        val claimed = HashSet<Long>()
+        var repaired = 0
+
+        for (item in feedItems) {
+            val candidates = staleByAudioUrl[item.audioUrl].orEmpty() +
+                staleByTitle[normalizeTitleForMatch(item.title)].orEmpty()
+            val original = candidates.firstOrNull { it.id !in claimed && it.seemsSameEpisodeAs(item) }
+                ?: continue
+
+            val copy = storedByGuid[item.guid]
+            if (copy != null) {
+                // Both downloaded: deleting the copy's row would orphan its file.
+                if (copy.downloadPath.isNotBlank() && original.downloadPath.isNotBlank()) continue
+                if (copy.played || copy.playbackPosition > 0L || copy.lastPlayedAt > 0L) {
+                    mergePlayState(
+                        id = original.id,
+                        played = copy.played,
+                        position = copy.playbackPosition,
+                        lastPlayedAt = copy.lastPlayedAt,
+                    )
+                }
+                if (copy.downloadPath.isNotBlank()) {
+                    adoptDownloadIfNone(
+                        id = original.id,
+                        path = copy.downloadPath,
+                        downloadedAt = copy.downloadedAt,
+                        fileSize = copy.fileSize,
+                        autoDownloaded = copy.autoDownloaded,
+                    )
+                }
+                moveListeningSessions(fromEpisodeId = copy.id, toEpisodeId = original.id)
+                // Frees the GUID before the original takes it (unique per podcast).
+                deleteById(copy.id)
+            }
+            setGuid(original.id, item.guid)
+            claimed += original.id
+            repaired++
+        }
+        return repaired
+    }
+
+    @Query("SELECT guid FROM episodes WHERE podcastId = :podcastId")
+    suspend fun getGuidsForPodcast(podcastId: Long): List<String>
+
+    @Query(
+        """
+        SELECT id, guid, title, audioUrl, publicationDate, durationSeconds, played,
+            playbackPosition, lastPlayedAt, downloadPath, downloadedAt, fileSize, autoDownloaded
+        FROM episodes WHERE podcastId = :podcastId
+        """
+    )
+    suspend fun getMatchRowsForPodcast(podcastId: Long): List<EpisodeMatchRow>
+
+    /** Play state only moves forward: played can only turn on, position/lastPlayedAt only grow. */
+    @Query(
+        """
+        UPDATE episodes
+        SET played = CASE WHEN :played THEN 1 ELSE played END,
+            playbackPosition = MAX(playbackPosition, :position),
+            lastPlayedAt = MAX(lastPlayedAt, :lastPlayedAt)
+        WHERE id = :id
+        """
+    )
+    suspend fun mergePlayState(id: Long, played: Boolean, position: Long, lastPlayedAt: Long)
+
+    @Query(
+        """
+        UPDATE episodes
+        SET downloadPath = :path, downloadedAt = :downloadedAt, fileSize = :fileSize,
+            autoDownloaded = :autoDownloaded
+        WHERE id = :id AND downloadPath = ''
+        """
+    )
+    suspend fun adoptDownloadIfNone(
+        id: Long,
+        path: String,
+        downloadedAt: Long,
+        fileSize: Long,
+        autoDownloaded: Boolean,
+    )
+
+    @Query("UPDATE listening_sessions SET episodeId = :toEpisodeId WHERE episodeId = :fromEpisodeId")
+    suspend fun moveListeningSessions(fromEpisodeId: Long, toEpisodeId: Long)
+
+    @Query("UPDATE episodes SET guid = :guid WHERE id = :id")
+    suspend fun setGuid(id: Long, guid: String)
+
+    @Query("DELETE FROM episodes WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("SELECT * FROM episodes WHERE played = 1 AND downloadPath != ''")
     suspend fun getPlayedDownloadedEpisodes(): List<EpisodeEntity>
@@ -271,3 +420,6 @@ data class LibraryStat(
     val episodeCount: Int,
     val playedCount: Int,
 )
+
+/** SQLite's current time in epoch millis, for queries comparing against stored dates. */
+private const val NOW_MS = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"

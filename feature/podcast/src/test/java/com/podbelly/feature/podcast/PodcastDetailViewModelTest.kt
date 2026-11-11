@@ -590,6 +590,78 @@ class PodcastDetailViewModelTest {
         job.cancel()
     }
 
+    // -- refresh on open --
+
+    private val emptyFeed = RssFeed(
+        title = "Test Podcast",
+        description = "Desc",
+        author = "Author",
+        artworkUrl = "https://example.com/art.jpg",
+        link = "https://example.com",
+        episodes = emptyList(),
+    )
+
+    @Test
+    fun `opening an unsubscribed show with a stale cache fetches its feed`() = runTest {
+        coEvery { searchRepository.fetchFeed(any()) } returns emptyFeed
+        podcastFlow.value = testPodcast.copy(subscribed = false, lastRefreshedAt = 0L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { searchRepository.fetchFeed("https://example.com/feed.xml") }
+    }
+
+    @Test
+    fun `opening an unsubscribed show fetched moments ago does not fetch again`() = runTest {
+        podcastFlow.value = testPodcast.copy(
+            subscribed = false,
+            lastRefreshedAt = System.currentTimeMillis(),
+        )
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `opening a subscribed show leaves refreshing to the background refresh`() = runTest {
+        podcastFlow.value = testPodcast.copy(subscribed = true, lastRefreshedAt = 0L)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+    }
+
+    @Test
+    fun `refreshFeed skips the write for episodes the feed hasn't changed`() = runTest {
+        val unchanged = RssEpisode(
+            guid = testEpisode.guid,
+            title = testEpisode.title,
+            description = testEpisode.description,
+            audioUrl = testEpisode.audioUrl,
+            publishedAt = testEpisode.publicationDate,
+            duration = testEpisode.durationSeconds * 1000L,
+            artworkUrl = testEpisode.artworkUrl,
+            fileSize = testEpisode.fileSize,
+        )
+        coEvery { searchRepository.fetchFeed(any()) } returns emptyFeed.copy(episodes = listOf(unchanged))
+        coEvery { episodeDao.getByPodcastAndGuid(1L, testEpisode.guid) } returns testEpisode
+        podcastFlow.value = testPodcast
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.refreshFeed()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            episodeDao.updateFeedFields(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        }
+    }
+
     // -- downloadProgress tests --
 
     @Test

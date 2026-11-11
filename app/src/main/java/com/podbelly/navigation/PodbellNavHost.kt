@@ -279,7 +279,10 @@ fun PodbellNavHost(
                 DiscoverScreen(
                     onPodcastClick = { podcastId ->
                         navController.navigate(Screen.PodcastDetail.createRoute(podcastId))
-                    }
+                    },
+                    onEpisodeClick = { episodeId ->
+                        navController.navigate(Screen.EpisodeDetail.createRoute(episodeId))
+                    },
                 )
             }
 

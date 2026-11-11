@@ -13,9 +13,32 @@ object WhatsNew {
     // 107 was a dependency-catalog refresh (build/test only); no changelog entry.
     // 108-113 were a build-toolchain upgrade (AGP 9, Gradle 9); no changelog entries.
     // 114-115 were the Coil 2 -> 3 image-loader upgrade (internal); no changelog entries.
-    const val LATEST_VERSION_CODE = 118
+    // 119 was CI-only (Gradle download retries); no changelog entry.
+    const val LATEST_VERSION_CODE = 125
 
     val changelog: Map<Int, List<String>> = mapOf(
+        125 to listOf(
+            "Episode show notes are shown in full — just scroll down to read them, no more Show more / Show less",
+        ),
+        124 to listOf(
+            "Search episodes, not just shows: tap Episodes under the search box to find every episode with a guest or topic, and open one straight from the results",
+            "Narrow a show search to titles or hosts with the In title and By host filters",
+            "Searches now cover your chart region's store and return up to 100 shows",
+            "Charts go deeper: every category has its sub-categories (Sport → Rugby, News → Politics, and dozens more), and each chart now shows the top 200",
+            "New Trending episodes chart for your region, plus the Arts, Fiction, Kids & Family, Leisure, Religion & Spirituality and Government categories",
+        ),
+        123 to listOf(
+            "Old episodes no longer reappear as new (or show up twice) when a podcast's host reshuffles its feed, as Blocked and Reported's did — and any copies that already slipped in are tidied up on the next refresh, keeping your progress and downloads",
+        ),
+        122 to listOf(
+            "Opening a podcast you're not subscribed to — from search or the charts — now loads its latest episodes, instead of the list from the first time you looked at it",
+        ),
+        121 to listOf(
+            "You can now subscribe to podcasts with very large feeds, such as Latent Space and other long-running Substack shows, which used to fail with \"Feed exceeds 10MB limit\"",
+        ),
+        120 to listOf(
+            "Episodes a show releases ahead of their listed date no longer show as \"In 4 hr\" and stay stuck at the top of Home — they're dated from when they arrived until their listed date comes round",
+        ),
         118 to listOf(
             "The Now Playing visualizer now moves in time with what you hear — it no longer runs ahead of the audio or stutters, including on Bluetooth headphones",
         ),

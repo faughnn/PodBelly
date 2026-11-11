@@ -107,7 +107,9 @@ data class EpisodeEntity(
  * what keeps the UI smooth while a large refresh runs.
  *
  * Mirrors updateFeedFields' semantics exactly, including fileSize being ignored
- * once the episode is downloaded (the row then holds the real on-disk size).
+ * once the episode is downloaded (the row then holds the real on-disk size), and
+ * a still-future publicationDate leaving an already-valid stored date alone (a
+ * stored future date still needs the write, which repairs it).
  */
 fun EpisodeEntity.hasSameFeedFields(
     title: String,
@@ -119,11 +121,13 @@ fun EpisodeEntity.hasSameFeedFields(
     fileSize: Long,
     transcriptUrl: String,
     transcriptType: String,
+    now: Long = System.currentTimeMillis(),
 ): Boolean =
     this.title == title &&
         this.description == description &&
         this.audioUrl == audioUrl &&
-        this.publicationDate == publicationDate &&
+        (if (publicationDate > now) this.publicationDate in 1..now
+        else this.publicationDate == publicationDate) &&
         this.durationSeconds == durationSeconds &&
         this.artworkUrl == artworkUrl &&
         this.transcriptUrl == transcriptUrl &&

@@ -4,17 +4,22 @@ import android.content.Context
 import app.cash.turbine.test
 import coil3.ImageLoader
 import com.podbelly.core.database.dao.EpisodeDao
+import com.podbelly.core.database.dao.EpisodeMatchRow
 import com.podbelly.core.database.dao.PodcastDao
+import com.podbelly.core.database.entity.EpisodeEntity
 import com.podbelly.core.database.entity.PodcastEntity
 import com.podbelly.core.common.PreferencesManager
 import com.podbelly.core.network.api.PodcastSearchRepository
+import com.podbelly.core.network.model.EpisodeSearchResult
 import com.podbelly.core.network.model.RssEpisode
 import com.podbelly.core.network.model.RssFeed
+import com.podbelly.core.network.model.SearchField
 import com.podbelly.core.network.model.SearchResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,7 +104,7 @@ class DiscoverViewModelTest {
                 artworkUrl = "https://art2.com/img.jpg",
             ),
         )
-        coEvery { searchRepository.search("test query") } returns searchResults
+        coEvery { searchRepository.search("test query", any(), any()) } returns searchResults
 
         val viewModel = createViewModel()
 
@@ -201,7 +206,7 @@ class DiscoverViewModelTest {
 
     @Test
     fun `error during search sets error message in state`() = runTest {
-        coEvery { searchRepository.search("fail query") } throws RuntimeException("Network error")
+        coEvery { searchRepository.search("fail query", any(), any()) } throws RuntimeException("Network error")
 
         val viewModel = createViewModel()
 
@@ -223,7 +228,7 @@ class DiscoverViewModelTest {
 
     @Test
     fun `clearMessage sets message to null`() = runTest {
-        coEvery { searchRepository.search("fail") } throws RuntimeException("err")
+        coEvery { searchRepository.search("fail", any(), any()) } throws RuntimeException("err")
 
         val viewModel = createViewModel()
 
@@ -296,7 +301,7 @@ class DiscoverViewModelTest {
                 artworkUrl = "https://art.com",
             ),
         )
-        coEvery { searchRepository.search("test") } returns searchResults
+        coEvery { searchRepository.search("test", any(), any()) } returns searchResults
 
         val viewModel = createViewModel()
         viewModel.search("test")
@@ -493,5 +498,180 @@ class DiscoverViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { preferencesManager.setChartCountry(any()) }
+    }
+
+    // -- Episode search, search fields, sub-categories, trending, opening episodes --
+
+    private fun episodeResult(
+        title: String = "#2525 - Nick Bostrom",
+        feedUrl: String = "https://feed.jre",
+        guid: String? = "guid-2525",
+    ) = EpisodeSearchResult(
+        title = title,
+        podcastTitle = "The Joe Rogan Experience",
+        feedUrl = feedUrl,
+        artworkUrl = "",
+        episodeGuid = guid,
+    )
+
+    private fun storedPodcast(id: Long, feedUrl: String) = PodcastEntity(
+        id = id,
+        feedUrl = feedUrl,
+        title = "The Joe Rogan Experience",
+        author = "Joe Rogan",
+        description = "",
+        artworkUrl = "",
+        link = "",
+        language = "",
+        lastBuildDate = 0L,
+        subscribed = false,
+        subscribedAt = 0L,
+    )
+
+    private fun matchRow(id: Long, title: String) = EpisodeMatchRow(
+        id = id, guid = "g$id", title = title, audioUrl = "", publicationDate = 0L,
+        durationSeconds = 0, played = false, playbackPosition = 0L, lastPlayedAt = 0L,
+        downloadPath = "", downloadedAt = 0L, fileSize = 0L, autoDownloaded = false,
+    )
+
+    @Test
+    fun `episode search fills episode results instead of shows`() = runTest {
+        coEvery { searchRepository.searchEpisodes("nick bostrom", any()) } returns listOf(episodeResult())
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.selectSearchScope(SearchScope.EPISODES)
+        viewModel.search("nick bostrom")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf(episodeResult()), state.episodeResults)
+        assertTrue(state.searchResults.isEmpty())
+        coVerify(exactly = 0) { searchRepository.search(any(), any(), any()) }
+    }
+
+    @Test
+    fun `changing the search field re-runs the query against that field`() = runTest {
+        coEvery { searchRepository.search(any(), any(), any()) } returns emptyList()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.search("rogan")
+        advanceUntilIdle()
+        viewModel.selectSearchField(SearchField.AUTHOR)
+        advanceUntilIdle()
+
+        coVerify { searchRepository.search("rogan", SearchField.ANYTHING, any()) }
+        coVerify { searchRepository.search("rogan", SearchField.AUTHOR, any()) }
+    }
+
+    @Test
+    fun `search uses the chart region's storefront`() = runTest {
+        every { preferencesManager.chartCountry } returns MutableStateFlow("ie")
+        coEvery { searchRepository.search(any(), any(), any()) } returns emptyList()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.search("rugby")
+        advanceUntilIdle()
+
+        coVerify { searchRepository.search("rugby", SearchField.ANYTHING, "ie") }
+    }
+
+    @Test
+    fun `selecting a sub-category charts it, and All goes back to the category`() = runTest {
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns emptyList()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.selectChartCategory(1545) // Sport
+        advanceUntilIdle()
+        viewModel.selectChartSubcategory(1552) // Rugby
+        advanceUntilIdle()
+
+        assertEquals(1545, viewModel.uiState.value.selectedChartGenreId)
+        assertEquals(1552, viewModel.uiState.value.selectedChartSubgenreId)
+        coVerify { searchRepository.topPodcasts(any(), 1552, DiscoverViewModel.CHART_SIZE) }
+
+        viewModel.selectChartSubcategory(null)
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.selectedChartSubgenreId)
+        // The whole-category chart was cached from the first load.
+        coVerify(exactly = 1) { searchRepository.topPodcasts(any(), 1545, any()) }
+    }
+
+    @Test
+    fun `every chart category lists Apple's sub-categories`() {
+        val sport = DiscoverViewModel.CHART_CATEGORIES.first { it.genreId == 1545 }
+        assertTrue(sport.subcategories.any { it.label == "Rugby" && it.genreId == 1552 })
+        // Top, Trending episodes, and Apple's 19 categories.
+        assertEquals(21, DiscoverViewModel.CHART_CATEGORIES.size)
+        assertEquals(91, DiscoverViewModel.CHART_CATEGORIES.sumOf { it.subcategories.size })
+    }
+
+    @Test
+    fun `the trending chip loads trending episodes`() = runTest {
+        coEvery { searchRepository.topPodcasts(any(), any(), any()) } returns emptyList()
+        coEvery { searchRepository.trendingEpisodes(any(), any()) } returns listOf(episodeResult(guid = null))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.selectChartCategory(DiscoverViewModel.TRENDING_EPISODES_ID)
+        advanceUntilIdle()
+
+        assertEquals(listOf(episodeResult(guid = null)), viewModel.uiState.value.chartEpisodeResults)
+        coVerify(exactly = 0) { searchRepository.topPodcasts(any(), DiscoverViewModel.TRENDING_EPISODES_ID, any()) }
+    }
+
+    @Test
+    fun `opening an episode of a stored show goes straight to it by GUID`() = runTest {
+        coEvery { podcastDao.getByFeedUrl("https://feed.jre") } returns storedPodcast(7L, "https://feed.jre")
+        coEvery { episodeDao.getByPodcastAndGuid(7L, "guid-2525") } returns EpisodeEntity(
+            id = 70L,
+            podcastId = 7L,
+            guid = "guid-2525",
+            title = "#2525 - Nick Bostrom",
+            description = "",
+            audioUrl = "",
+            publicationDate = 0L,
+            durationSeconds = 0,
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.onEpisodeClick(episodeResult())
+        advanceUntilIdle()
+
+        assertEquals(70L, viewModel.navigateToEpisode.first())
+        coVerify(exactly = 0) { searchRepository.fetchFeed(any()) }
+        assertTrue(viewModel.uiState.value.openingEpisodes.isEmpty())
+    }
+
+    @Test
+    fun `opening a trending episode of a new show stores it and finds the episode by title`() = runTest {
+        coEvery { podcastDao.getByFeedUrl("https://feed.new") } returns null
+        coEvery { searchRepository.fetchFeed("https://feed.new") } returns RssFeed(
+            title = "New Show",
+            description = "",
+            author = "",
+            artworkUrl = "",
+            link = "",
+            episodes = emptyList(),
+        )
+        coEvery { podcastDao.insertIfAbsent(any()) } returns 9L
+        coEvery { episodeDao.getMatchRowsForPodcast(9L) } returns listOf(
+            matchRow(90L, "Some Other Episode"),
+            matchRow(91L, "Trump's election temper tantrum"),
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.onEpisodeClick(
+            episodeResult(title = "Trump\u2019s election temper tantrum", feedUrl = "https://feed.new", guid = null)
+        )
+        advanceUntilIdle()
+
+        assertEquals(91L, viewModel.navigateToEpisode.first())
+        coVerify { podcastDao.insertIfAbsent(match { !it.subscribed }) }
     }
 }

@@ -1,5 +1,6 @@
 package com.podbelly.core.network.api
 
+import com.podbelly.core.network.model.SearchField
 import com.podbelly.core.network.rss.RssParser
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,8 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -601,5 +604,138 @@ class PodcastSearchRepositoryIntegrationTest {
         assertEquals("No Link Podcast", feed.title)
         // When <link> is missing, the parser falls back to using feedUrl
         assertEquals(feedUrl, feed.link)
+    }
+
+    @Test
+    fun `fetchFeed loads a feed larger than 10MB`() = runTest {
+        // Substack embeds full show notes per episode; Latent Space's feed is ~14MB.
+        val showNotes = "<p>" + "Show notes paragraph. ".repeat(3_000) + "</p>"
+        val items = (1..250).joinToString("") { i ->
+            """
+            <item>
+                <title>Episode $i</title>
+                <guid>ep-$i</guid>
+                <pubDate>Mon, 01 Jan 2024 00:00:00 +0000</pubDate>
+                <enclosure url="https://example.com/$i.mp3" type="audio/mpeg" length="1"/>
+                <description><![CDATA[$showNotes]]></description>
+            </item>
+            """
+        }
+        val rssXml = """<?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0"><channel><title>Big Feed</title>$items</channel></rss>"""
+        assertTrue(rssXml.length > 15 * 1024 * 1024)
+        assertTrue(rssXml.length < PodcastSearchRepository.MAX_FEED_BYTES)
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(HttpURLConnection.HTTP_OK).setBody(rssXml))
+
+        val feed = repository.fetchFeed(mockWebServer.url("/feed.xml").toString())
+
+        assertEquals(250, feed.episodes.size)
+    }
+
+    @Test
+    fun `search by host sends artistTerm and the storefront country`() = runTest {
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody("""{"resultCount": 0, "results": []}""")
+                .setHeader("Content-Type", "application/json")
+        )
+
+        repository.search("rogan", SearchField.AUTHOR, "ie")
+
+        val path = mockWebServer.takeRequest().path!!
+        assertTrue(path.contains("attribute=artistTerm"))
+        assertTrue(path.contains("country=ie"))
+        assertTrue(path.contains("limit=100"))
+    }
+
+    @Test
+    fun `search anywhere sends no attribute`() = runTest {
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody("""{"resultCount": 0, "results": []}""")
+                .setHeader("Content-Type", "application/json")
+        )
+
+        repository.search("rogan")
+
+        val path = mockWebServer.takeRequest().path!!
+        assertFalse(path.contains("attribute="))
+        assertFalse(path.contains("country="))
+    }
+
+    @Test
+    fun `searchEpisodes maps episode results and drops ones without a feed`() = runTest {
+        val json = """
+            {
+              "resultCount": 2,
+              "results": [
+                {
+                  "wrapperType": "podcastEpisode",
+                  "kind": "podcast-episode",
+                  "trackName": "#2525 - Nick Bostrom",
+                  "collectionName": "The Joe Rogan Experience",
+                  "feedUrl": "https://feeds.example.com/jre",
+                  "episodeGuid": "guid-2525",
+                  "releaseDate": "2026-07-14T17:00:00Z",
+                  "trackTimeMillis": 8400000,
+                  "artworkUrl600": "https://img.example.com/jre.jpg",
+                  "episodeUrl": "https://audio.example.com/2525.mp3"
+                },
+                {
+                  "wrapperType": "podcastEpisode",
+                  "trackName": "Orphan Episode"
+                }
+              ]
+            }
+        """.trimIndent()
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody(json)
+                .setHeader("Content-Type", "application/json")
+        )
+
+        val results = repository.searchEpisodes("nick bostrom", "gb")
+
+        assertEquals(1, results.size)
+        val episode = results[0]
+        assertEquals("#2525 - Nick Bostrom", episode.title)
+        assertEquals("The Joe Rogan Experience", episode.podcastTitle)
+        assertEquals("https://feeds.example.com/jre", episode.feedUrl)
+        assertEquals("guid-2525", episode.episodeGuid)
+        assertEquals("https://audio.example.com/2525.mp3", episode.audioUrl)
+        assertEquals(java.time.Instant.parse("2026-07-14T17:00:00Z").toEpochMilli(), episode.publishedAt)
+        assertEquals(8400, episode.durationSeconds)
+
+        val path = mockWebServer.takeRequest().path!!
+        assertTrue(path.contains("entity=podcastEpisode"))
+        assertTrue(path.contains("country=gb"))
+    }
+
+    @Test
+    fun `searchEpisodes tolerates a missing or malformed release date`() = runTest {
+        val json = """
+            {
+              "resultCount": 1,
+              "results": [
+                {
+                  "trackName": "Undated",
+                  "feedUrl": "https://feeds.example.com/x",
+                  "releaseDate": "not a date"
+                }
+              ]
+            }
+        """.trimIndent()
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody(json)
+                .setHeader("Content-Type", "application/json")
+        )
+
+        val episode = repository.searchEpisodes("x").single()
+
+        assertEquals(0L, episode.publishedAt)
+        assertEquals(0, episode.durationSeconds)
+        assertNull(episode.episodeGuid)
     }
 }
