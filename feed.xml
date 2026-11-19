@@ -15,6 +15,15 @@
       <itunes:email></itunes:email>
     </itunes:owner>
     <item>
+      <title>30. How a CI Job Proves Who It Is, and Why Every Image Needs a Real Version</title>
+      <description>Two linked ideas: identity (how a GitHub Actions job convinces AWS it may act, and how a security team narrows that to one specific thing) and versioning (how a monorepo shipping several container images moves from 'whatever latest happens to be' to real version numbers and rollback).</description>
+      <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20261119-how-a-ci-job-proves-who-it-is-and-why-every-image-needs-a-real-version.m4a" length="19140934" type="audio/x-m4a"/>
+      <guid isPermaLink="false">podbelly-20261119-how-a-ci-job-proves-who-it-is-and-why-every-image-needs-a-real-version</guid>
+      <pubDate>Thu, 19 Nov 2026 15:46:40 +0000</pubDate>
+      <itunes:episode>30</itunes:episode>
+      <itunes:duration>26:10</itunes:duration>
+    </item>
+    <item>
       <title>29. Why Git Strains When Your Coders Never Sleep — and How Anthropic's Scion Flips the Model</title>
       <description>Anthropic went from 2,500 to over 30,000 merges a day in four months, and git buckled. Why git's offline-first design strains at agent scale, how Anthropic's Scion (changesets, derived data, content-addressed cache tiers) replaced it in five months, and what engineering looks like when AI writes the code.</description>
       <enclosure url="https://github.com/faughnn/PodBelly/releases/download/episodes/20261014-why-git-strains-when-your-coders-never-sleep-and-how-anthropic-s-scion-flips-the-model.m4a" length="27285008" type="audio/x-m4a"/>
