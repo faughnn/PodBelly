@@ -1,6 +1,17 @@
 {
   "episodes": [
     {
+      "id": "20261125-how-to-run-a-long-research-mode-outside-the-chat-request-ari-s-two-options",
+      "title": "How to Run a Long Research Mode Outside the Chat Request: Ari's Two Options",
+      "description": "This came up after a kick-off call for a new research or thinking mode for Ari, the compliance assistant. The idea is that Ari plans, does many steps of lookup, and writes a long, considered answer.",
+      "url": "https://github.com/faughnn/PodBelly/releases/download/episodes/20261125-how-to-run-a-long-research-mode-outside-the-chat-request-ari-s-two-options.m4a",
+      "bytes": 9572878,
+      "duration_sec": 784,
+      "pubdate_rfc822": "Wed, 25 Nov 2026 16:38:34 +0000",
+      "guid": "podbelly-20261125-how-to-run-a-long-research-mode-outside-the-chat-request-ari-s-two-options",
+      "number": 31
+    },
+    {
       "id": "20261119-how-a-ci-job-proves-who-it-is-and-why-every-image-needs-a-real-version",
       "title": "How a CI Job Proves Who It Is, and Why Every Image Needs a Real Version",
       "description": "Two linked ideas: identity (how a GitHub Actions job convinces AWS it may act, and how a security team narrows that to one specific thing) and versioning (how a monorepo shipping several container images moves from 'whatever latest happens to be' to real version numbers and rollback).",
